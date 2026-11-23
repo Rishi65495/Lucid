@@ -15,13 +15,24 @@ Deno.serve(async (req: Request) => {
     const history = Array.isArray(body?.history) ? body.history.slice(-8) : [];
     if (!question) return new Response(JSON.stringify({error:'Question is required'}), {status:400,headers:CORS});
     const prompt = `You are Leafline AI Guide, a precise study companion. Answer using the supplied book/PDF context when relevant. Do not invent facts that are not supported by the context. If the context is insufficient, say so and then give a clearly labeled general explanation. Prefer concise, useful explanations with examples.\n\nBOOK/PDF CONTEXT:\n${context.slice(0,90000)}\n\nCONVERSATION:\n${history.map((m:any)=>`${m.role}: ${String(m.content||'').slice(0,4000)}`).join('\n')}\n\nUSER QUESTION:\n${question}`;
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`, {method:'POST',headers:{'content-type':'application/json','x-goog-api-key':API_KEY},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:1200}})});
-    const data = await r.json();
-    if (!r.ok) {
-      const message=data?.error?.message||'Gemini request failed';
-      console.error('AI Guide provider error',JSON.stringify({status:r.status,message}));
-      return new Response(JSON.stringify({error:message,provider:'Gemini',providerStatus:r.status}), {status:502,headers:CORS});
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`;
+    const requestBody = JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:1200}});
+    let r: Response | null = null;
+    let data: any = {};
+    for (let attempt=0; attempt<4; attempt++) {
+      r = await fetch(endpoint, {method:'POST',headers:{'content-type':'application/json','x-goog-api-key':API_KEY},body:requestBody});
+      data = await r.json().catch(()=>({}));
+      if (r.ok) break;
+      const message = data?.error?.message || 'Gemini request failed';
+      if (![429,500,502,503,504].includes(r.status) || attempt===3) {
+        console.error('AI Guide provider error',JSON.stringify({status:r.status,message}));
+        return new Response(JSON.stringify({error:message,provider:'Gemini',providerStatus:r.status}), {status:r.status===503?503:502,headers:CORS});
+      }
+      const retryAfter = Number(r.headers.get('retry-after') || 0);
+      const delay = retryAfter>0 ? Math.min(retryAfter*1000,10000) : 800*Math.pow(2,attempt);
+      await new Promise(resolve=>setTimeout(resolve,delay));
     }
+    if (!r?.ok) return new Response(JSON.stringify({error:'Gemini is temporarily unavailable. Please try again shortly.',provider:'Gemini',providerStatus:r?.status||503}), {status:503,headers:CORS});
     const text = data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||'').join('').trim() || 'I could not generate an answer.';
     return new Response(JSON.stringify({text,model:MODEL}), {headers:{...CORS,'cache-control':'no-store'}});
   } catch (e) {

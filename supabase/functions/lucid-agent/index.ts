@@ -8,7 +8,7 @@ const CORS={
   "Content-Type":"application/json"
 };
 
-const MODEL="gemini-2.5-flash";
+const MODEL="gemini-3.8-flash";
 const GEMINI_KEY=Deno.env.get("GEMINI_API_KEY")||"";
 const URL=Deno.env.get("SUPABASE_URL")||"";
 const ANON=Deno.env.get("SUPABASE_ANON_KEY")||"";
@@ -29,7 +29,7 @@ function clean(s){return (s||"").replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`
 function safeParse(s){try{return JSON.parse(clean(s))}catch{return null}}
 
 async function gemini(contents){
- const body={contents,generationConfig:{temperature:.25,maxOutputTokens:6000},tools:[{functionDeclarations:toolDefs}]};
+ const body={contents,generationConfig:{maxOutputTokens:6000},tools:[{functionDeclarations:toolDefs}]};
  const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent",{
   method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body)
  });

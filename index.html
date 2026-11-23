@@ -605,6 +605,18 @@ textarea{min-height:75px;resize:vertical;}
   .section-row{align-items:flex-start;flex-direction:column;gap:9px;}
 }
 .auth-gate{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(15,31,22,.84);backdrop-filter:blur(12px)}.auth-card{width:min(100%,430px);padding:32px;border:1px solid rgba(255,255,255,.4);border-radius:24px;background:var(--paper);box-shadow:0 30px 100px rgba(0,0,0,.28)}.auth-card h1{font-family:'DM Serif Display',serif;font-size:30px;font-weight:400;color:var(--ink);margin:18px 0 7px}.auth-card p{color:var(--muted);font-size:13px;line-height:1.6}.auth-card form{display:grid;gap:13px;margin-top:20px}.auth-card label{display:grid;gap:7px;color:var(--ink-soft);font-size:12px;font-weight:700}.auth-card input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:white;color:var(--ink);font:inherit}.auth-switch{width:100%;margin-top:15px;padding:9px;border:0;background:transparent;color:var(--forest-2);font:inherit;font-size:12px;font-weight:800;cursor:pointer}.auth-message{min-height:20px;margin-top:10px!important;font-size:12px!important}.auth-message.error{color:var(--danger)!important}.auth-message.success{color:var(--forest-2)!important}
+/* Learner profile and admin surfaces */
+.profile-avatar-large{width:104px;height:104px;border-radius:50%;object-fit:cover;background:var(--sage-2);border:4px solid white;box-shadow:var(--shadow-md);}
+.profile-avatar-fallback{display:grid;place-items:center;font-size:34px;font-weight:800;color:var(--forest);}
+.profile-cover{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.profile-form-grid{display:grid;gap:12px;}
+.profile-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
+.profile-stat{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--paper-2);}
+.profile-stat strong{display:block;font-size:22px;color:var(--forest);}
+.profile-stat span{font-size:11px;color:var(--muted);}
+.profile-admin-panel{border:1px solid #d7c18a;background:#fffdf4;}
+.avatar-image{width:34px;height:34px;object-fit:cover;border-radius:50%;}
+@media(max-width:720px){.profile-cover{align-items:flex-start;}.profile-avatar-large{width:82px;height:82px;}}
 </style>
 </head>
 <body>
@@ -630,6 +642,7 @@ textarea{min-height:75px;resize:vertical;}
         <button class="nav-item" data-page="reader"><span class="nav-icon">◉</span><span>Reading room</span></button>
         <button class="nav-item" data-page="video"><span class="nav-icon">▶</span><span>Video classroom</span></button>
         <button class="nav-item" data-page="practice"><span class="nav-icon">?</span><span>Practice center</span></button>
+        <button class="nav-item" data-page="profile"><span class="nav-icon">◎</span><span>My profile</span></button>
         <button class="nav-item" data-page="aiGuide"><span class="nav-icon">✦</span><span>AI Guide</span><span class="nav-badge" id="aiBadge" style="display:none">AI</span></button>
       </div>
       <div class="nav-section">
@@ -655,7 +668,7 @@ textarea{min-height:75px;resize:vertical;}
         </div>
         <div class="xp-track"><div class="xp-fill" id="sideXPFill" style="width:72%"></div></div>
       </div>
-      <div class="user-profile">
+      <div class="user-profile" role="button" tabindex="0" onclick="openPage('profile')" style="cursor:pointer;">
         <div class="avatar" id="sideAvatar">R</div>
         <div>
           <div class="profile-name" id="sideProfileName">Rishabh</div>
@@ -1330,6 +1343,48 @@ textarea{min-height:75px;resize:vertical;}
       </div>
     </section>
 
+    <!-- LEARNER PROFILE -->
+    <section class="page" id="profile">
+      <div class="page-heading"><div><div class="kicker">Your identity on Lucid</div><h1>Learner profile.</h1></div><span class="tag" id="profileRoleBadge">Learner</span></div>
+      <div class="grid two-col">
+        <div class="card card-padding">
+          <div class="profile-cover">
+            <img id="profilePhotoPreview" class="profile-avatar-large" alt="Learner profile photo" style="display:none;">
+            <div id="profilePhotoFallback" class="profile-avatar-large profile-avatar-fallback">R</div>
+            <div><h2 id="profileDisplayHeading">Learner</h2><p class="muted small-text" id="profileEmail"></p><p class="muted small-text" id="profileRoleText">Learner account</p></div>
+          </div>
+          <div class="profile-form-grid" style="margin-top:20px;">
+            <label class="form-label">Display name<input id="profileNameInput" maxlength="60" placeholder="Your name"></label>
+            <label class="form-label">About you<textarea id="profileBioInput" maxlength="240" rows="3" placeholder="What are you learning?"></textarea></label>
+            <label class="form-label">Profile photo<input id="profilePhotoInput" type="file" accept="image/png,image/jpeg,image/webp"></label>
+            <p class="muted small-text">PNG, JPG or WebP · Maximum 5 MB. Your name and photo can appear beside your leaderboard entry.</p>
+            <button class="primary-button full-width" onclick="saveLearnerProfile()">Save profile</button>
+            <p class="muted small-text" id="profileSaveStatus" aria-live="polite"></p>
+          </div>
+        </div>
+        <div style="display:grid;gap:16px;align-content:start;">
+          <div class="card card-padding"><h3 style="margin-bottom:12px;">Learning identity</h3>
+            <div class="profile-stat-grid">
+              <div class="profile-stat"><strong id="profileLevel">1</strong><span>Level</span></div>
+              <div class="profile-stat"><strong id="profileXP">0</strong><span>Experience points</span></div>
+              <div class="profile-stat"><strong id="profileWeeklyGoal">200</strong><span>Weekly goal</span></div>
+            </div>
+          </div>
+          <div class="card card-padding profile-admin-panel" id="adminConsole" style="display:none;">
+            <div class="kicker">Restricted area</div><h3 style="margin:5px 0 12px;">Lucid Admin Console</h3>
+            <p class="muted small-text">Administrator access is verified server-side. This overview does not expose learner content.</p>
+            <div class="profile-stat-grid" style="margin-top:12px;">
+              <div class="profile-stat"><strong id="adminLearners">—</strong><span>Accounts</span></div>
+              <div class="profile-stat"><strong id="adminResources">—</strong><span>Resources</span></div>
+              <div class="profile-stat"><strong id="adminQuizzes">—</strong><span>Quizzes</span></div>
+              <div class="profile-stat"><strong id="adminAttempts">—</strong><span>Quiz attempts</span></div>
+            </div>
+            <p class="muted small-text" id="adminStatsStatus" style="margin-top:10px;"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ══ AI GUIDE ══ -->
     <section class="page" id="aiGuide">
       <div class="page-heading">
@@ -1953,7 +2008,8 @@ textarea{min-height:75px;resize:vertical;}
     </div>
     <div class="tab-content active" id="uploadTab-file">
       <div class="form-stack">
-        <label class="form-label">PDF or document<input id="pdfFile" type="file" accept=".pdf,application/pdf" /></label>
+        <label class="form-label">PDF document (max 25 MB)<input id="pdfFile" type="file" accept=".pdf,application/pdf" /></label>
+        <p class="muted small-text" id="pdfUploadStatus" aria-live="polite">PDFs are stored privately and text-indexed for your AI learning context.</p>
         <div class="form-row">
           <label class="form-label">Catalogue<select id="uploadCatalogue"><option>MCA Semester 5</option><option>Better Work</option><option>Personal reading</option></select></label>
           <label class="form-label">Priority<select><option>Normal</option><option>High</option><option>Low pressure</option></select></label>
@@ -2097,6 +2153,8 @@ textarea{min-height:75px;resize:vertical;}
 <div class="toast" id="toast"><span class="toast-icon" id="toastIcon">✓</span><span id="toastText"></span></div>
 
 <!-- Supabase JS client (pinned release) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 <!-- ══════════════════ SCRIPT ══════════════════ -->
 <script>
@@ -2117,6 +2175,8 @@ const state = {
   level: 16,
   annotations: ['Clarity about what deserves your attention.', 'Tools should serve values, not replace them.'],
   uploadedBooks: [],
+  currentResourceId: null,
+  currentResourceTitle: null,
   coachMode: 'Gentle',
   currentHL: 'yellow',
   sessionPagesCompleted: 4,
@@ -2146,7 +2206,7 @@ const state = {
 
 const pageNames = {
   dashboard:'Home', library:'Library', catalogues:'Catalogues', reader:'Reading room',
-  video:'Video classroom', practice:'Practice center', aiGuide:'AI Guide',
+  video:'Video classroom', practice:'Practice center', profile:'My profile', aiGuide:'AI Guide',
   rooms:'Study rooms', leaderboard:'Leaderboard', analytics:'Insights',
   rewards:'Achievements', goals:'Goals', settings:'Settings'
 };
@@ -2366,15 +2426,23 @@ function startRoomTest() {
 }
 
 // ─── Library ──────────────────────────────────────
-function uploadBook() {
+async function uploadBook() {
   const file = document.getElementById('pdfFile').files[0];
-  if (!file) { showToast('Choose a file first.', '⚠'); return; }
-  state.uploadedBooks.push({ name: file.name, type: 'pdf', importedAt: new Date().toISOString() });
-  saveState();
-  renderUploadedBooks();
-  closeModal('uploadModal');
-  openPage('library');
-  showToast(`"${file.name}" added to your library!`, '📄');
+  if (!file) { showToast('Choose a PDF first.', '⚠'); return; }
+  const status = document.getElementById('pdfUploadStatus');
+  const button = document.querySelector('#uploadTab-file button[onclick="uploadBook()"]');
+  if (button) { button.disabled = true; button.textContent = 'Uploading and indexing…'; }
+  if (status) status.textContent = 'Uploading PDF, extracting page text and saving it to your private learning library…';
+  try {
+    const result = await window.uploadLucidPdf(file);
+    state.uploadedBooks.push({ id: result.resource.id, resourceId: result.resource.id, name: file.name, type: 'pdf', importedAt: new Date().toISOString(), pages: result.pageCount });
+    state.currentResourceId = result.resource.id; state.currentResourceTitle = result.resource.title;
+    saveState(); renderUploadedBooks(); closeModal('uploadModal'); openPage('library');
+    showToast(result.pageCount ? 'Indexed '+result.pageCount+' pages for AI learning.' : 'PDF saved; this file may need OCR.', '📄');
+  } catch (error) {
+    if (status) status.textContent = 'Upload failed: ' + error.message;
+    showToast('PDF upload failed: ' + error.message, '⚠');
+  } finally { if (button) { button.disabled = false; button.textContent = 'Add to library →'; } }
 }
 function renderUploadedBooks() {
   const lib = document.getElementById('libraryBooks');

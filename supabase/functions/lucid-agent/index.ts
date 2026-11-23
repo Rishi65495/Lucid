@@ -168,6 +168,7 @@ Deno.serve(async(req)=>{
   }
   throw new Error("Agent reached its tool-call limit.");
  }catch(e){
+  console.error('Lucid Agent function error',e);
   return new Response(JSON.stringify({error:e instanceof Error?e.message:"Lucid Agent error"}),{status:500,headers:CORS});
  }
 });

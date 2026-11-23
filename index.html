@@ -604,9 +604,11 @@ textarea{min-height:75px;resize:vertical;}
   .library-grid,.analytics-grid,.quick-actions,.three-col,.four-col,.form-row{grid-template-columns:1fr;}
   .section-row{align-items:flex-start;flex-direction:column;gap:9px;}
 }
+.auth-gate{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(15,31,22,.84);backdrop-filter:blur(12px)}.auth-card{width:min(100%,430px);padding:32px;border:1px solid rgba(255,255,255,.4);border-radius:24px;background:var(--paper);box-shadow:0 30px 100px rgba(0,0,0,.28)}.auth-card h1{font-family:'DM Serif Display',serif;font-size:30px;font-weight:400;color:var(--ink);margin:18px 0 7px}.auth-card p{color:var(--muted);font-size:13px;line-height:1.6}.auth-card form{display:grid;gap:13px;margin-top:20px}.auth-card label{display:grid;gap:7px;color:var(--ink-soft);font-size:12px;font-weight:700}.auth-card input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:white;color:var(--ink);font:inherit}.auth-switch{width:100%;margin-top:15px;padding:9px;border:0;background:transparent;color:var(--forest-2);font:inherit;font-size:12px;font-weight:800;cursor:pointer}.auth-message{min-height:20px;margin-top:10px!important;font-size:12px!important}.auth-message.error{color:var(--danger)!important}.auth-message.success{color:var(--forest-2)!important}
 </style>
 </head>
 <body>
+<div class="auth-gate" id="authGate" role="dialog" aria-modal="true" aria-labelledby="authTitle"><div class="auth-card"><div class="auth-brand"><div class="auth-brand-mark">L</div><div><div class="brand-name">Lucid</div><span class="brand-subtitle">your learning space</span></div></div><h1 id="authTitle">Welcome back.</h1><p id="authDescription">Sign in to securely access your learning workspace and AI agents.</p><form id="authForm" onsubmit="handleAuthSubmit(event)"><label>Email address<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required /></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required /></label><button class="primary-button full-width" id="authSubmit" type="submit">Sign in</button></form><button class="auth-switch" id="authModeSwitch" type="button" onclick="toggleAuthMode()">New to Lucid? Create an account</button><p class="auth-message" id="authMessage" aria-live="polite"></p></div></div>
 <div class="app-shell">
 
   <!-- ══════════════════ SIDEBAR ══════════════════ -->
@@ -693,7 +695,7 @@ textarea{min-height:75px;resize:vertical;}
             </div>
           </div>
         </div>
-        <button class="top-icon" onclick="openPage('settings')">⚙</button>
+        <button class="top-icon" onclick="openPage('settings')">⚙</button><button class="secondary-button btn-sm" id="signOutButton" onclick="signOutLucid()">Sign out</button>
         <button class="primary-button" onclick="openModal('uploadModal')">＋ Add resource</button>
       </div>
     </header>
@@ -1392,25 +1394,10 @@ textarea{min-height:75px;resize:vertical;}
             </div>
           </div>
           <div class="card card-padding" style="margin-bottom:17px;">
-            <h3 style="margin-bottom:10px;">Gemini model</h3>
-            <p class="muted small-text" style="margin-bottom:10px;">Auto-fallback enabled — if one is busy, next is tried.</p>
-            <div style="display:grid;gap:7px;">
-              <button class="secondary-button btn-sm full-width model-btn" id="modelFlash37" onclick="setModel('flash37',this)" style="text-align:left;background:var(--sage);border-color:var(--forest-2);">✦ gemini-3.7-flash &nbsp;<span class="tag" style="font-size:9px;">Default · Stable</span></button>
-              <button class="secondary-button btn-sm full-width model-btn" id="modelFlash38" onclick="setModel('flash38',this)" style="text-align:left;">⚡ gemini-3.8-flash &nbsp;<span class="muted small-text">Latest · high demand sometimes</span></button>
-              <button class="secondary-button btn-sm full-width model-btn" id="modelFlash35" onclick="setModel('flash35',this)" style="text-align:left;">🛡 gemini-3.5-flash &nbsp;<span class="muted small-text">Reliable fallback</span></button>
-              <button class="secondary-button btn-sm full-width model-btn" id="modelPro" onclick="setModel('pro',this)" style="text-align:left;">🧠 gemini-3.1-pro-preview &nbsp;<span class="muted small-text">Requires billing</span></button>
-            </div>
-            <div class="muted small-text" id="activeModelLabel" style="margin-top:8px;">Active: gemini-3.7-flash</div>
-          </div>
-          <div class="card card-padding" style="margin-bottom:17px;">
-            <h3 style="margin-bottom:10px;">AI API key</h3>
-            <p class="muted small-text" style="margin-bottom:10px;">Your Gemini API key. Stored locally, never shared.</p>
-            <input type="password" id="geminiKeyInput" placeholder="AIza… or AQ.…" />
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <button class="primary-button btn-sm full-width" onclick="saveAPIKey()">Save key</button>
-              <button class="danger-button btn-sm" onclick="clearAPIKey()">Clear</button>
-            </div>
-            <div id="keyStatus" class="muted small-text" style="margin-top:8px;"></div>
+            <h3 style="margin-bottom:10px;">Secure AI connection</h3>
+            <p class="muted small-text">AI requests now pass through authenticated Supabase Edge Functions. Gemini credentials remain in server-side secrets and are not stored in your browser.</p>
+            <div class="tag" style="margin-top:12px;">✦ Protected by Supabase</div>
+            <div class="muted small-text" id="aiConnectionStatus" style="margin-top:9px;">Checking secure session…</div>
           </div>
           <div class="card card-padding">
             <h3 style="margin-bottom:10px;">Learning profile summary</h3>
@@ -2111,85 +2098,7 @@ textarea{min-height:75px;resize:vertical;}
 
 <!-- ══════════════════ SCRIPT ══════════════════ -->
 <script>
-// ─── Gemini API ───────────────────────────────────
-const GEMINI_API_KEY_PLACEHOLDER = 'AQ.Ab8RN6KRJC0T4OQL1i710kjJIygPlXLKlqj-j8SXnc2lNrNBgg';
-
-// Model roster — 3.7-flash is stable GA default
-const GEMINI_MODELS = {
-  flash37: 'gemini-3.7-flash',        // Stable GA — default ✓
-  flash38: 'gemini-3.8-flash',        // Latest (sometimes high demand)
-  flash35: 'gemini-3.5-flash',        // Reliable fallback
-  pro:     'gemini-3.1-pro-preview',  // Requires billing
-};
-// Automatic fallback order when a model is overloaded
-const FALLBACK_CHAIN = ['flash37', 'flash38', 'flash35'];
-let activeModel = localStorage.getItem('leafline-gemini-model') || 'flash37';
-
-function getGeminiKey(){
-  return localStorage.getItem('leafline-gemini-key') || GEMINI_API_KEY_PLACEHOLDER;
-}
-function getModelId(key){ return GEMINI_MODELS[key || activeModel] || GEMINI_MODELS.flash37; }
-function setModel(key, btn){
-  activeModel = key;
-  localStorage.setItem('leafline-gemini-model', key);
-  document.querySelectorAll('.model-btn').forEach(b => { b.style.background=''; b.style.borderColor=''; });
-  if(btn){ btn.style.background='var(--sage)'; btn.style.borderColor='var(--forest-2)'; }
-  const label = document.getElementById('activeModelLabel');
-  if(label) label.textContent = 'Active: ' + (GEMINI_MODELS[key] || key);
-  showToast('Model: ' + (GEMINI_MODELS[key] || key), '✦');
-}
-function initModelUI(){
-  const modelBtnMap = { flash37:'modelFlash37', flash38:'modelFlash38', flash35:'modelFlash35', pro:'modelPro' };
-  const btnId = modelBtnMap[activeModel];
-  if(btnId){ const btn=document.getElementById(btnId); if(btn){ btn.style.background='var(--sage)'; btn.style.borderColor='var(--forest-2)'; } }
-  const label = document.getElementById('activeModelLabel');
-  if(label) label.textContent = 'Active: ' + (GEMINI_MODELS[activeModel] || activeModel);
-}
-
-async function callGeminiWithModel(modelKey, prompt, systemInstruction) {
-  const key = getGeminiKey();
-  const model = getModelId(modelKey);
-  const body = {
-    contents: [{ parts: [{ text: prompt }] }],
-    ...(systemInstruction && { systemInstruction: { parts: [{ text: systemInstruction }] } }),
-    generationConfig: { maxOutputTokens: 1200, temperature: 0.7 }
-  };
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body) }
-  );
-  if (!res.ok) {
-    const err = await res.json();
-    const msg = err.error?.message || res.statusText;
-    const isRetryable = msg.includes('high demand') || msg.includes('overload') || msg.includes('503') || res.status === 503 || res.status === 429;
-    throw { retryable: isRetryable, message: msg, model };
-  }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-}
-
-async function callGemini(prompt, systemInstruction = '') {
-  const key = getGeminiKey();
-  if (!key || key === 'YOUR_GEMINI_API_KEY') {
-    return '⚠ Please add your Gemini API key in the AI Guide panel.';
-  }
-  // Build fallback chain: start from active model, then try others
-  const chain = [activeModel, ...FALLBACK_CHAIN.filter(m => m !== activeModel)];
-  let lastError = '';
-  for (const modelKey of chain) {
-    try {
-      const result = await callGeminiWithModel(modelKey, prompt, systemInstruction);
-      if (modelKey !== activeModel) {
-        showToast(`Used ${GEMINI_MODELS[modelKey]} (auto-fallback)`, '✦');
-      }
-      return result;
-    } catch(e) {
-      lastError = e.message || String(e);
-      if (!e.retryable) break; // don't retry non-quota errors
-    }
-  }
-  return `API error: ${lastError}`;
-}
+// AI and authentication functions are implemented in lucid-integration.js.
 
 // ─── State ────────────────────────────────────────
 const state = {
@@ -2612,7 +2521,7 @@ async function generateAIQuiz() {
   const prompt = `Create 1 multiple-choice question about Machine Learning for a student studying overfitting. 
 Format: Question | Option A | Option B | Option C | Option D | Correct answer (A/B/C/D)
 Be specific and educational. Keep it concise.`;
-  const resp = await callGemini(prompt, `You are an expert learning assistant helping a student practice recall.`);
+  const resp = await callAIGuide(prompt, `You are an expert learning assistant helping a student practice recall.`);
   showToast('AI quiz generated! Check Practice center.', '✦');
   console.log('AI quiz:', resp);
 }
@@ -2762,22 +2671,7 @@ function setCoachMode(mode, btn) {
   saveState();
 }
 
-// ─── API Key ──────────────────────────────────────
-function saveAPIKey() {
-  const key = document.getElementById('geminiKeyInput').value.trim();
-  if (!key) { showToast('Enter your API key first.', '⚠'); return; }
-  localStorage.setItem('leafline-gemini-key', key);
-  document.getElementById('keyStatus').textContent = '✓ Key saved locally.';
-  document.getElementById('aiBadge').style.display = '';
-  showToast('Gemini API key saved! AI features are now active.', '✦');
-}
-function clearAPIKey() {
-  localStorage.removeItem('leafline-gemini-key');
-  document.getElementById('geminiKeyInput').value = '';
-  document.getElementById('keyStatus').textContent = 'Key cleared.';
-  document.getElementById('aiBadge').style.display = 'none';
-  showToast('API key cleared.');
-}
+// API credentials are managed server-side in Supabase secrets.
 
 // ─── Catalogue ────────────────────────────────────
 function createCatalogue() {
@@ -2923,13 +2817,9 @@ document.addEventListener('click', e => {
   if (!notifBtn?.contains(e.target) && !notifPanel?.contains(e.target)) closeNotifPanel();
 });
 
-// ─── Bootstrap ────────────────────────────────────
-// Clear stale 'pro' model preference — flash38 is now default
-if (localStorage.getItem('leafline-gemini-model') === 'pro') {
-  localStorage.removeItem('leafline-gemini-model');
-  activeModel = 'flash38';
-}
-
+// Clear any old browser-stored Gemini credential from the previous implementation.
+localStorage.removeItem('leafline-gemini-key');
+localStorage.removeItem('leafline-gemini-model');
 restoreState();
 initDashboard();
 renderAnnotations();
@@ -2938,13 +2828,7 @@ updateXP();
 updateSidebar();
 loadQuiz(0);
 resetTimer();
-initModelUI();
-
-// Restore saved API key indicator
-if (localStorage.getItem('leafline-gemini-key')) {
-  document.getElementById('aiBadge').style.display = '';
-  document.getElementById('keyStatus').textContent = '✓ API key loaded.';
-}
 </script>
+<script src="lucid-integration.js"></script>
 </body>
 </html>

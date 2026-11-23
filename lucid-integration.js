@@ -17,18 +17,19 @@ window.handleAuthSubmit = async function(event){ event.preventDefault(); const e
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
 window.invokeLucidFunction = async function(name,body){
   if(!lucidSession)throw new Error('Please sign in before using Lucid AI.');
-  const {data,error}=await lucidSupabase.functions.invoke(name,{body});
-  if(error){
-    let detail=error.message||'Function request failed',status='';
-    try{
-      status=error.context&&error.context.status?String(error.context.status):'';
-      const response=error.context&&error.context.clone?error.context.clone():error.context;
-      if(response&&typeof response.json==='function'){const payload=await response.json();detail=payload.error||payload.message||payload.msg||detail;}
-    }catch(_){}
-    throw new Error((status?'HTTP '+status+' · ':'')+detail);
-  }
-  if(data&&data.error)throw new Error(data.error);
-  return data;
+  const {data:{session},error:sessionError}=await lucidSupabase.auth.getSession();
+  if(sessionError)throw new Error('Could not refresh your sign-in session: '+sessionError.message);
+  if(!session?.access_token)throw new Error('Your sign-in session expired. Sign in again.');
+  const response=await fetch(LUCID_SUPABASE_URL+'/functions/v1/'+encodeURIComponent(name),{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+session.access_token,'apikey':LUCID_SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify(body||{})
+  });
+  const raw=await response.text();
+  let payload={};try{payload=raw?JSON.parse(raw):{};}catch(_){payload={error:raw||'The server returned an unreadable response.'};}
+  if(!response.ok)throw new Error('HTTP '+response.status+' · '+(payload.error||payload.message||payload.msg||raw||'Edge Function request failed'));
+  if(payload&&payload.error)throw new Error(payload.error);
+  return payload;
 };
 window.callAIGuide = async function(prompt,style){
   try{
@@ -57,6 +58,43 @@ window.askGuide = async function(){const q=document.getElementById('aiQuestion')
 window.quickAIModal = async function(prompt){const el=document.getElementById('aiAnswer');document.getElementById('aiQuestion').value=prompt;el.style.display='block';el.textContent='Thinking…';const answer=await window.callAIGuide(prompt,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide:</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
 window.sendAIChatWithPrompt = async function(prompt){const chat=document.getElementById('aiChat');const empty=document.getElementById('aiChatEmpty');if(empty)empty.style.display='none';state.chatMessages.push({role:'user',text:prompt});const userEl=document.createElement('div');userEl.className='ai-msg user';userEl.textContent=prompt;chat.appendChild(userEl);const thinking=document.createElement('div');thinking.className='ai-msg bot thinking';thinking.textContent='✦ Thinking…';chat.appendChild(thinking);chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;const context='Learner: '+state.preferences.name+'. Current study: MCA learning. Recent annotations: '+state.annotations.slice(0,2).join('; ')+'. Coach mode: '+state.coachMode+'.';let answer;try{answer=await window.callLucidAgent('Learning context: '+context+'\n\nCoaching style: '+(systemInstructions[state.coachMode]||systemInstructions.Gentle)+'\n\nStudent: '+prompt);}catch(error){answer='Lucid Agent error: '+error.message;}thinking.className='ai-msg bot';thinking.style.whiteSpace='pre-wrap';thinking.textContent=answer;state.chatMessages.push({role:'bot',text:answer});chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;saveState();};
 window.loadYoutubeURL = async function(url){if(!url){showToast('Paste a YouTube URL first.','⚠');return;}showToast('Importing YouTube content securely…','▶');try{const imported=await window.invokeLucidFunction('youtube-import',{url});openPage('video');const wrapper=document.getElementById('youtubePlayerWrapper'),player=document.getElementById('youtubePlayer'),frame=document.getElementById('ytFrame');if(imported.type==='playlist'&&imported.playlist_id){frame.src='https://www.youtube.com/embed/videoseries?list='+encodeURIComponent(imported.playlist_id);showToast('Playlist imported: '+(imported.playlist?.title||'YouTube playlist'),'▶');}else if(imported.type==='video'&&imported.item?.video_id){frame.src='https://www.youtube.com/embed/'+encodeURIComponent(imported.item.video_id)+'?rel=0&modestbranding=1&enablejsapi=1';showToast('Loaded: '+(imported.item.title||'YouTube video'),'▶');}else{throw new Error('Unsupported YouTube import response.');}if(wrapper)wrapper.style.display='none';if(player)player.style.display='block';}catch(error){showToast('YouTube import failed: '+error.message,'⚠');}};
+
+window.loadLucidLeaderboard = async function(){
+  const list=document.getElementById('lbList');if(!list||!lucidSession)return;
+  list.innerHTML='<div class="muted small-text">Loading learner standings…</div>';
+  const {data,error}=await lucidSupabase.from('profiles').select('id,display_name,avatar_url,level,xp').order('xp',{ascending:false}).limit(20);
+  if(error){list.textContent='Leaderboard unavailable: '+error.message;return;}
+  if(!data?.length){list.textContent='No learner profiles yet. Complete a learning activity to appear here.';return;}
+  list.innerHTML='';
+  data.forEach((p,index)=>{
+    const row=document.createElement('div');row.className='leaderboard-row'+(p.id===lucidSession.user.id?' gold-row':'');
+    const rank=document.createElement('div');rank.className='rank-num';rank.textContent=['🥇','🥈','🥉'][index]||String(index+1);
+    const avatar=document.createElement('div');avatar.className='mini-avatar';
+    if(p.avatar_url){const img=document.createElement('img');img.src=p.avatar_url;img.alt='';img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%';avatar.appendChild(img);}
+    else avatar.textContent=(p.display_name||'L').trim().charAt(0).toUpperCase();
+    const info=document.createElement('div');info.className='lb-info';
+    const name=document.createElement('div');name.className='lb-name';name.textContent=(p.display_name||'Learner')+(p.id===lucidSession.user.id?' (You)':'');
+    const sub=document.createElement('div');sub.className='lb-sub';sub.textContent='Level '+(p.level||1)+' · View learner profile';
+    info.append(name,sub);
+    const xp=document.createElement('div');xp.className='lb-xp';xp.textContent=(p.xp||0).toLocaleString()+' XP';
+    row.append(rank,avatar,info,xp);row.style.cursor='pointer';row.title='Open learner profile';
+    row.addEventListener('click',()=>window.showPublicLearnerProfile(p.id));list.appendChild(row);
+  });
+};
+window.showPublicLearnerProfile = async function(id){
+  const modal=document.getElementById('publicLearnerProfileModal');if(!modal)return;
+  const {data,error}=await lucidSupabase.from('profiles').select('display_name,avatar_url,bio,level,xp').eq('id',id).maybeSingle();
+  if(error||!data){showToast('Could not load this learner profile.','⚠');return;}
+  const name=data.display_name||'Learner',photo=document.getElementById('publicLearnerAvatar'),fallback=document.getElementById('publicLearnerFallback');
+  document.getElementById('publicLearnerName').textContent=name;
+  document.getElementById('publicLearnerBio').textContent=data.bio||'This learner has not added a bio yet.';
+  document.getElementById('publicLearnerLevel').textContent=data.level||1;
+  document.getElementById('publicLearnerXP').textContent=(data.xp||0).toLocaleString();
+  if(data.avatar_url){photo.src=data.avatar_url;photo.style.display='block';fallback.style.display='none';}
+  else{photo.style.display='none';fallback.style.display='grid';fallback.textContent=name.trim().charAt(0).toUpperCase();}
+  modal.style.display='flex';
+};
+
 window.initLucidAuth = async function(){try{const {data,error}=await lucidSupabase.auth.getSession();if(error)throw error;window.updateLucidAuthUI(data.session);lucidSupabase.auth.onAuthStateChange((_event,session)=>window.updateLucidAuthUI(session));}catch(error){lucidAuthMessage('Supabase connection error: '+(error?.message||'Unknown error'),'error');}};
 
 /* Learner profile, administrator authorization and PDF-to-resource pipeline */
@@ -98,6 +136,7 @@ window.loadLucidProfile = async function(){
   setText('sideProfileRole',isAdmin?'Administrator · Lucid':'Learner · Lucid');
   const panel=document.getElementById('adminConsole');if(panel)panel.style.display=isAdmin?'block':'none';
   if(isAdmin)await window.loadLucidAdminStats();
+  await window.loadLucidLeaderboard();
 };
 window.saveLearnerProfile = async function(){
   if(!lucidSession||!lucidSession.user)throw new Error('Sign in first.');

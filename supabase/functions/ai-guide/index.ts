@@ -17,10 +17,15 @@ Deno.serve(async (req: Request) => {
     const prompt = `You are Leafline AI Guide, a precise study companion. Answer using the supplied book/PDF context when relevant. Do not invent facts that are not supported by the context. If the context is insufficient, say so and then give a clearly labeled general explanation. Prefer concise, useful explanations with examples.\n\nBOOK/PDF CONTEXT:\n${context.slice(0,90000)}\n\nCONVERSATION:\n${history.map((m:any)=>`${m.role}: ${String(m.content||'').slice(0,4000)}`).join('\n')}\n\nUSER QUESTION:\n${question}`;
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`, {method:'POST',headers:{'content-type':'application/json','x-goog-api-key':API_KEY},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:.35,maxOutputTokens:1200}})});
     const data = await r.json();
-    if (!r.ok) return new Response(JSON.stringify({error:data?.error?.message||'Gemini request failed'}), {status:502,headers:CORS});
+    if (!r.ok) {
+      const message=data?.error?.message||'Gemini request failed';
+      console.error('AI Guide provider error',JSON.stringify({status:r.status,message}));
+      return new Response(JSON.stringify({error:message,provider:'Gemini',providerStatus:r.status}), {status:502,headers:CORS});
+    }
     const text = data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||'').join('').trim() || 'I could not generate an answer.';
     return new Response(JSON.stringify({text,model:MODEL}), {headers:{...CORS,'cache-control':'no-store'}});
   } catch (e) {
+    console.error('AI Guide function error',e);
     return new Response(JSON.stringify({error:e instanceof Error?e.message:'Unexpected error'}), {status:500,headers:CORS});
   }
 });

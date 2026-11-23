@@ -30,10 +30,29 @@ function safeParse(s){try{return JSON.parse(clean(s))}catch{return null}}
 
 async function gemini(contents){
  const body={contents,generationConfig:{maxOutputTokens:6000},tools:[{functionDeclarations:toolDefs}]};
- const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent",{
-  method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body)
- });
- const d=await r.json();if(!r.ok)throw new Error(d?.error?.message||"Gemini API error");return d;
+ const endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent";
+ let lastError="Gemini API error";
+ for(let attempt=0;attempt<4;attempt++){
+  let response;
+  try{
+   response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body)});
+  }catch(e){
+   lastError=e instanceof Error?e.message:"Network error";
+   if(attempt===3)throw new Error(lastError);
+   await new Promise(resolve=>setTimeout(resolve,800*Math.pow(2,attempt)));
+   continue;
+  }
+  const data=await response.json().catch(()=>({}));
+  if(response.ok)return data;
+  lastError=data?.error?.message||"Gemini API error";
+  if(![429,500,502,503,504].includes(response.status)||attempt===3){
+   const error=new Error(lastError);(error as any).status=response.status;throw error;
+  }
+  const retryAfter=Number(response.headers.get("retry-after")||0);
+  const delay=retryAfter>0?Math.min(retryAfter*1000,10000):800*Math.pow(2,attempt);
+  await new Promise(resolve=>setTimeout(resolve,delay));
+ }
+ throw new Error(lastError);
 }
 
 async function toolExec(sb,userId,name,args){
@@ -169,6 +188,7 @@ Deno.serve(async(req)=>{
   throw new Error("Agent reached its tool-call limit.");
  }catch(e){
   console.error('Lucid Agent function error',e);
-  return new Response(JSON.stringify({error:e instanceof Error?e.message:"Lucid Agent error"}),{status:500,headers:CORS});
+  const status=Number((e as any)?.status)||500;
+  return new Response(JSON.stringify({error:e instanceof Error?e.message:"Lucid Agent error"}),{status:status===503?503:status,headers:CORS});
  }
 });

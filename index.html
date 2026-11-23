@@ -1581,13 +1581,7 @@ textarea{min-height:75px;resize:vertical;}
               <button class="tab-btn" onclick="switchTab('lbTab','improvement',this)">Most improved</button>
             </div>
             <div class="tab-content active" id="lbTab-xp">
-              <div style="display:grid;gap:6px;" id="lbList">
-                <div class="leaderboard-row gold-row"><div class="rank-num">🥇</div><div class="mini-avatar blue">M</div><div class="lb-info"><div class="lb-name">Maya</div><div class="lb-sub">Level 18 · 7-day streak</div></div><div class="lb-xp">420 XP</div></div>
-                <div class="leaderboard-row" style="background:var(--sage-2);"><div class="rank-num">🥈</div><div class="mini-avatar">R</div><div class="lb-info"><div class="lb-name">Rishabh (You)</div><div class="lb-sub">Level 16 · Most improved ↑14%</div></div><div class="lb-xp">390 XP</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥉</div><div class="mini-avatar green">A</div><div class="lb-info"><div class="lb-name">Arjun</div><div class="lb-sub">Level 14</div></div><div class="lb-xp">350 XP</div></div>
-                <div class="leaderboard-row"><div class="rank-num" style="font-size:16px;">4</div><div class="mini-avatar purple">S</div><div class="lb-info"><div class="lb-name">Sneha</div><div class="lb-sub">Level 13</div></div><div class="lb-xp">310 XP</div></div>
-                <div class="leaderboard-row"><div class="rank-num" style="font-size:16px;">5</div><div class="mini-avatar orange">K</div><div class="lb-info"><div class="lb-name">Karan</div><div class="lb-sub">Level 12</div></div><div class="lb-xp">285 XP</div></div>
-              </div>
+              <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
             </div>
             <div class="tab-content" id="lbTab-focus">
               <div style="display:grid;gap:6px;">
@@ -1995,6 +1989,7 @@ textarea{min-height:75px;resize:vertical;}
   </aside>
 </div>
 
+<div class="modal-backdrop" id="publicLearnerProfileModal" onclick="if(event.target===this)this.style.display='none'"><div class="modal" style="max-width:430px;"><div class="modal-header"><h2>Learner profile</h2><button class="close-button" onclick="document.getElementById('publicLearnerProfileModal').style.display='none'">×</button></div><div class="profile-cover" style="padding:10px 0 18px;"><img id="publicLearnerAvatar" class="profile-avatar-large" alt="" style="display:none;"><div id="publicLearnerFallback" class="profile-avatar-large profile-avatar-fallback">L</div><div><h2 id="publicLearnerName">Learner</h2><p class="muted small-text">Lucid learner</p></div></div><p id="publicLearnerBio" class="muted small-text">No bio added.</p><div class="profile-stat-grid" style="margin-top:16px;"><div class="profile-stat"><strong id="publicLearnerLevel">1</strong><span>Level</span></div><div class="profile-stat"><strong id="publicLearnerXP">0</strong><span>XP</span></div></div></div></div>
 <!-- ══════════════════ MODALS ══════════════════ -->
 
 <!-- Upload modal -->

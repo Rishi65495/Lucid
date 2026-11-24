@@ -60,6 +60,47 @@ window.callAIGuide = async function(prompt,style){
   }catch(error){return 'AI Guide error: '+(error&&error.message||'Unknown error');}
 };
 window.callLearningEngine = async function(action,request,context){return await window.invokeLucidFunction('ai-learning',{action,request,context:context||{}});};
+// Local-first source-grounded quiz generation. Gemini is used by the caller only if Ollama is unavailable or returns invalid JSON.
+window.callLucidLocalQuiz = async function(request,context){
+  const {data:{session},error}=await lucidSupabase.auth.getSession();
+  if(error||!session?.access_token)throw new Error('Sign in again to use local quiz generation.');
+  const sourceText=String(context?.page_content||'').slice(0,6500);
+  if(!sourceText.trim())throw new Error('No extracted source text was supplied to Ollama.');
+  const count=Math.max(1,Math.min(20,Number(context?.question_count)||5));
+  const prompt=[
+    'You are Lucid, a careful exam-question writer running locally through Ollama.',
+    'Use ONLY the source text below. Do not use outside knowledge or invent facts.',
+    'Create exactly '+count+' distinct multiple-choice questions.',
+    'Each question must have: prompt (string), type ("mcq"), options (array of exactly 4 strings), answer_index (zero-based integer 0-3), explanation (string), concept_key (short string).',
+    'Make distractors plausible but unambiguously wrong according to the source. Ensure the answer_index is correct. Avoid duplicate questions.',
+    'Difficulty: '+String(context?.difficulty||'Balanced')+'. Focus: '+String(request||'Test understanding and application.'),
+    'Return ONLY valid JSON with this exact top-level shape: {"questions":[{"prompt":"...","type":"mcq","options":["...","...","...","..."],"answer_index":0,"explanation":"...","concept_key":"..."}]}',
+    'SOURCE TITLES: '+JSON.stringify(context?.source_titles||[]),
+    'SOURCE TEXT:\n'+sourceText
+  ].join('\n\n');
+  const response=await fetch('http://127.0.0.1:3210/chat',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+session.access_token,'Content-Type':'application/json'},
+    body:JSON.stringify({prompt})
+  });
+  const raw=await response.text();let payload={};try{payload=raw?JSON.parse(raw):{};}catch(_){payload={error:raw};}
+  if(!response.ok||!payload.text)throw new Error(payload.error||('Ollama bridge returned HTTP '+response.status));
+  const cleaned=String(payload.text).trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+  let parsed;
+  try{parsed=JSON.parse(cleaned);}catch(_){
+    const first=cleaned.indexOf('{'),last=cleaned.lastIndexOf('}');
+    if(first<0||last<=first)throw new Error('Ollama did not return valid JSON.');
+    parsed=JSON.parse(cleaned.slice(first,last+1));
+  }
+  const questions=Array.isArray(parsed.questions)?parsed.questions:[];
+  if(questions.length!==count)throw new Error('Ollama returned '+questions.length+' questions; expected '+count+'.');
+  for(const q of questions){
+    if(!q||!String(q.prompt||'').trim()||!Array.isArray(q.options)||q.options.length!==4||
+       !Number.isInteger(Number(q.answer_index))||Number(q.answer_index)<0||Number(q.answer_index)>3||
+       q.options.some(x=>!String(x||'').trim())) throw new Error('Ollama returned an incomplete question. Retry or use the Gemini fallback.');
+  }
+  return {questions,model:payload.model||'ollama-local',provider:'ollama'};
+};
 window.formatLearningResult = function(result){if(!result)return 'No learning result was returned.';if(result.feedback)return 'Score: '+(result.score??'—')+'\nCoverage: '+(result.coverage??'—')+'\nAccuracy: '+(result.accuracy??'—')+'\nClarity: '+(result.clarity??'—')+'\nFeedback: '+result.feedback+(result.missing?.length?'\nReview: '+result.missing.join(', '):'');if(result.questions?.length)return result.questions.map((q,i)=>(i+1)+'. '+q.prompt+'\n'+(q.options||[]).map((o,j)=>String.fromCharCode(65+j)+'. '+o).join('\n')+'\nAnswer: '+(q.options?.[q.answer_index]||'Not provided')+'\n'+(q.explanation||'')).join('\n\n');if(result.cards?.length)return result.cards.map((c,i)=>(i+1)+'. '+c.front+'\n'+c.back).join('\n\n');return result.lesson||result.text||JSON.stringify(result,null,2);};
 // Local-first Home/Progress Agent. Supabase prepares authenticated learner context;
 // the browser sends that context only to the loopback bridge. Cloud agent remains fallback.
@@ -163,7 +204,17 @@ window.generateAIQuiz = async function(){
       status.textContent='Generating questions from '+context.source_titles.length+' selected source(s)…';
       const count=Number(modal.querySelector('#lucidQuizCount').value)||10,difficulty=modal.querySelector('#lucidQuizDifficulty').value,instructions=modal.querySelector('#lucidQuizInstructions').value.trim();
       const request='Create '+count+' multiple-choice questions using only the supplied source material. Difficulty: '+difficulty+'. Focus: '+(instructions||'Test conceptual understanding, comparison and application. Avoid repeated questions.');
-      const data=await window.callLearningEngine('quiz',request,{...context,question_count:count,difficulty,question_format:'mcq'});
+      let data,quizProvider='ollama';
+      try{
+        const local=await window.callLucidLocalQuiz(request,{...context,question_count:count,difficulty,question_format:'mcq'});
+        data={result:{questions:local.questions},model:local.model,provider:'ollama'};
+        status.textContent='Generated locally with '+local.model+'.';
+      }catch(localError){
+        console.warn('Ollama quiz generation failed; using Gemini fallback:',localError?.message||localError);
+        quizProvider='gemini';
+        status.textContent='Local model unavailable or returned invalid questions. Trying Gemini fallback…';
+        data=await window.callLearningEngine('quiz',request,{...context,question_count:count,difficulty,question_format:'mcq'});
+      }
       const questions=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||'mcq'}));
       if(!questions.length)throw new Error('The AI did not return valid questions. Try a smaller question count or a more text-readable source.');
       let quizId=null;window.currentGeneratedQuestionIds=[];
@@ -173,7 +224,7 @@ window.generateAIQuiz = async function(){
       window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizSourceIds=context.source_resource_ids;window.currentQuizCatalogueId=context.catalogue_id;
       const label=document.getElementById('quizSourceLabel');if(label)label.textContent='Sources: '+context.source_titles.join(', ');
       const diff=document.getElementById('quizDifficultyTag');if(diff)diff.textContent='Difficulty: '+difficulty;
-      loadQuiz(0);close();openPage('practice');showToast(questions.length+' questions generated from your selected sources.','✦');
+      loadQuiz(0);close();openPage('practice');showToast(questions.length+' questions generated via '+(quizProvider==='ollama'?'local Ollama':'Gemini fallback')+'.','✦');
     }catch(error){status.textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
   };
 };

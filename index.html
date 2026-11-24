@@ -536,6 +536,7 @@ textarea{min-height:75px;resize:vertical;}
 .catalogue-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
 .cat-icon{font-size:28px;margin-bottom:10px;}
 .cat-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.cat-resource-preview{margin-top:7px;color:var(--muted);font-size:10px;line-height:1.5;overflow-wrap:anywhere;}
 .cat-stat{font-size:10px;font-weight:800;color:var(--forest-2);}
 
 /* ─── Goals ───────────────────────────────────────── */
@@ -2485,6 +2486,11 @@ function answerQuiz(correct, btn) {
   document.querySelectorAll('.quiz-option').forEach(b => b.disabled = true);
   state.quizTotal++;
   const result = document.getElementById('quizResult') || document.getElementById('modalQuizResult');
+  const answeredQuestion=quizBank[currentQuizIdx % quizBank.length];
+  if(typeof window.recordLucidQuizAnswer==='function'){
+    window.recordLucidQuizAnswer({question:answeredQuestion.q,selectedOption:btn?btn.textContent:'',correctOption:answeredQuestion.opts[answeredQuestion.ans],correct,quizIndex:currentQuizIdx})
+      .catch(error=>console.warn('Could not persist quiz evidence:',error.message));
+  }
   if (correct) {
     state.quizCorrect++; state.xp += 25; updateXP();
     if (btn) btn.classList.add('correct');

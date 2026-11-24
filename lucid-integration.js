@@ -733,15 +733,21 @@ window.loadLucidGoals = async function(){
   const {data,error}=await lucidSupabase.from('learning_goals').select('id,title,description,target_type,target_value,deadline,status,created_at,completed_at').eq('owner_id',uid).order('created_at',{ascending:false});
   if(error)throw error;
   const goals=data||[],list=document.getElementById('goalList');
-  const [resourceProgress,mastery,sessions,attempts]=await Promise.all([
-    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(2000),
+  const [resourceProgress,resources,mastery,sessions,videoSessions,attempts]=await Promise.all([
+    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(5000),
+    lucidSupabase.from('lucid_resources').select('id,type,metadata').eq('owner_id',uid).limit(2000),
     lucidSupabase.from('concept_mastery').select('mastery').eq('user_id',uid).limit(1000),
     lucidSupabase.from('reading_sessions').select('active_seconds').eq('user_id',uid).limit(1000),
+    lucidSupabase.from('video_sessions').select('resource_id,active_seconds,completed').eq('user_id',uid).limit(2000),
     lucidSupabase.from('quiz_attempts').select('score,max_score').eq('user_id',uid).not('completed_at','is',null).limit(500)
   ]);
-  const completedResources=new Set((resourceProgress.data||[]).map(x=>x.resource_id)).size;
+  for(const result of [resourceProgress,resources,mastery,sessions,videoSessions,attempts])if(result.error)throw result.error;
+  const progressCounts=new Map();(resourceProgress.data||[]).forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
+  const completedPdfs=(resources.data||[]).filter(r=>r.type==='pdf'&&Number(r.metadata?.page_count)>0&&(progressCounts.get(r.id)||0)>=Number(r.metadata.page_count)).length;
+  const completedVideos=new Set((videoSessions.data||[]).filter(x=>x.completed).map(x=>x.resource_id).filter(Boolean)).size;
+  const completedResources=completedPdfs+completedVideos;
   const masteryRows=mastery.data||[],avgMastery=masteryRows.length?masteryRows.reduce((s,x)=>s+(Number(x.mastery)||0),0)/masteryRows.length:0;
-  const focusHours=(sessions.data||[]).reduce((s,x)=>s+(Number(x.active_seconds)||0),0)/3600;
+  const focusHours=((sessions.data||[]).reduce((s,x)=>s+(Number(x.active_seconds)||0),0)+(videoSessions.data||[]).reduce((s,x)=>s+(Number(x.active_seconds)||0),0))/3600;
   const attemptRows=attempts.data||[],quizAccuracy=attemptRows.length?attemptRows.reduce((s,x)=>s+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/attemptRows.length:0;
   const currentByType={resource_completion:completedResources,mastery_target:avgMastery,focus_hours:focusHours,quiz_accuracy:quizAccuracy};
   const unitByType={resource_completion:'resources',mastery_target:'%',focus_hours:'hours',quiz_accuracy:'%'};
@@ -785,19 +791,24 @@ window.loadLucidAchievements = async function(){
   const uid=lucidSession.user.id;
   const {data:badges,error:badgeError}=await lucidSupabase.from('badges').select('id,slug,name,family,description,rule').order('family').order('name');
   if(badgeError)throw badgeError;
-  const [xp,sessions,resourceProgress,answerCount]=await Promise.all([
+  const [xp,sessions,resourceProgress,resources,videoSessions,answerCount]=await Promise.all([
     lucidSupabase.from('user_xp').select('streak_days').eq('user_id',uid).maybeSingle(),
     lucidSupabase.from('reading_sessions').select('id,active_seconds,pages_completed').eq('user_id',uid).limit(1000),
-    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(2000),
+    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(5000),
+    lucidSupabase.from('lucid_resources').select('id,type,metadata').eq('owner_id',uid).limit(2000),
+    lucidSupabase.from('video_sessions').select('resource_id,completed').eq('user_id',uid).eq('completed',true).limit(2000),
     lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true})
   ]);
   const sessionsRows=sessions.error?[]:(sessions.data||[]);
   const resourcesRows=resourceProgress.error?[]:(resourceProgress.data||[]);
+  const progressCounts=new Map();resourcesRows.forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
+  const completedPdfs=(resources.data||[]).filter(r=>r.type==='pdf'&&Number(r.metadata?.page_count)>0&&(progressCounts.get(r.id)||0)>=Number(r.metadata.page_count)).length;
+  const completedVideos=new Set((videoSessions.data||[]).map(x=>x.resource_id).filter(Boolean)).size;
   const evidence={
     collaboration:0,
-    completion:new Set(resourcesRows.map(x=>x.resource_id)).size,
+    completion:completedPdfs+completedVideos,
     consistency:Number(xp.data?.streak_days||0),
-    deep_work:sessionsRows.filter(x=>Number(x.active_seconds)>0).length,
+    deep_work:sessionsRows.filter(x=>Number(x.active_seconds)>=1500).length,
     practice:answerCount.error?0:Number(answerCount.count||0),
     reading:sessionsRows.reduce((sum,x)=>sum+(Number(x.pages_completed)||0),0)
   };

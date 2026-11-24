@@ -131,7 +131,7 @@ window.invokeLucidAgentLocalFirst = async function(body){
 };
 window.callLucidAgent = async function(prompt){
   if(typeof state!=='undefined'&&state.currentVideoContext){if(!String(state.currentVideoContext.transcript||'').trim())return 'Lucid could not retrieve public captions for this video. Try a video with captions enabled; Lucid will use its transcript automatically when available.';return await window.callAIGuide(prompt,state.coachMode||'Gentle');}
-  const payload={action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null};
+  const payload={action:'chat',request:prompt,preferred_name:typeof state!=='undefined'?String(state.preferences?.name||'').trim():null,resource_id:typeof state!=='undefined'?state.currentResourceId:null};
   const data=await window.invokeLucidAgentLocalFirst(payload);
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
@@ -1074,6 +1074,39 @@ window.loadLucidLearningProfile = async function(){
   if(window.renderLucidWeakAreas)window.renderLucidWeakAreas(profile);
   return profile;
 };
+
+window.generateLucidProgressInsight = async function(){
+  const panel=document.getElementById('analyticsAIInsight');
+  const status=document.getElementById('analyticsAIInsightStatus');
+  const button=document.getElementById('analyticsAIInsightButton');
+  if(!panel)return;
+  if(status)status.textContent='Reading your recorded learning evidence…';
+  if(button){button.disabled=true;button.textContent='Generating…';}
+  panel.textContent='';
+  try{
+    const profile=await window.loadLucidLearningProfile();
+    const request='Analyze my progress using only the learner progress context you have. Give: (1) a concise overall assessment, (2) measured strengths, (3) weak concepts with their actual mastery/recall/application values, (4) one practical next action. Mention sample size and missing evidence. Do not invent page counts, study hours, or trends.';
+    const response=await window.invokeLucidAgentLocalFirst({
+      action:'home_chat',
+      request,
+      preferred_name:typeof state!=='undefined'?String(state.preferences?.name||'').trim():null
+    });
+    const insight=String(response.text||response.result?.text||'').trim();
+    if(!insight)throw new Error('The AI returned an empty insight.');
+    panel.textContent=insight;
+    if(typeof state!=='undefined'){
+      state.generatedInsights={text:insight,generatedAt:new Date().toISOString(),provider:response.provider||'unknown',model:response.model||null};
+      if(typeof saveState==='function')saveState();
+    }
+    if(status)status.textContent='Generated '+new Date().toLocaleString()+' · '+(response.provider==='ollama'?'Local Ollama':response.provider==='cloud-fallback'?'Cloud fallback':'AI');
+  }catch(error){
+    panel.textContent='Could not generate insights: '+(error?.message||'Unknown error');
+    if(status)status.textContent='Generation failed. Check your sign-in and local AI bridge.';
+  }finally{
+    if(button){button.disabled=false;button.textContent='Generate AI insights';}
+  }
+};
+
 window.generateLucidImprovementPlan = async function(){
   const status=document.getElementById('aiImprovementStatus');if(status)status.textContent='Analysing your saved learning evidence…';
   try{

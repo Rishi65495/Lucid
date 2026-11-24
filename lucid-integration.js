@@ -1272,6 +1272,12 @@ window.renderLucidReaderPage = async function(){
       window.currentPdfDocument=await window.currentPdfLoading;
       window.currentPdfDocumentUrl=window.currentPdfUrl;window.currentPdfLoadingUrl=null;window.currentPdfLoading=null;
       state.currentResourcePageCount=window.currentPdfDocument.numPages;
+      const resourceRecord=(state.uploadedBooks||[]).find(x=>(x.resourceId||x.id)===state.currentResourceId);
+      if(resourceRecord&&Number(resourceRecord.pages)!==state.currentResourcePageCount){
+        resourceRecord.pages=state.currentResourcePageCount;resourceRecord.progressPercent=state.currentResourcePageCount?Math.min(100,Math.round((Number(resourceRecord.completedPages)||0)/state.currentResourcePageCount*100)):0;
+        if(typeof renderUploadedBooks==='function')renderUploadedBooks();if(window.renderLucidDashboardBooks)window.renderLucidDashboardBooks();
+        (async()=>{const current=await lucidSupabase.from('lucid_resources').select('metadata').eq('id',state.currentResourceId).eq('owner_id',lucidSession.user.id).single();if(current.error)throw current.error;const metadata={...(current.data.metadata||{}),page_count:state.currentResourcePageCount};const saved=await lucidSupabase.from('lucid_resources').update({metadata}).eq('id',state.currentResourceId).eq('owner_id',lucidSession.user.id);if(saved.error)throw saved.error;})().catch(error=>console.warn('Could not persist original PDF page count:',error.message));
+      }
     }
     const total=window.currentPdfDocument.numPages,page=Math.max(1,Math.min(total,pageNumber));
     state.currentResourcePage=page;

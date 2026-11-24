@@ -431,7 +431,7 @@ window.changeLucidReaderPage = function(delta){
   const pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
   if(!window.currentPdfUrl||!pageCount)return;
   state.currentResourcePage=Math.max(1,Math.min(pageCount,(state.currentResourcePage||1)+delta));
-  saveState();window.renderLucidReaderPage();
+  saveState();window.renderLucidReaderPage();if(typeof renderAnnotations==='function')renderAnnotations();
 };
 window.selectLucidResource = function(id){
   state.currentResourceId=id;

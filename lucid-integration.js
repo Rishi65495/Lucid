@@ -258,6 +258,10 @@ window.lucidVideoPersistTimer=null;
 window.lucidVideoLastTick=null;
 window.lucidVideoActiveSeconds=0;
 window.lucidVideoDuration=0;
+window.lucidVideoWatchedContentSeconds=0;
+window.lucidVideoLastPositionSeconds=0;
+window.lucidVideoBaseActiveSeconds=0;
+window.lucidVideoBaseWatchedContentSeconds=0;
 window.lucidVideoPlaylistItems=[];
 window.lucidYTApiPromise=null;
 window.formatLucidDuration=function(seconds){
@@ -344,16 +348,16 @@ window.loadLucidVideoLibrary=async function(preferredPlaylistId){
   if(videoIds.length){
     const vr=await lucidSupabase.from('resource_videos').select('resource_id,youtube_video_id,youtube_playlist_id,duration_seconds,transcript,metadata').in('resource_id',videoIds);
     if(vr.error)throw vr.error;videoRows=vr.data||[];
-    const sr=await lucidSupabase.from('video_sessions').select('id,resource_id,active_seconds,last_timestamp_seconds,completed,started_at').eq('user_id',owner).in('resource_id',videoIds);
+    const sr=await lucidSupabase.from('video_sessions').select('id,resource_id,active_seconds,last_timestamp_seconds,playback_speed,result,completed,started_at').eq('user_id',owner).in('resource_id',videoIds);
     if(sr.error)throw sr.error;sessions=sr.data||[];
   }
   const videoById=new Map(videos.map(x=>[x.id,x])),videoMeta=new Map(videoRows.map(x=>[x.resource_id,x]));
   const sessionById=new Map();
-  sessions.forEach(s=>{const item=sessionById.get(s.resource_id)||{active:0,completed:false,last:0};item.active+=Number(s.active_seconds)||0;item.completed=item.completed||!!s.completed;item.last=Math.max(item.last,Number(s.last_timestamp_seconds)||0);sessionById.set(s.resource_id,item);});
+  sessions.forEach(s=>{const item=sessionById.get(s.resource_id)||{active:0,completed:false,last:0,watchedContent:0};item.active+=Number(s.active_seconds)||0;item.watchedContent+=Number(s.result?.watched_content_seconds)||0;item.completed=item.completed||!!s.completed;item.last=Math.max(item.last,Number(s.last_timestamp_seconds)||0);sessionById.set(s.resource_id,item);});
   const chosen=preferredPlaylistId==='__standalone__'?null:(playlists.find(x=>x.id===preferredPlaylistId)||playlists[0]||null);
   let items=[];
   if(chosen){
-    items=(chosen.metadata?.items||[]).map(item=>({...item,resource:videoById.get(item.resource_id),video:videoMeta.get(item.resource_id),progress:sessionById.get(item.resource_id)||{active:0,completed:false,last:0}})).filter(item=>item.resource);
+    items=(chosen.metadata?.items||[]).map(item=>({...item,resource:videoById.get(item.resource_id),video:videoMeta.get(item.resource_id),progress:sessionById.get(item.resource_id)||{active:0,completed:false,last:0,watchedContent:0}})).filter(item=>item.resource);
   }else{
     items=videos.map(resource=>({resource_id:resource.id,title:resource.title,video_id:videoMeta.get(resource.id)?.youtube_video_id||resource.metadata?.youtube_video_id,duration_seconds:videoMeta.get(resource.id)?.duration_seconds||resource.metadata?.duration_seconds||0,resource,video:videoMeta.get(resource.id),progress:sessionById.get(resource.id)||{active:0,completed:false,last:0}}));
   }
@@ -367,16 +371,20 @@ window.loadLucidVideoLibrary=async function(preferredPlaylistId){
     items.forEach((item,index)=>{
       const button=document.createElement('button');button.type='button';button.className='secondary-button btn-sm';button.style.cssText='text-align:left;display:flex;justify-content:space-between;gap:8px;align-items:center;';
       const titleText=document.createElement('span');titleText.textContent=(index+1)+'. '+(item.title||item.resource?.title||'Video');
-      const meta=document.createElement('span');meta.className='muted';meta.textContent=item.progress.completed?'✓':window.formatLucidDuration(item.progress.active);
+      const meta=document.createElement('span');meta.className='muted';meta.textContent=item.progress.completed?'✓':window.formatLucidDuration(item.progress.watchedContent)+' watched';
       button.append(titleText,meta);button.onclick=()=>window.selectLucidVideo(item.resource_id);list.appendChild(button);
     });
   }
-  const completed=items.filter(x=>x.progress.completed).length,watched=items.reduce((s,x)=>s+(Number(x.progress.active)||0),0),pct=items.length?Math.round(completed/items.length*100):0;
+  const completed=items.filter(x=>x.progress.completed).length,watched=items.reduce((s,x)=>s+(Number(x.progress.active)||0),0),totalDuration=items.reduce((s,x)=>s+(Number(x.duration_seconds||x.video?.duration_seconds||x.resource?.metadata?.duration_seconds)||0),0),watchedContent=items.reduce((s,x)=>s+(Number(x.progress.watchedContent)||0),0),pct=totalDuration?Math.min(100,Math.round(watchedContent/totalDuration*100)):(items.length?Math.round(completed/items.length*100):0);
   const watchedEl=document.getElementById('videoWatchedTime');if(watchedEl)watchedEl.textContent=window.formatLucidDuration(watched);
   const label=document.getElementById('videoProgressLabel');if(label)label.textContent=completed+' of '+items.length+' completed';
   const percent=document.getElementById('videoProgressPercent');if(percent)percent.textContent=pct+'%';
   const bar=document.getElementById('videoProgressBar');if(bar)bar.style.width=pct+'%';
   return items;
+};
+window.updateLucidVideoProgressUI=function(){
+  const items=window.lucidVideoPlaylistItems||[],completed=items.filter(x=>x.progress?.completed).length,totalDuration=items.reduce((s,x)=>s+(Number(x.duration_seconds||x.video?.duration_seconds||x.resource?.metadata?.duration_seconds)||0),0),watchedContent=items.reduce((s,x)=>s+(Number(x.progress?.watchedContent)||0),0),pct=totalDuration?Math.min(100,Math.round(watchedContent/totalDuration*100)):(items.length?Math.round(completed/items.length*100):0);
+  const percent=document.getElementById('videoProgressPercent');if(percent)percent.textContent=pct+'%';const bar=document.getElementById('videoProgressBar');if(bar)bar.style.width=pct+'%';const label=document.getElementById('videoProgressLabel');if(label)label.textContent=completed+' of '+items.length+' completed';
 };
 window.selectLucidVideo=async function(resourceId){
   if(!lucidSession?.user||!resourceId)throw new Error('Choose a saved video first.');
@@ -388,6 +396,7 @@ window.selectLucidVideo=async function(resourceId){
   if(resourceResult.error)throw resourceResult.error;if(videoResult.error)throw videoResult.error;
   const resource=resourceResult.data,video=videoResult.data;
   window.currentLucidVideoResourceId=resourceId;state.currentVideoResourceId=resourceId;
+  const selectedItem=(window.lucidVideoPlaylistItems||[]).find(x=>x.resource_id===resourceId);window.lucidVideoBaseActiveSeconds=Number(selectedItem?.progress?.active)||0;window.lucidVideoBaseWatchedContentSeconds=Number(selectedItem?.progress?.watchedContent)||0;window.lucidVideoWatchedContentSeconds=0;
   window.currentLucidVideoMetadata=video.metadata||{};window.currentLucidVideoNotes=Array.isArray(video.metadata?.notes)?video.metadata.notes:[];
   state.currentVideoContext={resource_id:resourceId,title:resource.title,transcript:video.transcript||''};
   const title=document.getElementById('videoCurrentTitle');if(title)title.textContent=resource.title;
@@ -410,7 +419,7 @@ window.startLucidVideoPlayer=async function(videoId){
   if(mount)mount.innerHTML='';
   const parent=document.getElementById('videoPlayerHost');if(parent)parent.innerHTML='<div id="ytPlayerMount" style="width:100%;height:100%;"></div>';
   window.lucidVideoPlayer=new YT.Player('ytPlayerMount',{height:'100%',width:'100%',videoId,playerVars:{rel:0,modestbranding:1,playsinline:1},events:{
-    onReady:event=>{window.lucidVideoDuration=event.target.getDuration()||0;},
+    onReady:event=>{window.lucidVideoDuration=event.target.getDuration()||0;if(window.lucidVideoDuration>0&&window.currentLucidVideoResourceId)lucidSupabase.from('resource_videos').update({duration_seconds:Math.round(window.lucidVideoDuration)}).eq('resource_id',window.currentLucidVideoResourceId).then(({error})=>{if(error)console.warn('Could not save video duration:',error.message);});},
     onStateChange:event=>{
       if(event.data===YT.PlayerState.PLAYING){window.startLucidVideoSession();if(window.lucidVideoPersistTimer)clearInterval(window.lucidVideoPersistTimer);window.lucidVideoPersistTimer=setInterval(()=>window.persistLucidVideoProgress(false),15000);}
       else if(event.data===YT.PlayerState.PAUSED||event.data===YT.PlayerState.ENDED){if(window.lucidVideoPersistTimer)clearInterval(window.lucidVideoPersistTimer);window.lucidVideoPersistTimer=null;window.persistLucidVideoProgress(event.data===YT.PlayerState.ENDED);}
@@ -422,15 +431,16 @@ window.startLucidVideoSession=async function(){
   const current=window.lucidVideoPlayer?.getCurrentTime?.()||0;
   const {data,error}=await lucidSupabase.from('video_sessions').insert({user_id:lucidSession.user.id,resource_id:window.currentLucidVideoResourceId,catalogue_id:state.selectedCatalogueId||null,active_seconds:0,last_timestamp_seconds:current,playback_speed:window.lucidVideoPlayer?.getPlaybackRate?.()||1,completed:false,result:{source:'youtube_iframe_player'}}).select('id').single();
   if(error){console.warn('Could not start video session:',error.message);return;}
-  window.currentLucidVideoSessionId=data.id;window.lucidVideoActiveSeconds=0;window.lucidVideoLastTick=Date.now();
+  window.currentLucidVideoSessionId=data.id;window.lucidVideoActiveSeconds=0;window.lucidVideoWatchedContentSeconds=0;window.lucidVideoLastPositionSeconds=current;window.lucidVideoLastTick=Date.now();
 };
 window.persistLucidVideoProgress=async function(endSession){
   if(!lucidSession?.user||!window.currentLucidVideoSessionId||!window.lucidVideoPlayer)return;
   const now=Date.now(),current=Number(window.lucidVideoPlayer.getCurrentTime?.()||0),duration=Number(window.lucidVideoPlayer.getDuration?.()||window.lucidVideoDuration||0),playing=window.lucidVideoPlayer.getPlayerState?.()===1;
-  const elapsed=playing&&window.lucidVideoLastTick?Math.max(0,Math.min(20,Math.round((now-window.lucidVideoLastTick)/1000))):0;
-  window.lucidVideoActiveSeconds+=elapsed;window.lucidVideoLastTick=now;
-  const completed=duration>0&&current>=duration*.9;
-  const patch={active_seconds:window.lucidVideoActiveSeconds,last_timestamp_seconds:current,playback_speed:window.lucidVideoPlayer.getPlaybackRate?.()||1,completed,ended_at:endSession||completed?new Date().toISOString():null};
+  const elapsed=playing&&window.lucidVideoLastTick?Math.max(0,Math.min(20,Math.round((now-window.lucidVideoLastTick)/1000))):0,speed=window.lucidVideoPlayer.getPlaybackRate?.()||1;
+  const positionDelta=current-(Number(window.lucidVideoLastPositionSeconds)||current),maxContentDelta=elapsed*speed*1.25+1,watchedDelta=playing&&positionDelta>0?Math.min(positionDelta,maxContentDelta):0;
+  window.lucidVideoActiveSeconds+=elapsed;window.lucidVideoWatchedContentSeconds+=watchedDelta;window.lucidVideoLastPositionSeconds=current;window.lucidVideoLastTick=now;
+  const totalWatched=window.lucidVideoBaseWatchedContentSeconds+window.lucidVideoWatchedContentSeconds,completed=duration>0&&totalWatched>=duration*.9;
+  const patch={active_seconds:window.lucidVideoActiveSeconds,last_timestamp_seconds:current,playback_speed:speed,completed,ended_at:endSession||completed?new Date().toISOString():null,result:{source:'youtube_iframe_player',watched_content_seconds:window.lucidVideoWatchedContentSeconds,watched_content_total_seconds:totalWatched}};
   const {error}=await lucidSupabase.from('video_sessions').update(patch).eq('id',window.currentLucidVideoSessionId).eq('user_id',lucidSession.user.id);
   if(error)console.warn('Could not persist video progress:',error.message);
   if(endSession||completed){window.currentLucidVideoSessionId=null;window.lucidVideoLastTick=null;try{await window.loadLucidVideoLibrary(window.currentLucidPlaylistResourceId);}catch(_){}}

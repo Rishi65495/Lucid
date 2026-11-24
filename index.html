@@ -982,7 +982,7 @@ textarea{min-height:75px;resize:vertical;}
           </div>
           <div class="card card-padding" style="margin-top:16px;">
             <div class="section-row" style="margin-top:0;"><div><h3>Video transcript</h3><p class="muted small-text">Paste captions or a transcript for this exact video. Lucid will not invent video content when captions are unavailable.</p></div><button class="secondary-button btn-sm" onclick="saveCurrentVideoTranscript()">Save transcript</button></div>
-            <textarea id="videoTranscriptInput" rows="7" placeholder="Paste the transcript or captions for the selected video…"></textarea>
+            <textarea id="videoTranscriptInput" rows="7" maxlength="30000" placeholder="Paste the transcript or captions for the selected video…"></textarea>
             <p class="muted small-text" id="videoTranscriptSaveStatus" aria-live="polite">No transcript saved for this video.</p>
           </div>
           <div class="card card-padding" style="margin-top:16px;">

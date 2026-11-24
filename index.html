@@ -615,6 +615,19 @@ textarea{min-height:75px;resize:vertical;}
 .profile-admin-panel{border:1px solid #d7c18a;background:#fffdf4;}
 .avatar-image{width:34px;height:34px;object-fit:cover;border-radius:50%;}
 @media(max-width:720px){.profile-cover{align-items:flex-start;}.profile-avatar-large{width:82px;height:82px;}}
+.reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr)!important;}
+.reader-layout.sidebar-hidden>.reader-sidebar,.reader-layout>.reader-sidebar[hidden]{display:none!important;}
+#reader .document.pdf-document{max-width:none;min-height:0;padding:20px 22px;background:transparent;border:0;box-shadow:none;}
+#reader .pdf-viewer-panel{margin-top:8px;}
+#reader .pdf-canvas-viewport{width:100%;height:calc(100vh - 285px);min-height:440px;max-height:none;overflow:auto;padding:12px;background:#252b28;border-radius:12px;display:flex;align-items:flex-start;justify-content:center;}
+#reader .pdf-canvas-stage{flex:0 0 auto;}
+#reader #pdfPageCanvas{display:block;max-width:none;}
+.ai-improvement-item{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--paper-2);}
+.ai-improvement-item strong{display:block;font-size:12px;margin-bottom:5px;}
+.ai-improvement-item p{margin:0 0 8px;line-height:1.55;}
+.goal-item{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--paper-2);}
+.goal-item strong{font-size:13px;}
+#achievementShelf .empty-state{grid-column:1/-1;}
 </style>
 </head>
 <body>
@@ -995,7 +1008,7 @@ textarea{min-height:75px;resize:vertical;}
                   <label class="pdf-page-control"><input id="pdfPageInput" type="number" min="1" value="1" onchange="goLucidPdfPage(this.value)" aria-label="Current PDF page"><span id="pdfPageTotal">/ 1</span></label>
                   <button class="secondary-button btn-sm" onclick="changeLucidReaderPage(1)">→</button><span class="pdf-toolbar-spacer"></span>
                   <button class="secondary-button btn-sm" onclick="changeLucidPdfZoom(-0.15)">−</button><span id="pdfZoomLabel" class="pdf-zoom-label">100%</span>
-                  <button class="secondary-button btn-sm" onclick="changeLucidPdfZoom(0.15)">+</button><button class="secondary-button btn-sm" onclick="resetLucidPdfZoom()">Fit width</button>
+                  <button class="secondary-button btn-sm" onclick="changeLucidPdfZoom(0.15)">+</button><button class="secondary-button btn-sm" onclick="resetLucidPdfZoom()">Fit page</button><button class="secondary-button btn-sm" onclick="fitLucidPdfWidth()">Fit width</button>
                 </div>
                 <div id="pdfCanvasViewport" class="pdf-canvas-viewport"><div id="pdfCanvasStage" class="pdf-canvas-stage"><canvas id="pdfPageCanvas"></canvas><div id="pdfTextLayer" class="pdf-text-layer"></div></div></div>
                 <p class="pdf-viewer-hint">Original PDF page rendering. Page text is indexed separately for page-aware AI explanations and quiz generation.</p>
@@ -2459,17 +2472,14 @@ async function createCatalogue() {
 }
 
 // ─── Goals ────────────────────────────────────────
-function addGoal() {
-  const desc = document.getElementById('goalDesc').value.trim();
-  const deadline = document.getElementById('goalDeadline').value;
-  if (!desc) { showToast('Enter a goal description.', '⚠'); return; }
-  const list = document.getElementById('goalList');
-  const el = document.createElement('div');
-  el.className = 'goal-item';
-  el.innerHTML = `<div class="goal-check" onclick="toggleGoal(this)"></div><div style="flex:1;"><strong>${escapeHTML(desc)}</strong><div class="muted small-text">${deadline ? `Deadline: ${deadline}` : 'No deadline set'}</div></div><span class="tag">New</span>`;
-  list.insertBefore(el, list.firstChild);
-  closeModal('goalModal');
-  showToast(`Goal added: "${desc}"`, '◎');
+async function addGoal() {
+  const desc=document.getElementById('goalDesc').value.trim(),deadline=document.getElementById('goalDeadline').value;
+  if(!desc){showToast('Enter a goal description.','⚠');return;}
+  try{
+    await window.createLucidGoal(desc,deadline);
+    document.getElementById('goalDesc').value='';document.getElementById('goalDeadline').value='';
+    closeModal('goalModal');await window.loadLucidGoals();showToast('Goal saved to your learning profile.','◎');
+  }catch(error){showToast('Could not save goal: '+error.message,'⚠');}
 }
 function toggleGoal(el) {
   el.classList.toggle('checked');

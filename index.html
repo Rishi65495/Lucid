@@ -1304,6 +1304,17 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid three-col" id="analyticsLearningProfile"><div class="card card-padding"><div class="kicker">Quiz accuracy</div><h3>—</h3><p class="muted small-text">Not measured yet</p></div><div class="card card-padding"><div class="kicker">Completed quizzes</div><h3>0</h3><p class="muted small-text">Saved attempts</p></div><div class="card card-padding"><div class="kicker">Recorded focus</div><h3>0m</h3><p class="muted small-text">Recent reading sessions</p></div></div>
       <div class="section-row"><h2>AI recommendation</h2></div>
       <div class="card card-padding" id="analyticsRecommendation"><p class="muted small-text">Recommendations will appear when sufficient learning evidence is available.</p></div>
+
+      <div class="section-row"><h2>AI-generated learning insights</h2></div>
+      <article class="card card-padding" style="margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div><p class="muted small-text">Evidence-based analysis of your saved progress. Lucid sends only the context needed for this progress question.</p><p class="muted small-text" id="analyticsAIInsightStatus" aria-live="polite">No AI insight generated in this session yet.</p></div>
+          <button class="primary-button btn-sm" id="analyticsAIInsightButton" onclick="generateLucidProgressInsight()">Generate AI insights</button>
+        </div>
+        <div id="analyticsAIInsight" style="white-space:pre-wrap;line-height:1.65;margin-top:14px;" aria-live="polite">Generate an insight to see your measured strengths, weak areas, and a practical next step.</div>
+      </article>
+      <div class="section-row"><h2>Concept skill breakdown</h2><span class="muted small-text">Mastery · Recall · Application</span></div>
+      <div class="card card-padding" id="analyticsMasteryChart"><p class="muted small-text">Concept-level evidence will appear when available.</p></div>
     </section>
 
     <!-- ══ ACHIEVEMENTS ══ -->

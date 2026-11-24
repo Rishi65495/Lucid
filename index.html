@@ -2347,6 +2347,7 @@ function delNote(btn) {
 
 // ─── Page completion ─────────────────────────────
 function completePage() {
+  if(window.changeLucidReaderPage && (state.resourcePages||[]).length && state.currentResourcePage < state.resourcePages.length) window.changeLucidReaderPage(1);
   state.pagesRead += 1;
   state.xp += 12;
   state.sessionPagesCompleted += 1;
@@ -2355,7 +2356,7 @@ function completePage() {
   updateSessionProgress();
   showToast(`Page complete! +12 XP earned. Total: ${state.pagesRead} pages.`, '📖');
 }
-function prevPage() { showToast('Previous page — add backend for real navigation.'); }
+function prevPage() { if(window.changeLucidReaderPage)window.changeLucidReaderPage(-1); }
 function updateSessionProgress() {
   const total = 12;
   const pct = Math.min(100, Math.round((state.sessionPagesCompleted / total) * 100));

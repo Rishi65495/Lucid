@@ -106,8 +106,9 @@ window.awardLucidXP = async function(eventType,sourceId,improvement=0){
   state.xp=total;state.level=level;
   await lucidSupabase.from('profiles').update({xp:total,level}).eq('id',lucidSession.user.id);
   if(typeof updateXP==='function')updateXP();
-  if(document.getElementById('achievementShelf'))await window.loadLucidAchievements();
-  if(document.getElementById('lbList'))await window.loadLucidLeaderboard();
+  await window.evaluateLucidBadges();
+  if(state.activePage==='rewards')await window.loadLucidAchievements(true);
+  if(state.activePage==='leaderboard')await window.loadLucidLeaderboard();
   return data||{};
 };
 window.recordLucidPageCompleted = async function(resourceId,page,totalPages){
@@ -126,7 +127,8 @@ window.recordLucidPageCompleted = async function(resourceId,page,totalPages){
     await lucidSupabase.from('learning_journeys').update({completion,position:{page:payload.page},last_activity_at:new Date().toISOString()}).eq('id',journey.id);
     if(completion>=100)await window.awardLucidXP('resource_completed',resourceId);
   }
-  if(document.getElementById('achievementShelf'))await window.loadLucidAchievements();
+  await window.evaluateLucidBadges();
+  if(state.activePage==='rewards')await window.loadLucidAchievements(true);
 };
 window.recordLucidFocusCompleted = async function(sourceId){
   if(!lucidSession?.user)return;
@@ -353,10 +355,10 @@ window.evaluateLucidBadges = async function(){
   }).map(badge=>({user_id:userId,badge_id:badge.id,metadata:{awarded_by:'milestone_evaluator',evaluated_at:new Date().toISOString()}}));
   if(toAward.length){const inserted=await lucidSupabase.from('user_badges').upsert(toAward,{onConflict:'user_id,badge_id',ignoreDuplicates:true});if(inserted.error)throw inserted.error;}
 };
-window.loadLucidAchievements = async function(){
+window.loadLucidAchievements = async function(skipEvaluation=false){
   const shelf=document.getElementById('achievementShelf');if(!shelf||!lucidSession?.user)return;
   shelf.innerHTML='<p class="muted small-text">Loading earned achievements…</p>';
-  try{await window.evaluateLucidBadges();}catch(error){console.warn('Badge evaluation skipped:',error.message);}
+  if(!skipEvaluation)try{await window.evaluateLucidBadges();}catch(error){console.warn('Badge evaluation skipped:',error.message);}
   const [profile,badges,xp]=await Promise.all([
     lucidSupabase.from('profiles').select('level,xp').eq('id',lucidSession.user.id).maybeSingle(),
     lucidSupabase.from('user_badges').select('awarded_at,metadata,badges(name,description,family)').eq('user_id',lucidSession.user.id).order('awarded_at',{ascending:false}),

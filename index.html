@@ -336,6 +336,22 @@ h3{font-size:15px;font-weight:700;}
 .pdf-page-control input{width:58px;padding:6px;text-align:center;}
 .pdf-toolbar-spacer{flex:1;}.pdf-zoom-label{min-width:48px;text-align:center;font:10px "Space Mono",monospace;color:var(--muted);}
 .pdf-canvas-viewport{width:100%;max-height:78vh;overflow:auto;padding:14px;background:#303631;border-radius:10px;}
+#documentText.pdf-document{width:100%;max-width:none;min-height:0;margin:0;padding:clamp(12px,2vw,24px);background:transparent;border:0;border-radius:0;box-shadow:none;color:var(--ink);}
+#documentText.pdf-document #docTitle{font-size:clamp(20px,2.2vw,30px);margin:0 0 14px;}
+#pdfViewerPanel{width:100%;max-width:none;}
+.pdf-viewer-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 12px;}
+.pdf-canvas-viewport{width:100%;max-height:none;overflow:auto;padding:12px;background:#303631;border-radius:10px;}
+.pdf-canvas-stage{position:relative;margin:0 auto;max-width:100%;background:white;box-shadow:0 8px 30px rgba(0,0,0,.25);}
+#pdfPageCanvas{display:block;max-width:none;height:auto;}
+.reader-layout{grid-template-columns:minmax(0,1fr) minmax(260px,320px);align-items:start;}
+.reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr)!important;}
+.reader-layout.sidebar-hidden>.reader-sidebar{display:none!important;}
+.reader-stage{width:100%;min-width:0;}
+.pdf-document .document-meta{margin-bottom:8px;}
+.pdf-document .pdf-viewer-hint{margin:10px 0 0;}
+@media(max-width:900px){.reader-layout{grid-template-columns:minmax(0,1fr)!important;}.reader-layout>.reader-sidebar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}.reader-layout.sidebar-hidden>.reader-sidebar{display:none!important;}}
+@media(max-width:600px){.reader-layout>.reader-sidebar{grid-template-columns:1fr;}.lucid-pdf-toolbar{position:sticky;top:0;z-index:3;}}
+
 .pdf-canvas-stage{position:relative;margin:0 auto;background:white;box-shadow:0 8px 30px rgba(0,0,0,.25);}
 #pdfPageCanvas{display:block;}.pdf-text-layer{position:absolute;inset:0;overflow:hidden;line-height:1;opacity:.22;user-select:text;}
 .pdf-text-layer span{position:absolute;color:transparent;white-space:pre;transform-origin:0 0;cursor:text;}
@@ -852,12 +868,9 @@ textarea{min-height:75px;resize:vertical;}
           <div class="kicker">Recent rewards</div>
           <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">You are collecting momentum.</h3>
           <div class="badge-row" id="dashBadges">
-            <div class="reward-badge" title="First Seed">🌱</div>
-            <div class="reward-badge" title="Seven Strong">🔥</div>
-            <div class="reward-badge" title="Book Builder">📚</div>
-            <div class="reward-badge locked" title="Page Turner — 64 pages left">✦</div>
+            <div class="muted small-text">Sign in to see badges earned from your learning activity.</div>
           </div>
-          <p class="muted small-text" style="margin-top:14px;">3 badges earned. Read 64 more pages to unlock <strong>Page Turner</strong>.</p>
+          <p class="muted small-text" style="margin-top:14px;"><span id="dashBadgeSummary">Your earned badges will appear here when your learning evidence meets a badge rule.</span></p>
           <div class="streak-strip">
             <div class="streak-number" id="streakSmall">7</div>
             <div><strong style="font-size:12px;">day streak</strong><div class="muted small-text">Consistency beats intensity.</div></div>
@@ -1345,10 +1358,10 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <div class="kicker">Current context</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-              <span class="tag">📄 Deep Work · Ch.4</span>
-              <span class="tag blue">🎓 MCA Semester 5</span>
-              <span class="tag gold">Recall: 81%</span>
-              <span class="tag rose">Weak: Overfitting</span>
+              <span class="tag" id="aiCurrentResource">No resource selected</span>
+              <span class="tag blue" id="aiCurrentPage">No page context</span>
+              <span class="tag gold" id="aiRecallEvidence">Recall: not measured</span>
+              <span class="tag rose" id="aiWeakArea">Weak area: not measured</span>
             </div>
           </div>
 
@@ -1356,10 +1369,10 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <h3 style="margin-bottom:12px;">Quick actions</h3>
             <div class="ai-actions" style="flex-wrap:wrap;">
-              <button class="ai-action-chip" onclick="quickAI('Explain the main idea of Deep Work Chapter 4 in simple terms')">📋 Explain page</button>
+              <button class="ai-action-chip" onclick="quickAI('Explain the current page of my selected resource in simple terms')">📋 Explain page</button>
               <button class="ai-action-chip" onclick="quickAI('Give me an analogy to understand overfitting better')">🔗 Give analogy</button>
               <button class="ai-action-chip" onclick="quickAI('Summarize my annotations and find patterns')">📝 Summarize notes</button>
-              <button class="ai-action-chip" onclick="quickAI('Generate 5 flashcards from Deep Work Chapter 4')">🃏 Make flashcards</button>
+              <button class="ai-action-chip" onclick="generateFlashcards()">🃏 Make flashcards</button>
               <button class="ai-action-chip" onclick="quickAI('Create a quiz to test my understanding of this material')">? Generate quiz</button>
               <button class="ai-action-chip" onclick="quickAI('What should I study next based on my weak areas?')">🗺 What next?</button>
               <button class="ai-action-chip" onclick="quickAI('Create a 7-day study plan for my MCA semester 5 exam')">📅 Study plan</button>
@@ -1400,13 +1413,12 @@ textarea{min-height:75px;resize:vertical;}
             <div class="muted small-text" id="aiConnectionStatus" style="margin-top:9px;">Checking secure session…</div>
           </div>
           <div class="card card-padding">
-            <h3 style="margin-bottom:10px;">Learning profile summary</h3>
-            <div style="font-size:12px;display:grid;gap:8px;">
-              <div class="mastery-bar-row"><span class="label">Focus quality</span><div class="progress-track"><span class="progress-fill" style="width:82%"></span></div><span class="mastery-pct">82%</span></div>
-              <div class="mastery-bar-row"><span class="label">Recall</span><div class="progress-track"><span class="progress-fill gold" style="width:81%"></span></div><span class="mastery-pct">81%</span></div>
-              <div class="mastery-bar-row"><span class="label">Consistency</span><div class="progress-track"><span class="progress-fill orange" style="width:70%"></span></div><span class="mastery-pct">70%</span></div>
-            </div>
-            <p class="muted small-text" style="margin-top:12px;">Best focus window: 8–10 PM. Strongest mode: PDF reading. Typical session: 28 min.</p>
+            <h3 style="margin-bottom:8px;">Learning improvement coach</h3>
+            <p class="muted small-text">Recommendations are based on your saved concept mastery, quiz attempts and reading sessions—not sample percentages.</p>
+            <div id="aiImprovementPanel" style="display:grid;gap:9px;margin-top:12px;"><p class="muted small-text">Loading your learning evidence…</p></div>
+            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="generateLucidImprovementPlan()">Suggest improvements</button>
+            <p class="muted small-text" id="aiImprovementStatus" style="margin-top:8px;" aria-live="polite">Ready to analyse your progress.</p>
+            <div id="aiImprovementPlan" style="display:grid;gap:8px;margin-top:10px;"></div>
           </div>
         </div>
       </div>
@@ -1416,7 +1428,7 @@ textarea{min-height:75px;resize:vertical;}
     <section class="page" id="leaderboard">
       <div class="page-heading">
         <div><div class="kicker">Room standings</div><h1>Leaderboard.</h1></div>
-        <span class="tag gold">MCA Semester Group</span>
+        <span class="tag">Competitive rankings · group data only</span>
       </div>
 
       <div class="grid two-col">
@@ -1431,36 +1443,25 @@ textarea{min-height:75px;resize:vertical;}
               <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
             </div>
             <div class="tab-content" id="lbTab-focus">
-              <div style="display:grid;gap:6px;">
-                <div class="leaderboard-row gold-row"><div class="rank-num">🥇</div><div class="mini-avatar">R</div><div class="lb-info"><div class="lb-name">Rishabh (You)</div><div class="lb-sub">18h 22m this week</div></div><div class="lb-xp">18h</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥈</div><div class="mini-avatar blue">M</div><div class="lb-info"><div class="lb-name">Maya</div><div class="lb-sub">16h 45m</div></div><div class="lb-xp">17h</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥉</div><div class="mini-avatar green">A</div><div class="lb-info"><div class="lb-name">Arjun</div><div class="lb-sub">14h 30m</div></div><div class="lb-xp">15h</div></div>
-              </div>
+              <div class="card card-padding"><h3>Your focus evidence</h3><p class="muted small-text" id="lbFocusSummary">Your recorded focus time will appear here. Group comparisons are only shown when a shared room leaderboard is available.</p></div>
             </div>
             <div class="tab-content" id="lbTab-improvement">
-              <div style="display:grid;gap:6px;">
-                <div class="leaderboard-row gold-row"><div class="rank-num">🥇</div><div class="mini-avatar">R</div><div class="lb-info"><div class="lb-name">Rishabh (You)</div><div class="lb-sub">Recall +14% · Focus +18%</div></div><div class="lb-xp">+14%</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥈</div><div class="mini-avatar green">A</div><div class="lb-info"><div class="lb-name">Arjun</div><div class="lb-sub">Quiz accuracy +9%</div></div><div class="lb-xp">+9%</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥉</div><div class="mini-avatar blue">M</div><div class="lb-info"><div class="lb-name">Maya</div><div class="lb-sub">Completion +7%</div></div><div class="lb-xp">+7%</div></div>
-              </div>
+              <div class="card card-padding"><h3>Improvement rankings</h3><p class="muted small-text">This view compares measured improvement between learners. No group ranking is shown until shared, permissioned group data is available.</p></div>
             </div>
           </div>
         </div>
 
         <div>
           <div class="card card-padding" style="margin-bottom:17px;">
-            <div class="kicker">Room weak area</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Overfitting</h3>
-            <p class="muted small-text">Average recall for this topic: 34%. Suggested: group practice session.</p>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="generateAIQuiz()">✦ Start room quiz on Overfitting</button>
+            <div class="kicker">What the leaderboard measures</div>
+            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Comparative performance.</h3>
+            <p class="muted small-text">The XP &amp; Level ranking compares learner profiles. XP is updated from recorded learning activity. Focus time and improvement are personal metrics until a shared group comparison is available.</p>
           </div>
           <div class="card card-padding">
-            <div class="kicker">Room challenge</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Machine Learning Test</h3>
-            <p class="muted small-text">10 questions · 20 min · Room test</p>
-            <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" style="width:0%"></span></div>
-            <div class="progress-label"><span>Not started</span><span>0/14 members ready</span></div>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="startRoomTest()">Start room test</button>
+            <div class="kicker">How achievements differ</div>
+            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Personal milestones.</h3>
+            <p class="muted small-text">Achievements are badges you earn by meeting specific activity criteria. They are not rankings and do not depend on other learners.</p>
+            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="openPage('rewards')">View achievements →</button>
           </div>
         </div>
       </div>
@@ -1564,95 +1565,19 @@ textarea{min-height:75px;resize:vertical;}
     <!-- ══ ACHIEVEMENTS ══ -->
     <section class="page" id="rewards">
       <div class="page-heading">
-        <div><div class="kicker">Small rewards, lasting rhythm</div><h1>Achievements.</h1></div>
-        <span class="tag gold">Level 16 · 390 XP · Scholar</span>
+        <div><div class="kicker">Milestones earned through learning evidence</div><h1>Achievements.</h1></div>
+        <span class="tag" id="earnedBadgeCount">Loading achievements…</span>
       </div>
-
-      <!-- Level progression -->
-      <div class="card hero-card" style="margin-bottom:17px;">
-        <div class="kicker">Next milestone</div>
-        <h2>Reach Level 17 — Master</h2>
-        <p>110 XP to go. Keep completing sessions, quizzes, and study goals.</p>
-        <div class="progress-track" style="max-width:400px;background:rgba(255,255,255,.23);">
-          <span class="progress-fill" style="width:72%;background:var(--lime);"></span>
-        </div>
+      <div class="card card-padding" style="margin-bottom:17px;">
+        <h3>Achievements are earned, not assigned</h3>
+        <p class="muted small-text" style="margin-top:7px;">Lucid awards a badge when your recorded learning activity meets its rule—for example, completing resources, building a streak, finishing focus sessions or answering practice questions. Your personal goals are separate targets that you set yourself.</p>
       </div>
-
-      <!-- Level map -->
-      <div class="section-row"><h2>Level journey</h2></div>
-      <div class="grid four-col">
-        <div class="card card-padding" style="background:var(--sage-2);">
-          <div style="font-weight:800;font-size:11px;color:var(--forest);">Lv.1–5 ✓</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Curious → Focused</div>
-          <div class="muted small-text">Foundation complete</div>
-        </div>
-        <div class="card card-padding" style="background:var(--sage-2);">
-          <div style="font-weight:800;font-size:11px;color:var(--forest);">Lv.6–10 ✓ (partially)</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Consistent → Master</div>
-          <div class="muted small-text">Currently: Lv.16 Scholar</div>
-        </div>
-        <div class="card card-padding">
-          <div style="font-weight:800;font-size:11px;color:var(--muted);">Lv.17–20</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Master → Expert</div>
-          <div class="muted small-text">110 XP to next level</div>
-        </div>
-        <div class="card card-padding" style="opacity:.5;">
-          <div style="font-weight:800;font-size:11px;color:var(--muted);">Lv.21+</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Mentor</div>
-          <div class="muted small-text">Unlocked by helping others</div>
-        </div>
-      </div>
-
-      <!-- Badge shelf -->
-      <div class="section-row"><h2>Badge shelf</h2></div>
-      <div class="grid library-grid">
-        <div class="card card-padding" onclick="showToast('🌱 First Seed earned on Sept 1.')">
-          <div class="reward-badge">🌱</div>
-          <h3 style="margin-top:13px;">First Seed</h3>
-          <p class="muted small-text">Completed your first reading session.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge">🔥</div>
-          <h3 style="margin-top:13px;">Seven Strong</h3>
-          <p class="muted small-text">7-day learning streak.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge">📚</div>
-          <h3 style="margin-top:13px;">Book Builder</h3>
-          <p class="muted small-text">3 different resources in one week.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">✦</div>
-          <h3 style="margin-top:13px;">Page Turner</h3>
-          <p class="muted small-text">Read 200 pages in one week.</p>
-          <span class="tag muted" style="margin-top:8px;">64 pages left</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">🧠</div>
-          <h3 style="margin-top:13px;">Clear Recall</h3>
-          <p class="muted small-text">Score 90%+ on 5 quizzes.</p>
-          <span class="tag muted" style="margin-top:8px;">3 of 5 done</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">🏆</div>
-          <h3 style="margin-top:13px;">Library Builder</h3>
-          <p class="muted small-text">Complete 10 resources.</p>
-          <span class="tag muted" style="margin-top:8px;">4 of 10 done</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">⚡</div>
-          <h3 style="margin-top:13px;">Deep Worker</h3>
-          <p class="muted small-text">Complete 50 focused sessions.</p>
-          <span class="tag muted" style="margin-top:8px;">34 of 50</span>
-        </div>
-      </div>
+      <div class="section-row"><h2>Badge collection</h2></div>
+      <div class="grid library-grid" id="rewardGrid"><div class="card card-padding muted">Sign in to load your earned and available badges.</div></div>
     </section>
 
     <!-- ══ GOALS ══ -->
-    <section class="page" id="goals">
+    id="goals">
       <div class="page-heading">
         <div><div class="kicker">What you're working toward</div><h1>Goals.</h1></div>
         <button class="primary-button" onclick="openModal('goalModal')">＋ Add goal</button>
@@ -1661,64 +1586,23 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid two-col">
         <div>
           <div class="card card-padding" style="margin-bottom:17px;">
-            <div class="kicker">Active goals</div>
-            <div style="display:grid;gap:9px;margin-top:14px;" id="goalList">
-              <div class="goal-item">
-                <div class="goal-check checked" onclick="toggleGoal(this)">✓</div>
-                <div style="flex:1;">
-                  <strong>Complete MCA Semester 5 by December</strong>
-                  <div class="muted small-text">6 resources · 47% done</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill" style="width:47%"></span></div>
-                </div>
-                <span class="tag">Active</span>
-              </div>
-              <div class="goal-item">
-                <div class="goal-check" onclick="toggleGoal(this)"></div>
-                <div style="flex:1;">
-                  <strong>Read 1 book per month</strong>
-                  <div class="muted small-text">Currently: Atomic Habits (32%)</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill orange" style="width:32%"></span></div>
-                </div>
-                <span class="tag blue">Monthly</span>
-              </div>
-              <div class="goal-item">
-                <div class="goal-check" onclick="toggleGoal(this)"></div>
-                <div style="flex:1;">
-                  <strong>Improve ML recall to 85%</strong>
-                  <div class="muted small-text">Current: 72% · Target: 85%</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill gold" style="width:72%"></span></div>
-                </div>
-                <span class="tag gold">Mastery</span>
-              </div>
-              <div class="goal-item done">
-                <div class="goal-check checked" style="background:var(--muted);">✓</div>
-                <div style="flex:1;">
-                  <strong>Complete 7-day study streak</strong>
-                  <div class="muted small-text">Completed Sept 18</div>
-                </div>
-                <span class="tag">✓ Done</span>
-              </div>
-            </div>
+            <div class="kicker">Your goals</div>
+            <div style="display:grid;gap:9px;margin-top:14px;" id="goalList"><p class="muted small-text">Loading your saved goals…</p></div>
           </div>
         </div>
         <div>
           <div class="card card-padding">
-            <div class="kicker">AI goal recommendation</div>
-            <div class="insight-quote" style="font-size:18px;margin:14px 0;">Focus on Overfitting before your next ML quiz. 3 sessions should lift recall from 22% to 60%.</div>
-            <button class="primary-button btn-sm full-width" onclick="openModal('goalModal')">Add this goal</button>
+            <div class="kicker">How goals and achievements differ</div>
+            <h3 style="margin:10px 0 6px;">Goals are targets you choose.</h3>
+            <p class="muted small-text">Examples: finish a resource, practise 30 minutes daily, or reach a mastery target. Lucid tracks the goal status and deadline.</p>
+            <h3 style="margin:14px 0 6px;">Achievements are milestones you earn.</h3>
+            <p class="muted small-text">Badges are awarded when recorded learning evidence meets a defined rule. They are not goals and cannot be manually checked off.</p>
+            <button class="secondary-button btn-sm full-width" onclick="openPage('rewards')">View earned achievements →</button>
           </div>
           <div class="card card-padding" style="margin-top:17px;">
-            <div class="kicker">Upcoming deadlines</div>
-            <div style="display:grid;gap:10px;margin-top:12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                <span>MCA Semester Exam</span>
-                <span class="tag rose">Dec 15</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                <span>Algorithm assignment</span>
-                <span class="tag gold">Oct 5</span>
-              </div>
-            </div>
+            <div class="kicker">AI improvement suggestions</div>
+            <p class="muted small-text" style="margin:9px 0;">Use your saved quiz and concept-mastery evidence to generate a practical next-step plan in AI Guide.</p>
+            <button class="primary-button btn-sm full-width" onclick="openPage('aiGuide');generateLucidImprovementPlan()">Analyse my progress →</button>
           </div>
         </div>
       </div>
@@ -1918,8 +1802,10 @@ textarea{min-height:75px;resize:vertical;}
       <label class="form-label">Goal description<input id="goalDesc" placeholder="e.g. Complete Cyber Security by November" /></label>
       <div class="form-row">
         <label class="form-label">Type<select id="goalType"><option>Resource completion</option><option>Mastery target</option><option>Focus hours</option><option>Quiz accuracy</option></select></label>
-        <label class="form-label">Deadline<input id="goalDeadline" type="date" /></label>
+        <label class="form-label">Target value<input id="goalTarget" type="number" min="1" step="1" placeholder="e.g. 5 or 85" /></label>
       </div>
+      <label class="form-label">Deadline<input id="goalDeadline" type="date" /></label>
+      <p class="muted small-text">Lucid estimates progress from recorded completed resources, concept mastery, focus sessions or quiz attempts, depending on the goal type.</p>
       <button class="primary-button full-width" onclick="addGoal()">Add goal →</button>
     </div>
   </div>
@@ -2075,27 +1961,25 @@ function showToast(message, icon = '✓') {
 
 // ─── Timer ────────────────────────────────────────
 function toggleTimer() {
-  const btn = document.getElementById('timerButton');
-  const status = document.getElementById('timerStatus');
-  state.timerRunning = !state.timerRunning;
-  if (state.timerRunning) {
-    btn.textContent = 'Pause session';
-    status.textContent = 'You are in a focused reading session.';
-    state.timerInterval = setInterval(() => {
-      if (state.timerSeconds > 0) { state.timerSeconds -= 1; renderTimer(); }
-      if (state.timerSeconds === 0) {
-        clearInterval(state.timerInterval); state.timerRunning = false;
-        btn.textContent = 'Session complete';
-        status.textContent = 'Beautiful work. Take a moment to reflect.';
-        state.xp += 20; updateXP();
-        showToast('Session complete! +20 XP earned. 🎉', '🎉');
+  const btn=document.getElementById('timerButton'),status=document.getElementById('timerStatus');
+  state.timerRunning=!state.timerRunning;
+  if(state.timerRunning){
+    btn.textContent='Pause session';status.textContent='You are in a focused reading session.';
+    if(!window.currentLucidReadingSessionId&&window.startLucidReadingSession){
+      window.startLucidReadingSession().then(id=>{window.currentLucidReadingSessionId=id;}).catch(error=>console.warn('Could not start saved focus session:',error.message));
+    }
+    state.timerInterval=setInterval(()=>{
+      if(state.timerSeconds>0){state.timerSeconds-=1;renderTimer();}
+      if(state.timerSeconds===0){
+        clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Session complete';status.textContent='Beautiful work. Take a moment to reflect.';
+        state.xp+=20;updateXP();showToast('Session complete! +20 XP earned. 🎉','🎉');
+        const activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60);
+        if(window.finishLucidReadingSession)Promise.resolve(window.currentLucidReadingSessionId).then(id=>window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:true})).catch(error=>showToast('Session saved locally; cloud sync failed: '+error.message,'⚠'));
         openModal('quizModal');
       }
-    }, 1000);
-  } else {
-    clearInterval(state.timerInterval);
-    btn.textContent = 'Resume session';
-    status.textContent = 'Paused. Your progress is safe.';
+    },1000);
+  }else{
+    clearInterval(state.timerInterval);btn.textContent='Resume session';status.textContent='Paused. Your progress is safe.';
   }
 }
 function renderTimer() {
@@ -2105,11 +1989,13 @@ function renderTimer() {
   document.getElementById('focusTimer').textContent = `${m}:${s}`;
 }
 function resetTimer() {
-  clearInterval(state.timerInterval); state.timerRunning = false;
-  state.timerSeconds = (state.preferences.focusLength || 25) * 60;
-  renderTimer();
-  document.getElementById('timerButton').textContent = 'Start session';
-  document.getElementById('timerStatus').textContent = 'Ready when you are.';
+  clearInterval(state.timerInterval);state.timerRunning=false;
+  if(window.currentLucidReadingSessionId&&window.finishLucidReadingSession){
+    const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60-state.timerSeconds);
+    window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:false}).catch(error=>console.warn('Could not save stopped session:',error.message));
+  }
+  state.timerSeconds=(state.preferences.focusLength||25)*60;renderTimer();
+  document.getElementById('timerButton').textContent='Start session';document.getElementById('timerStatus').textContent='Ready when you are.';
 }
 
 // ─── Annotations ─────────────────────────────────
@@ -2246,6 +2132,7 @@ function updateXP() {
   document.getElementById('sideXP').textContent = `${state.xp} XP`;
   document.getElementById('sideLevel').textContent = `Lv. ${state.level} — ${levelName}`;
   document.getElementById('sideXPFill').style.width = pctInLevel + '%';
+  try{if(typeof saveState==='function')saveState();if(window.syncLucidXP)window.syncLucidXP(state.xp,state.level).catch(error=>console.warn('Could not sync XP:',error.message));}catch(_){}
 }
 
 // Focus music controls removed: no ambient-audio state or handlers.
@@ -2253,7 +2140,7 @@ function updateXP() {
 function startRoomTest() {
   closeModal?.('');
   openPage('practice');
-  showToast('Room test started! 14 members competing.', '🏆');
+  showToast('Room-based tests are not enabled. Use Practice Centre for an individual source-based quiz.', 'ℹ');
 }
 
 
@@ -2415,17 +2302,17 @@ function answerQuiz(correct, btn) {
   const result = document.getElementById('quizResult') || document.getElementById('modalQuizResult');
   const answeredQuestion=quizBank[currentQuizIdx % quizBank.length];
   if(typeof window.recordLucidQuizAnswer==='function'){
-    window.recordLucidQuizAnswer({question:answeredQuestion.q,selectedOption:btn?btn.textContent:'',correctOption:answeredQuestion.opts[answeredQuestion.ans],correct,quizIndex:currentQuizIdx})
+    window.recordLucidQuizAnswer({question:answeredQuestion.q,selectedOption:btn?btn.textContent:'',correctOption:answeredQuestion.opts[answeredQuestion.ans],correct,quizIndex:currentQuizIdx,totalQuestions:quizBank.length,quizId:window.currentGeneratedQuizId||null,explanation:answeredQuestion.explanation||''})
       .catch(error=>console.warn('Could not persist quiz evidence:',error.message));
   }
   if (correct) {
     state.quizCorrect++; state.xp += 25; updateXP();
     if (btn) btn.classList.add('correct');
-    if (result) { result.style.color = 'var(--forest-2)'; result.textContent = '✓ Correct! +25 XP. Well done.'; }
+    if (result) { result.style.color = 'var(--forest-2)'; result.textContent = '✓ Correct! +25 XP. Well done.'+(answeredQuestion.explanation?' '+answeredQuestion.explanation:''); }
     showToast('Correct! +25 XP 🎯', '🎯');
   } else {
     if (btn) btn.classList.add('wrong');
-    if (result) { result.style.color = 'var(--danger)'; result.textContent = '✗ Not quite. Review the concept and try again.'; }
+    if (result) { result.style.color = 'var(--danger)'; result.textContent = '✗ Not quite. Review the concept and try again.'+(answeredQuestion.explanation?' '+answeredQuestion.explanation:''); }
     showToast('Incorrect — note this for review.', '📝');
   }
   const pct = state.quizTotal ? Math.round((state.quizCorrect/state.quizTotal)*100) : 0;
@@ -2437,6 +2324,7 @@ function answerQuiz(correct, btn) {
   saveState();
 }
 function nextQuestion() {
+  if(currentQuizIdx+1>=quizBank.length){window.currentQuizAttemptId=null;state.quizCorrect=0;state.quizTotal=0;document.getElementById('quizScore').textContent='0/0';document.getElementById('quizScoreBar').style.width='0%';document.getElementById('accuracyBar').style.width='0%';document.getElementById('accuracyPct').textContent='—';}
   currentQuizIdx = (currentQuizIdx + 1) % quizBank.length;
   loadQuiz(currentQuizIdx);
 }
@@ -2445,14 +2333,19 @@ function skipQuiz() { nextQuestion(); showToast('Skipped — no mastery change.'
 async function generateAIQuiz() {
   const existing=document.getElementById('aiQuizSetup');if(existing){existing.remove();return;}
   const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf');
+  if(!resources.length){showToast('Upload a PDF to your Library before generating a source-based quiz.','⚠');return;}
   const modal=document.createElement('div');modal.id='aiQuizSetup';modal.className='modal-backdrop open';
   modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Build a quiz from your material</h2><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack">'+
-    '<label class="form-label">Source resource<select id="quizSource"><option value="">Choose a PDF…</option>'+resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+'</option>').join('')+'</select></label>'+
+    '<div id="quizSourceStep"><p class="muted small-text">First choose the PDF Lucid should use as the only source for this quiz.</p><label class="form-label">Source resource<select id="quizSource"><option value="">Choose a PDF…</option>'+resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+'</option>').join('')+'</select></label><button class="primary-button full-width" id="quizContinue" disabled>Continue to quiz settings →</button></div>'+
+    '<div id="quizOptionsStep" style="display:none;"><div class="tag" id="quizChosenSource" style="margin-bottom:12px;">Source selected</div>'+
     '<div class="form-row"><label class="form-label">Question format<select id="quizFormat"><option value="mixed">Mixed question types</option><option value="mcq">Multiple choice</option><option value="true_false">True / False</option><option value="case_based">Application / case-based</option></select></label><label class="form-label">Difficulty<select id="quizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div>'+
     '<div class="form-row"><label class="form-label">Question count<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Whole resource</option><option value="current">Current page</option><option value="selected">Selected passage</option></select></label></div>'+
-    '<label class="form-label">Instructions<textarea id="quizPrompt" placeholder="Tell Lucid what to focus on: definitions, comparisons, applications, exam-style questions…"></textarea></label><button class="primary-button full-width" id="buildAIQuiz">Generate quiz →</button><p class="muted small-text" id="quizBuildStatus">Select a source and describe the quiz you want.</p></div></div>';
-  document.body.appendChild(modal);
+    '<label class="form-label">Instructions<textarea id="quizPrompt" placeholder="Tell Lucid what to focus on: definitions, comparisons, applications, exam-style questions…"></textarea></label><button class="secondary-button full-width" id="quizChangeSource" type="button">← Change source</button><button class="primary-button full-width" id="buildAIQuiz">Generate quiz →</button></div><p class="muted small-text" id="quizBuildStatus">Choose a source to continue.</p></div></div>';  document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
+  const sourceSelect=modal.querySelector('#quizSource'),continueButton=modal.querySelector('#quizContinue'),sourceStep=modal.querySelector('#quizSourceStep'),optionsStep=modal.querySelector('#quizOptionsStep');
+  sourceSelect.addEventListener('change',()=>{continueButton.disabled=!sourceSelect.value;});
+  continueButton.onclick=()=>{const selected=resources.find(r=>(r.resourceId||r.id)===sourceSelect.value);if(!selected)return;modal.querySelector('#quizChosenSource').textContent='Source: '+selected.name;sourceStep.style.display='none';optionsStep.style.display='block';modal.querySelector('#quizBuildStatus').textContent='Configure the quiz using this resource only.';};
+  modal.querySelector('#quizChangeSource').onclick=()=>{optionsStep.style.display='none';sourceStep.style.display='block';};
   modal.querySelector('#buildAIQuiz').onclick=async()=>{
     const resourceId=modal.querySelector('#quizSource').value,format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim();
     if(!resourceId){modal.querySelector('#quizBuildStatus').textContent='Select a source PDF first.';return;}if(coverage==='selected'&&resourceId!==state.currentResourceId){modal.querySelector('#quizBuildStatus').textContent='Open the selected PDF and select a passage first.';return;}if(coverage==='selected'&&!state.selectedText){modal.querySelector('#quizBuildStatus').textContent='Select a passage in the PDF first.';return;}
@@ -2463,11 +2356,14 @@ async function generateAIQuiz() {
       const stride=Math.max(1,Math.ceil(pages.length/24));
       const selectedPages=coverage==='current'?pages:pages.filter((_,index)=>index%stride===0);
       const pageContext=coverage==='selected'?(state.selectedText||'') :selectedPages.map(p=>'Page '+p.page_number+': '+String(p.text_content||'').slice(0,760)).join('\\n\\n').slice(0,18000);
+      if(!String(pageContext||'').trim())throw new Error('This PDF has no extracted text for the selected coverage. Run OCR or choose a text-readable PDF first.');
       const prompt='Create '+count+' quiz questions from "'+(resource?.name||'the selected PDF')+'". Format: '+format+'. Difficulty: '+difficulty+'. Coverage: '+coverage+'. Instructions: '+(instructions||'Test understanding and application, not only memorization')+'. Return structured questions with prompt, options, answer_index and explanation. Do not invent facts beyond the supplied source.';
       const data=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:resource?.name,question_format:format,difficulty,question_count:count,coverage,page_content:pageContext});
-      const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+      const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||format}));
       if(!qs.length)throw new Error('No structured questions returned. Try fewer questions or a different format.');
-      quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);close();openPage('practice');showToast(qs.length+' questions generated from '+(resource?.name||'your PDF')+'.','✦');
+      let savedQuizId=null;try{savedQuizId=await window.saveLucidQuiz({resourceId,sourceTitle:resource?.name,format,difficulty,coverage,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}catch(saveError){console.warn('Quiz generated but history could not be saved:',saveError.message);}
+      quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=savedQuizId;window.currentQuizSourceId=resourceId;
+      loadQuiz(0);close();openPage('practice');showToast(qs.length+' questions generated from '+(resource?.name||'your PDF')+(savedQuizId?' and saved to your practice history.':'.'),savedQuizId?'✦':'⚠');
     }catch(error){modal.querySelector('#quizBuildStatus').textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
   };
 }
@@ -2487,11 +2383,16 @@ function rateCard(rating) {
   }, 300);
 }
 async function generateFlashcards() {
-  showToast('✦ AI generating flashcards from your annotations…', '✦');
-  const anns = state.annotations.slice(0,3).join('. ');
-  const prompt = `Based on these study notes: "${anns || 'Machine Learning fundamentals, overfitting, bias-variance tradeoff'}" — create 3 concise flashcard Q&A pairs. Format each as: Q: [question] | A: [answer]`;
-  const resp = await callGemini(prompt, 'You create educational flashcards for active recall.');
-  showToast('AI flashcards generated from your notes! ✦', '✦');
+  const notes=(state.annotations||[]).slice(0,8).map(x=>typeof x==='string'?x:(x.text||x.note||'')).filter(Boolean);
+  if(!notes.length&&!state.currentResourceId){showToast('Open a resource or save an annotation first.','⚠');return;}
+  try{
+    const data=await window.callLearningEngine('flashcards','Create concise active-recall cards from the supplied learning material.',{annotations:notes,resource_id:state.currentResourceId,current_page:state.currentResourcePage||1});
+    const cards=data.result?.cards||[];
+    if(!cards.length)throw new Error('No flashcards were returned.');
+    state.flashcards=cards.map(x=>({q:x.front,a:x.back}));state.flashcardIndex=0;
+    document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;
+    document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';showToast(cards.length+' flashcards generated.','✦');
+  }catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}
 }
 
 // ─── Oral recall ─────────────────────────────────
@@ -2502,26 +2403,25 @@ function newOralQuestion() {
   document.getElementById('oralResult').style.display = 'none';
 }
 async function evaluateOral() {
-  const q = document.getElementById('oralQuestion').textContent;
-  const a = document.getElementById('oralAnswer').value.trim();
-  if (!a) { showToast('Write your explanation first.', '⚠'); return; }
-  const resultEl = document.getElementById('oralResult');
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = '<div class="ai-msg bot thinking">✦ Evaluating your answer…</div>';
-  const prompt = `Student was asked: "${q}"\nStudent answered: "${a}"\n\nEvaluate the answer for: 1) Coverage (did they hit the main points?) 2) Accuracy (is it correct?) 3) Clarity (is it well-explained?). Be encouraging but honest. Give a brief score and specific improvement suggestion. Max 100 words.`;
-  const resp = await callGemini(prompt, 'You are a supportive AI tutor evaluating student oral recall responses. Be concise and constructive.');
-  resultEl.innerHTML = `<div class="note green"><strong>AI evaluation:</strong><br>${resp.replace(/\n/g,'<br>')}</div>`;
-  state.xp += 15; updateXP();
-  showToast('Oral recall evaluated! +15 XP', '🎙');
+  const q=document.getElementById('oralQuestion').textContent,a=document.getElementById('oralAnswer').value.trim();
+  if(!a){showToast('Write your explanation first.','⚠');return;}
+  const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer…';
+  try{
+    const data=await window.callLearningEngine('evaluate_recall','Evaluate the learner response for coverage, accuracy and clarity.',{question:q,answer:a});
+    resultEl.textContent=window.formatLearningResult(data.result);showToast('Oral recall evaluated.','🎙');
+  }catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Oral recall evaluation failed.','⚠');}
 }
 
 // ─── Weak areas practice ─────────────────────────
 async function practiceWeak(topic) {
-  openPage('practice');
-  showToast(`Loading practice session for "${topic}"…`, '📝');
-  const prompt = `Create 1 targeted quiz question about "${topic}" for a student who struggles with it. Return just the question and 4 options with the correct answer marked. Be clear and educational.`;
-  const resp = await callGemini(prompt, 'You create targeted remedial quiz questions.');
-  showToast(`AI practice question generated for ${topic}!`, '✦');
+  openPage('practice');showToast('Preparing source-grounded practice for '+topic+'…','📝');
+  try{
+    const profile=await window.loadLucidLearningProfile();
+    const data=await window.callLearningEngine('quiz','Create five targeted multiple-choice questions about '+topic+'. Use only the supplied learner evidence and source material.',{...profile,question_count:5,question_format:'mcq',topic,resource_id:state.currentResourceId});
+    const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+    if(!questions.length)throw new Error('No practice questions returned. Select a PDF source first.');
+    quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;loadQuiz(0);showToast(questions.length+' targeted questions ready.','✦');
+  }catch(error){showToast('Practice generation failed: '+error.message,'⚠');}
 }
 
 // ─── AI Guide ─────────────────────────────────────
@@ -2533,23 +2433,21 @@ const systemInstructions = {
 };
 
 async function askGuide() {
-  const q = document.getElementById('aiQuestion').value.trim();
-  const ansEl = document.getElementById('aiAnswer');
-  if (!q) { ansEl.style.display='block'; ansEl.textContent='Ask a question first.'; return; }
-  ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student annotations: ${state.annotations.slice(0,3).join('; ')}. Student weak areas: Overfitting (22%). Recall: 81%.`;
-  const prompt = `Context: ${context}\n\nStudent question: ${q}`;
-  const resp = await callGemini(prompt, systemInstructions[state.coachMode] || systemInstructions.Gentle);
-  ansEl.innerHTML = `<strong>Guide (${state.coachMode}):</strong><br>${resp.replace(/\n/g,'<br>')}`;
+  const q=document.getElementById('aiQuestion').value.trim(),ansEl=document.getElementById('aiAnswer');
+  if(!q){ansEl.style.display='block';ansEl.textContent='Ask a question first.';return;}
+  ansEl.style.display='block';ansEl.textContent='✦ Lucid is analysing your current learning context…';
+  const response=await window.callAIGuide(q,state.coachMode||'Gentle');
+  ansEl.textContent=response||'Lucid did not return an answer.';
 }
 
 async function quickAIModal(prompt) {
-  const ansEl = document.getElementById('aiAnswer');
-  document.getElementById('aiQuestion').value = prompt;
-  ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student notes: ${state.annotations.slice(0,2).join('; ')}.`;
-  const resp = await callGemini(`Context: ${context}\n\n${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
-  ansEl.innerHTML = `<strong>Guide:</strong><br>${resp.replace(/\n/g,'<br>')}`;
+  const ansEl=document.getElementById('aiAnswer');
+  document.getElementById('aiQuestion').value=prompt;
+  ansEl.style.display='block';ansEl.textContent='✦ Lucid is reading your current page and preparing an explanation…';
+  try{
+    const response=await window.callAIGuide(prompt,state.coachMode||'Gentle');
+    ansEl.textContent=response||'Lucid did not return an answer.';
+  }catch(error){ansEl.textContent='AI Teach failed: '+error.message;}
 }
 
 async function quickAI(prompt) {
@@ -2568,34 +2466,21 @@ async function sendAIChat() {
 }
 
 async function sendAIChatWithPrompt(prompt) {
-  const chat = document.getElementById('aiChat');
-  const empty = document.getElementById('aiChatEmpty');
-  if (empty) empty.style.display = 'none';
-
-  // Add user message
-  state.chatMessages.push({ role: 'user', text: prompt });
-  const userEl = document.createElement('div');
-  userEl.className = 'ai-msg user'; userEl.textContent = prompt;
-  chat.appendChild(userEl);
-
-  // Add thinking indicator
-  const thinkEl = document.createElement('div');
-  thinkEl.className = 'ai-msg bot thinking'; thinkEl.textContent = '✦ Thinking…';
-  chat.appendChild(thinkEl);
-  chat.scrollTop = chat.scrollHeight;
-
-  document.getElementById('chatCount').textContent = state.chatMessages.length;
-
-  const context = `Learner: ${state.preferences.name}. Current study: Deep Work Ch.4 + MCA Semester 5 ML. Weak areas: Overfitting (22%), Algorithms (55%). Recall: 81%. Streak: ${state.streak} days. Coach mode: ${state.coachMode}. Recent annotations: ${state.annotations.slice(0,2).join('; ')}.`;
-  const resp = await callGemini(`Learning context: ${context}\n\nStudent: ${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
-
-  // Replace thinking with real response
-  thinkEl.className = 'ai-msg bot';
-  thinkEl.innerHTML = resp.replace(/\n/g,'<br>');
-  state.chatMessages.push({ role: 'bot', text: resp });
-  chat.scrollTop = chat.scrollHeight;
-  document.getElementById('chatCount').textContent = state.chatMessages.length;
-  saveState();
+  const chat=document.getElementById('aiChat'),empty=document.getElementById('aiChatEmpty');
+  if(empty)empty.style.display='none';
+  state.chatMessages.push({role:'user',text:prompt});
+  const userEl=document.createElement('div');userEl.className='ai-msg user';userEl.textContent=prompt;chat.appendChild(userEl);
+  const thinkEl=document.createElement('div');thinkEl.className='ai-msg bot thinking';thinkEl.textContent='✦ Reading your learning context…';chat.appendChild(thinkEl);
+  chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;
+  try{
+    const response=await window.callAIGuide(prompt,state.coachMode||'Gentle');
+    thinkEl.className='ai-msg bot';thinkEl.textContent=response||'Lucid did not return an answer.';
+    state.chatMessages.push({role:'bot',text:response||''});
+  }catch(error){
+    thinkEl.className='ai-msg bot error';thinkEl.textContent='AI Guide failed: '+error.message;
+    state.chatMessages.push({role:'bot',text:'AI Guide failed: '+error.message});
+  }
+  chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;saveState();
 }
 
 function clearAIChat() {
@@ -2634,24 +2519,19 @@ async function createCatalogue() {
 }
 
 // ─── Goals ────────────────────────────────────────
-function addGoal() {
-  const desc = document.getElementById('goalDesc').value.trim();
-  const deadline = document.getElementById('goalDeadline').value;
-  if (!desc) { showToast('Enter a goal description.', '⚠'); return; }
-  const list = document.getElementById('goalList');
-  const el = document.createElement('div');
-  el.className = 'goal-item';
-  el.innerHTML = `<div class="goal-check" onclick="toggleGoal(this)"></div><div style="flex:1;"><strong>${escapeHTML(desc)}</strong><div class="muted small-text">${deadline ? `Deadline: ${deadline}` : 'No deadline set'}</div></div><span class="tag">New</span>`;
-  list.insertBefore(el, list.firstChild);
-  closeModal('goalModal');
-  showToast(`Goal added: "${desc}"`, '◎');
+async function addGoal() {
+  const desc=document.getElementById('goalDesc').value.trim(),deadline=document.getElementById('goalDeadline').value,type=document.getElementById('goalType').value,targetValue=document.getElementById('goalTarget').value;
+  if(!desc){showToast('Enter a goal description.','⚠');return;}
+  try{
+    await window.createLucidGoal({title:desc,target_type:type.toLowerCase().replace(/[^a-z0-9]+/g,'_'),target_value:targetValue?Number(targetValue):null,deadline});
+    document.getElementById('goalDesc').value='';document.getElementById('goalDeadline').value='';document.getElementById('goalTarget').value='';
+    closeModal('goalModal');showToast('Goal saved to your account.','✓');
+  }catch(error){showToast('Could not save goal: '+error.message,'⚠');}
 }
-function toggleGoal(el) {
-  el.classList.toggle('checked');
-  el.textContent = el.classList.contains('checked') ? '✓' : '';
-  const item = el.closest('.goal-item');
-  item.classList.toggle('done', el.classList.contains('checked'));
-  if (el.classList.contains('checked')) { state.xp += 100; updateXP(); showToast('Goal completed! +100 XP 🏆', '🏆'); }
+async function toggleGoal(el) {
+  const id=el?.dataset?.goalId;if(!id)return;
+  try{await window.completeLucidGoal(id);showToast('Goal marked complete.','✓');}
+  catch(error){showToast('Could not update goal: '+error.message,'⚠');}
 }
 
 // ─── Notifications ────────────────────────────────
@@ -2727,8 +2607,9 @@ function toggleReaderSidebar(){
   if(!layout||!button)return;
   const hidden=layout.classList.toggle('sidebar-hidden');
   button.textContent=hidden?'Show panel ▸':'Hide panel ◂';button.setAttribute('aria-expanded',String(!hidden));
-  localStorage.setItem('lucid-reader-sidebar-hidden',hidden?'1':'0');
+  try{localStorage.setItem('lucid-reader-sidebar-hidden',hidden?'1':'0');}catch(_){}
 }
+window.toggleReaderSidebar=toggleReaderSidebar;
 function toggleMobileDrawer() {
   document.getElementById('mobileDrawer').classList.toggle('open');
 }
@@ -2779,7 +2660,7 @@ document.addEventListener('click', e => {
 localStorage.removeItem('leafline-gemini-key');
 localStorage.removeItem('leafline-gemini-model');
 restoreState();
-if(localStorage.getItem('lucid-reader-sidebar-hidden')==='1'){
+if(localStorage.getItem('lucid-reader-sidebar-hidden')!=='0'){
   const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
   layout?.classList.add('sidebar-hidden');if(button){button.textContent='Show panel ▸';button.setAttribute('aria-expanded','false');}
 }

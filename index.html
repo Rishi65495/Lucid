@@ -674,7 +674,6 @@ textarea{min-height:75px;resize:vertical;}
         <button class="nav-item" data-page="library"><span class="nav-icon">▤</span><span>Library</span></button>
         <button class="nav-item" data-page="catalogues"><span class="nav-icon">◫</span><span>Catalogues</span></button>
         <button class="nav-item" data-page="reader"><span class="nav-icon">◉</span><span>Reading room</span></button>
-        <button class="nav-item" data-page="video"><span class="nav-icon">▶</span><span>Video classroom</span></button>
         <button class="nav-item" data-page="practice"><span class="nav-icon">?</span><span>Practice center</span></button>
         <button class="nav-item" data-page="profile"><span class="nav-icon">◎</span><span>My profile</span></button>
         <button class="nav-item" data-page="aiGuide"><span class="nav-icon">✦</span><span>AI Guide</span><span class="nav-badge" id="aiBadge" style="display:none">AI</span></button>
@@ -763,12 +762,6 @@ textarea{min-height:75px;resize:vertical;}
       <div id="lucidHomeAgentAnswer" class="lucid-agent-answer" hidden aria-live="polite"></div>
     </div>
   </div>
-  <div class="home-shortcuts">
-    <button class="card shortcut-card" onclick="openPage('library')"><span>▤</span><strong>My Library</strong><small class="muted">Open your resources</small></button>
-    <button class="card shortcut-card" onclick="openPage('catalogues')"><span>◫</span><strong>Catalogues</strong><small class="muted">Organise learning</small></button>
-    <button class="card shortcut-card" onclick="openPage('practice')"><span>?</span><strong>Practice</strong><small class="muted">Test your recall</small></button>
-    <button class="card shortcut-card" onclick="openModal('uploadModal')"><span>＋</span><strong>Add resource</strong><small class="muted">Bring in new material</small></button>
-  </div>
 </section>
 <section class="page" id="dashboard">
       <div class="page-heading">
@@ -839,13 +832,6 @@ textarea{min-height:75px;resize:vertical;}
         </div>
       </div>
 
-      <!-- Continue reading -->
-      <div class="section-row">
-        <h2>Continue where you left off</h2>
-        <button class="ghost-button" onclick="openPage('library')">View full library →</button>
-      </div>
-      <div class="grid library-grid" id="dashboardBooks"><p class="muted small-text">Your uploaded resources will appear here after you sign in.</p>
-      </div>
       <div class="grid two-col" style="margin-top:18px;">
         <article class="reward-card card">
           <div class="kicker">Recent rewards</div>
@@ -862,7 +848,6 @@ textarea{min-height:75px;resize:vertical;}
           <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">Pick up where you need to.</h3>
           <div class="quick-actions">
             <button class="quick-action" onclick="continueLucidLearning()"><span class="qa-icon">◉</span><strong>Continue learning</strong></button>
-            <button class="quick-action" onclick="openPage('video')"><span class="qa-icon">▶</span><strong>Video Classroom</strong></button>
             <button class="quick-action" onclick="openPage('aiGuide')"><span class="qa-icon">✦</span><strong>Ask AI Guide</strong></button>
             <button class="quick-action" onclick="openPage('practice')"><span class="qa-icon">?</span><strong>Practice recall</strong></button>
             <button class="quick-action" onclick="openPage('catalogues')"><span class="qa-icon">◫</span><strong>My catalogues</strong></button>
@@ -878,6 +863,12 @@ textarea{min-height:75px;resize:vertical;}
       <div class="page-heading">
         <div><div class="kicker">Your personal shelf</div><h1>My library.</h1></div>
         <button class="primary-button" onclick="openModal('uploadModal')">＋ Import resource</button>
+      </div>
+      <div class="card card-padding" style="margin-bottom:18px;">
+        <div class="section-row" style="margin-top:0;">
+          <div><div class="kicker">Pick up where you left off</div><h2>Continue learning.</h2><p class="muted small-text">Return to a resource you recently opened or studied.</p></div>
+        </div>
+        <div class="grid library-grid" id="dashboardBooks"><p class="muted small-text">Your recent resources will appear here after you sign in.</p></div>
       </div>
       <div class="card card-padding">
         <div class="section-row" style="margin-top:0;">

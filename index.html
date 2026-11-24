@@ -2298,7 +2298,7 @@ async function generateAIQuiz(preselectedResourceId) {
         const qs=rawQuestions.filter(q=>q&&String(q.prompt||'').trim()&&Array.isArray(q.options)&&q.options.length>=2&&Number.isInteger(Number(q.answer_index))&&Number(q.answer_index)>=0&&Number(q.answer_index)<q.options.length).slice(0,count).map(q=>({q:String(q.prompt),opts:q.options.map(String),ans:Number(q.answer_index),explanation:String(q.explanation||''),type:String(q.type||'mcq')}));
         if(!qs.length)throw new Error(data?.result?.text||'The AI did not return valid structured questions. Try a smaller question count.');
         status.textContent='Step 3/3 · Saving quiz and preparing your practice session…';
-        state.quizSourceTitle=chosen.name;state.quizSourceId=resourceId;state.quizAttemptNonce=crypto.randomUUID();state.quizTotal=0;state.quizCorrect=0;state.quizAnswered=0;
+        state.quizSourceTitle=chosen.name;state.quizSourceId=resourceId;state.quizAttemptNonce=crypto.randomUUID();state.activeQuizId=null;state.quizTotal=0;state.quizCorrect=0;state.quizAnswered=0;
         quizBank.splice(0,quizBank.length,...qs);currentQuizIdx=0;loadQuiz(0);
         const sourceLabel=document.getElementById('quizSourceLabel');if(sourceLabel)sourceLabel.textContent=chosen.name+' · '+coverage+' · '+difficulty;
         const score=document.getElementById('quizScore');if(score)score.textContent='0/0';

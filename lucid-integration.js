@@ -400,6 +400,14 @@ window.updateLucidVideoProgressUI=function(){
   const items=window.lucidVideoPlaylistItems||[],completed=items.filter(x=>x.progress?.completed).length,totalDuration=items.reduce((s,x)=>s+(Number(x.duration_seconds||x.video?.duration_seconds||x.resource?.metadata?.duration_seconds)||0),0),watchedContent=items.reduce((s,x)=>s+(Number(x.progress?.watchedContent)||0),0),pct=totalDuration?Math.min(100,Math.round(watchedContent/totalDuration*100)):(items.length?Math.round(completed/items.length*100):0);
   const percent=document.getElementById('videoProgressPercent');if(percent)percent.textContent=pct+'%';const bar=document.getElementById('videoProgressBar');if(bar)bar.style.width=pct+'%';const label=document.getElementById('videoProgressLabel');if(label)label.textContent=completed+' of '+items.length+' completed';const watchedEl=document.getElementById('videoWatchedTime');if(watchedEl)watchedEl.textContent=window.formatLucidDuration(items.reduce((s,x)=>s+(Number(x.progress?.active)||0),0));
 };
+window.ensureLucidVideoTranscript=async function(videoId,resourceId){
+  const fetched=await window.invokeLucidFunction('youtube-transcript',{video_id:videoId});
+  const transcript=String(fetched.transcript||'').trim();
+  if(!transcript)throw new Error('No transcript text was returned.');
+  const {error}=await lucidSupabase.from('resource_videos').update({transcript}).eq('resource_id',resourceId);
+  if(error)throw error;
+  return {transcript,language:fetched.language||'unknown'};
+};
 window.selectLucidVideo=async function(resourceId){
   if(!lucidSession?.user||!resourceId)throw new Error('Choose a saved video first.');
   await window.persistLucidVideoProgress(true);
@@ -421,6 +429,25 @@ window.selectLucidVideo=async function(resourceId){
   window.renderLucidVideoNotes();
   const videoId=video.youtube_video_id||resource.metadata?.youtube_video_id;
   if(!videoId)throw new Error('This saved resource has no YouTube video ID.');
+  if(!String(video.transcript||'').trim()){
+    const transcriptStatus=document.getElementById('videoTranscriptSaveStatus');
+    if(transcriptStatus)transcriptStatus.textContent='Finding available captions for this video automatically…';
+    try{
+      const fetched=await window.invokeLucidFunction('youtube-transcript',{video_id:videoId});
+      const transcript=String(fetched.transcript||'').trim();
+      if(!transcript)throw new Error('YouTube returned no transcript text.');
+      const saved=await lucidSupabase.from('resource_videos').update({transcript}).eq('resource_id',resourceId);
+      if(saved.error)throw saved.error;
+      video.transcript=transcript;
+      state.currentVideoContext={...state.currentVideoContext,transcript};
+      const transcriptInput=document.getElementById('videoTranscriptInput');if(transcriptInput)transcriptInput.value=transcript;
+      const transcriptStatusLabel=document.getElementById('videoTranscriptStatus');if(transcriptStatusLabel)transcriptStatusLabel.textContent='Transcript loaded automatically · '+(fetched.language||'captions');
+      if(transcriptStatus)transcriptStatus.textContent='Automatically retrieved and saved · '+transcript.length.toLocaleString()+' characters';
+    }catch(transcriptError){
+      if(transcriptStatus)transcriptStatus.textContent='Automatic captions unavailable: '+transcriptError.message;
+      const transcriptStatusLabel=document.getElementById('videoTranscriptStatus');if(transcriptStatusLabel)transcriptStatusLabel.textContent='No public transcript found';
+    }
+  }
   await window.startLucidVideoPlayer(videoId);
   const response=document.getElementById('videoAiResponse');if(response){response.style.display='block';response.textContent=video.transcript?'This AI assistant is grounded in the selected video transcript.':'No transcript is saved for this video. Paste its captions below before asking video-specific questions.';}
   return resource;

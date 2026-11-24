@@ -331,6 +331,11 @@ h3{font-size:15px;font-weight:700;}
 .pdf-viewer-heading a{color:var(--forest-2);text-decoration:underline;}
 #originalPdfViewer{display:block;width:100%;height:min(78vh,980px);min-height:620px;border:1px solid var(--line);border-radius:10px;background:#e9ece8;}
 .pdf-viewer-hint{margin-top:10px;color:var(--muted);font-family:"DM Sans",sans-serif;font-size:11px;}
+.reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr);}
+.reader-layout.sidebar-hidden>.reader-sidebar{display:none;}
+.annotation-open:hover span{text-decoration:underline;}
+#originalPdfViewer{width:100%;height:min(82vh,1100px);min-height:680px;}
+@media(max-width:780px){#originalPdfViewer{height:74vh;min-height:520px;}}
 @media(max-width:700px){.pdf-document{padding:18px 12px;}#originalPdfViewer{height:72vh;min-height:480px;}}
 .document{
   max-width:760px;min-height:860px;margin:auto;padding:60px 70px;
@@ -2112,7 +2117,7 @@ function highlightSelection(color) {
   if (!sel) { showToast('Select text in the document first.', '⚠'); return; }
   const chosenColor = color || state.currentHL || 'yellow';
   state.selectedText = sel;
-  state.highlights.push({ id: String(Date.now()) + '-' + String(state.highlights.length), text: sel, color: chosenColor, createdAt: new Date().toISOString() });
+  state.highlights.push({ id: String(Date.now()) + '-' + String(state.highlights.length), text: sel, color: chosenColor, page: Number(state.currentResourcePage)||1, resourceId: state.currentResourceId||null, createdAt: new Date().toISOString() });
   // Keep the passage in the legacy notes array until all existing study tools use highlight records.
   if (!state.annotations.includes(sel)) state.annotations.push(sel);
   document.getElementById('annotationInput').value = sel;

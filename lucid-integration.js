@@ -1382,11 +1382,12 @@ window.changeLucidReaderPage = function(delta){
   state.currentResourcePage=Math.max(1,Math.min(pageCount,(state.currentResourcePage||1)+delta));
   saveState();window.renderLucidReaderPage();if(typeof renderAnnotations==='function')renderAnnotations();
 };
-window.selectLucidResource = function(id){
-  state.currentResourceId=id;
-  const item=state.uploadedBooks.find(x=>(x.resourceId||x.id)===id);
-  state.currentResourceTitle=item&&item.name||'Selected PDF';
-  saveState();showToast('Selected resource for AI context.','📄');openPage('aiGuide');
+window.selectLucidResource = async function(id){
+  try{
+    await window.openLucidResource(id);
+    openPage('aiGuide');
+    saveState();showToast('Selected resource loaded for AI context.','📄');
+  }catch(error){showToast('Could not select resource: '+error.message,'⚠');}
 };
 
 window.initLucidAuth();

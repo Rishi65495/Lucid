@@ -1152,7 +1152,6 @@ window.markLucidPdfPageComplete=async function(pageNumber){
     state.pagesRead=(Number(state.pagesRead)||0)+1;
     state.sessionPagesCompleted=(Number(state.sessionPagesCompleted)||0)+1;
     state.xp=(Number(state.xp)||0)+12;
-    if(window.syncLucidXP)await window.syncLucidXP(state.xp,state.level);
     updateXP();
     try{await lucidSupabase.rpc('track_learning_event',{p_event_type:'resource_page_completed',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:state.currentResourceId,p_session_id:window.currentLucidReadingSessionId||null,p_payload:{page_number:page}});}catch(_){}
   }
@@ -1317,8 +1316,12 @@ window.openLucidResource = async function(id){
   state.currentResourceId=id;
   state.selectedText='';
   state.currentResourceTitle=resource.title;
-  state.currentResourcePage=1;
   state.currentResourcePageCount=Number(resource.metadata?.page_count||pages?.length||0);
+  const progress=await window.loadLucidResourceProgress(id);
+  state.currentResourceCompletedPages=progress.completedPages;
+  state.currentResourcePage=progress.lastPosition?Math.min(state.currentResourcePageCount||progress.lastPosition,progress.lastPosition+1):1;
+  const resourceProgress=state.uploadedBooks.find(x=>(x.resourceId||x.id)===id);
+  if(resourceProgress){resourceProgress.completedPages=progress.completedPages;resourceProgress.progressPercent=resourceProgress.pages?Math.min(100,Math.round(progress.completedPages/resourceProgress.pages*100)):0;}
   window.currentPdfUrl=signed.signedUrl;
   state.resourcePages=pages||[];
   try{

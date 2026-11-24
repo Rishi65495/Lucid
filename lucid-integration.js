@@ -49,25 +49,12 @@ window.invokeLucidFunction = async function(name,body){
 window.callAIGuide = async function(prompt,style){
   if(typeof state!=='undefined'&&state.currentVideoContext&&!String(state.currentVideoContext.transcript||'').trim())return 'Lucid could not retrieve public captions for this video. Try a video with captions enabled; Lucid will use its transcript automatically when available.';
   try{
-    const history=(typeof state!=='undefined'?state.chatMessages:[]).slice(-8).map(m=>({role:m.role,content:m.text}));
-    // Do not download PDF pages in the browser. The Edge Function routes the
-    // request first and retrieves only the relevant, user-owned resource pages.
     const data=await window.invokeLucidFunction('ai-guide',{
       question:prompt,
       style:style||'',
-      history,
       resource_id:typeof state!=='undefined'&&state.currentVideoContext?null:(typeof state!=='undefined'?state.currentResourceId:null),
       video_context:typeof state!=='undefined'&&state.currentVideoContext?{title:state.currentVideoContext.title,transcript:state.currentVideoContext.transcript}:null,
-      current_page:typeof state!=='undefined'?Number(state.currentResourcePage)||1:1,
-      context:typeof state!=='undefined'?(state.currentVideoContext
-        ? 'Selected YouTube video: '+(state.currentVideoContext.title||'')+'\\nTranscript length: '+String(state.currentVideoContext.transcript||'').length+' characters.'
-        : [
-          'Current resource: '+(state.currentResourceTitle||''),
-          'Current page: '+(state.currentResourcePage||1),
-          'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
-          'Selected passage: '+(state.selectedText||''),
-          'Annotations: '+(state.annotations||[]).slice(-8).map(x=>typeof x==='string'?x:x.text||x.note||'').join('; ')
-        ].join('\\n')): ''
+      current_page:typeof state!=='undefined'?Number(state.currentResourcePage)||1:1
     });
     return data.text||'The AI Guide returned an empty response.';
   }catch(error){return 'AI Guide error: '+(error&&error.message||'Unknown error');}

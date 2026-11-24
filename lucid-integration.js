@@ -303,19 +303,40 @@ window.getLucidResourcePages = async function(resourceId,options={}){
 };
 window.loadLucidGoals = async function(){
   if(!lucidSession?.user)return [];
-  const {data,error}=await lucidSupabase.from('learning_goals').select('id,title,description,target_type,target_value,deadline,status,created_at,completed_at').eq('owner_id',lucidSession.user.id).order('created_at',{ascending:false});
+  const uid=lucidSession.user.id;
+  const {data,error}=await lucidSupabase.from('learning_goals').select('id,title,description,target_type,target_value,deadline,status,created_at,completed_at').eq('owner_id',uid).order('created_at',{ascending:false});
   if(error)throw error;
   const goals=data||[],list=document.getElementById('goalList');
+  const [resourceProgress,mastery,sessions,attempts]=await Promise.all([
+    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(2000),
+    lucidSupabase.from('concept_mastery').select('mastery').eq('user_id',uid).limit(1000),
+    lucidSupabase.from('reading_sessions').select('active_seconds').eq('user_id',uid).limit(1000),
+    lucidSupabase.from('quiz_attempts').select('score,max_score').eq('user_id',uid).not('completed_at','is',null).limit(500)
+  ]);
+  const completedResources=new Set((resourceProgress.data||[]).map(x=>x.resource_id)).size;
+  const masteryRows=mastery.data||[],avgMastery=masteryRows.length?masteryRows.reduce((s,x)=>s+(Number(x.mastery)||0),0)/masteryRows.length:0;
+  const focusHours=(sessions.data||[]).reduce((s,x)=>s+(Number(x.active_seconds)||0),0)/3600;
+  const attemptRows=attempts.data||[],quizAccuracy=attemptRows.length?attemptRows.reduce((s,x)=>s+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/attemptRows.length:0;
+  const currentByType={resource_completion:completedResources,mastery_target:avgMastery,focus_hours:focusHours,quiz_accuracy:quizAccuracy};
+  const unitByType={resource_completion:'resources',mastery_target:'%',focus_hours:'hours',quiz_accuracy:'%'};
   if(list){
     list.innerHTML='';
-    if(!goals.length){list.innerHTML='<p class="muted small-text">No goals yet. Add a goal to define a measurable learning target.</p>';}
+    if(!goals.length){list.innerHTML='<p class="muted small-text">No goals yet. Add a target to give your learning a measurable direction.</p>';}
     goals.forEach(goal=>{
       const item=document.createElement('div');item.className='goal-item'+(goal.status==='completed'?' done':'');
       const check=document.createElement('button');check.type='button';check.className='goal-check'+(goal.status==='completed'?' checked':'');check.textContent=goal.status==='completed'?'✓':'';check.disabled=goal.status==='completed';check.title=goal.status==='completed'?'Completed':'Mark goal complete';check.onclick=()=>window.completeLucidGoal(goal.id);
       const body=document.createElement('div');body.style.flex='1';
       const title=document.createElement('strong');title.textContent=goal.title;
-      const meta=document.createElement('div');meta.className='muted small-text';meta.textContent=[goal.target_type?.replaceAll('_',' '),goal.deadline?'Due '+new Date(goal.deadline).toLocaleDateString():null].filter(Boolean).join(' · ')||'Personal learning goal';
-      body.append(title,meta);const tag=document.createElement('span');tag.className='tag';tag.textContent=goal.status==='completed'?'Completed':'Active';
+      const meta=document.createElement('div');meta.className='muted small-text';
+      const current=Number(currentByType[goal.target_type]||0),target=Number(goal.target_value||0),unit=unitByType[goal.target_type]||'';
+      const currentLabel=goal.target_value?('Progress: '+(goal.target_type==='focus_hours'?current.toFixed(1):Math.round(current))+' / '+target+' '+unit):goal.target_type?.replaceAll('_',' ');
+      meta.textContent=[currentLabel,goal.deadline?'Due '+new Date(goal.deadline).toLocaleDateString():null].filter(Boolean).join(' · ')||'Personal learning goal';
+      body.append(title,meta);
+      if(target>0&&unitByType[goal.target_type]){
+        const pct=Math.max(0,Math.min(100,current/target*100)),track=document.createElement('div');track.className='progress-track';track.style.marginTop='6px';
+        const fill=document.createElement('span');fill.className='progress-fill';fill.style.width=pct+'%';track.appendChild(fill);body.appendChild(track);
+      }
+      const tag=document.createElement('span');tag.className='tag';tag.textContent=goal.status==='completed'?'Completed':'Active';
       item.append(check,body,tag);list.appendChild(item);
     });
   }

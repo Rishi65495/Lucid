@@ -2133,6 +2133,7 @@ function updateXP() {
   document.getElementById('sideXP').textContent = `${state.xp} XP`;
   document.getElementById('sideLevel').textContent = `Lv. ${state.level} — ${levelName}`;
   document.getElementById('sideXPFill').style.width = pctInLevel + '%';
+  try{if(typeof saveState==='function')saveState();if(window.syncLucidXP)window.syncLucidXP(state.xp,state.level).catch(error=>console.warn('Could not sync XP:',error.message));}catch(_){}
 }
 
 // Focus music controls removed: no ambient-audio state or handlers.

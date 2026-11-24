@@ -1071,92 +1071,53 @@ textarea{min-height:75px;resize:vertical;}
       </div>
     </section>
 
-    <!-- ══ VIDEO CLASSROOM ══ -->
+    <!-- VIDEO CLASSROOM -->
     <section class="page" id="video">
       <div class="page-heading">
-        <div><div class="kicker">MCA Algorithm Lectures</div><h1>Video classroom.</h1></div>
-        <button class="primary-button" onclick="openModal('videoImportModal')">＋ Add playlist</button>
+        <div><div class="kicker" id="videoKicker">Your imported learning videos</div><h1 id="videoHeading">Video classroom.</h1><p class="muted small-text" id="videoSubtitle">Import a YouTube video or playlist to begin. AI answers use the saved transcript for the selected video.</p></div>
+        <button class="primary-button" onclick="openModal('videoImportModal')">＋ Import video / playlist</button>
       </div>
-
       <div class="grid reader-layout">
         <div>
-          <!-- Embedded YouTube player area -->
           <div class="card card-padding">
             <div id="youtubePlayerWrapper" style="background:#1a1a2e;border-radius:16px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:rgba(255,255,255,.7);">
-              <div style="font-size:40px;">▶</div>
-              <div style="font-size:14px;text-align:center;max-width:300px;">
-                <strong style="color:white;">DOM Manipulation — Lecture 15</strong><br>
-                <span style="font-size:12px;">Paste a YouTube URL to load a video</span>
-              </div>
-              <button class="primary-button btn-sm" onclick="openModal('videoImportModal')">Load YouTube video</button>
+              <div style="font-size:40px;">▶</div><div style="font-size:14px;text-align:center;max-width:360px;"><strong style="color:white;">No video selected</strong><br><span style="font-size:12px;">Import a YouTube video or playlist. Your own playlist will appear here.</span></div>
+              <button class="primary-button btn-sm" onclick="openModal('videoImportModal')">Import YouTube video</button>
             </div>
-            <div id="youtubePlayer" style="display:none;border-radius:16px;overflow:hidden;aspect-ratio:16/9;">
-              <iframe id="ytFrame" width="100%" height="100%" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" style="border-radius:16px;display:block;"></iframe>
-            </div>
-
-            <!-- Video controls -->
+            <div id="youtubePlayer" style="display:none;border-radius:16px;overflow:hidden;aspect-ratio:16/9;"><div id="ytFrame" style="width:100%;height:100%;"></div></div>
             <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap;">
-              <button class="secondary-button btn-sm" onclick="videoSpeed(.75)">0.75×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(1)">1×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(1.25)">1.25×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(1.5)">1.5×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(2)">2×</button>
-              <div style="flex:1;"></div>
-              <button class="secondary-button btn-sm" onclick="openModal('aiModal')">✦ Ask AI about this</button>
-              <button class="secondary-button btn-sm" onclick="addTimestampNote()">📌 Timestamp note</button>
-              <button class="secondary-button btn-sm" onclick="openModal('quizModal')">? Quiz this topic</button>
+              <button class="secondary-button btn-sm" onclick="videoSpeed(.75)">0.75×</button><button class="secondary-button btn-sm" onclick="videoSpeed(1)">1×</button><button class="secondary-button btn-sm" onclick="videoSpeed(1.25)">1.25×</button><button class="secondary-button btn-sm" onclick="videoSpeed(1.5)">1.5×</button><button class="secondary-button btn-sm" onclick="videoSpeed(2)">2×</button>
+              <span class="tag" id="videoCurrentTime">00:00 / 00:00</span><div style="flex:1;"></div>
+              <button class="secondary-button btn-sm" onclick="askVideoAI('Summarize this video using its transcript.')">✦ Summarize</button>
+              <button class="secondary-button btn-sm" onclick="askVideoAI('Explain the key ideas in this video transcript with examples.')">Explain</button>
+              <button class="secondary-button btn-sm" onclick="askVideoAI('Create a short quiz using only this video transcript.')">Quiz me</button>
             </div>
           </div>
-
-          <!-- Timestamped notes for video -->
-          <div class="card card-padding" style="margin-top:17px;">
-            <div class="panel-heading"><h3>Timestamped notes</h3><span class="panel-count" id="videoNoteCount">3</span></div>
-            <div id="videoNoteList" style="display:grid;gap:7px;max-height:200px;overflow-y:auto;margin-bottom:10px;">
-              <div class="note blue">🕐 <strong>12:34</strong> — Key concept: event delegation prevents memory leaks <button class="note-del" onclick="delNote(this)">×</button></div>
-              <div class="note yellow">🕐 <strong>18:20</strong> — Important: querySelector vs getElementById performance <button class="note-del" onclick="delNote(this)">×</button></div>
-              <div class="note red">🕐 <strong>24:05</strong> — Confusing: bubbling vs capturing phase <button class="note-del" onclick="delNote(this)">×</button></div>
-            </div>
-            <div style="display:flex;gap:8px;">
-              <input id="videoNoteInput" placeholder="Note at current timestamp…" style="flex:1;" />
-              <button class="primary-button btn-sm" onclick="addTimestampNote()">Save</button>
-            </div>
+          <div class="card card-padding" style="margin-top:16px;">
+            <div class="panel-heading"><h3>Video transcript / captions</h3><span class="tag" id="videoTranscriptStatus">Not added</span></div>
+            <p class="muted small-text">YouTube's standard embed does not expose captions to Lucid automatically. Paste the video's transcript or captions here, then save. AI answers, quizzes and flashcards will use this transcript only.</p>
+            <textarea id="videoTranscriptInput" rows="8" placeholder="Paste the transcript or captions for the selected video…"></textarea>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:9px;"><button class="primary-button btn-sm" onclick="saveCurrentVideoTranscript()">Save transcript</button></div>
+          </div>
+          <div class="card card-padding" style="margin-top:16px;">
+            <div class="panel-heading"><h3>Timestamped notes</h3><span class="panel-count" id="videoNoteCount">0</span></div>
+            <div id="videoNoteList" style="display:grid;gap:7px;max-height:220px;overflow-y:auto;margin-bottom:10px;"><p class="muted small-text">No notes for this video yet.</p></div>
+            <div style="display:flex;gap:8px;"><input id="videoNoteInput" placeholder="Note at the current playback time…" style="flex:1;" /><button class="primary-button btn-sm" onclick="addTimestampNote()">Save note</button></div>
+          </div>
+          <div class="card card-padding" id="videoAiCard" style="margin-top:16px;display:none;">
+            <div class="panel-heading"><h3>AI on this video</h3><span class="tag">Transcript-grounded</span></div><div id="videoAiResponse" class="note green" style="white-space:pre-wrap;"></div>
           </div>
         </div>
-
-        <!-- Video sidebar -->
         <aside class="reader-sidebar">
-          <div class="card side-panel">
-            <div class="panel-heading"><h3>Playlist</h3><span class="panel-count">24</span></div>
-            <div style="display:grid;gap:6px;max-height:280px;overflow-y:auto;">
-              <div style="padding:8px 10px;border-radius:10px;background:var(--forest);color:white;font-size:11px;font-weight:700;">✓ 15. DOM Manipulation <span style="opacity:.7;">(Playing)</span></div>
-              <div style="padding:8px 10px;border-radius:10px;background:var(--sage-2);font-size:11px;cursor:pointer;" onclick="showToast('Video loaded.')">16. Event Listeners</div>
-              <div style="padding:8px 10px;border-radius:10px;font-size:11px;cursor:pointer;">17. Async JavaScript</div>
-              <div style="padding:8px 10px;border-radius:10px;font-size:11px;cursor:pointer;">18. Promises & Async/Await</div>
-              <div style="padding:8px 10px;border-radius:10px;font-size:11px;opacity:.5;cursor:pointer;">19. Fetch API <span style="color:var(--muted);">— not started</span></div>
-            </div>
-            <div class="progress-track" style="margin-top:14px;"><span class="progress-fill" style="width:60%"></span></div>
-            <div class="progress-label"><span>14/24 complete</span><span>60%</span></div>
+          <div class="card side-panel card-padding">
+            <div class="panel-heading"><h3 id="videoPlaylistTitle">Playlist</h3><span class="panel-count" id="videoPlaylistCount">0</span></div>
+            <div id="videoPlaylistItems" style="display:grid;gap:6px;max-height:340px;overflow-y:auto;"><p class="muted small-text">Your imported videos will appear here.</p></div>
           </div>
-
-          <div class="card side-panel">
-            <div class="kicker">Video progress</div>
-            <div class="analytics-number" style="font-size:28px;">6h 20m</div>
-            <div class="muted small-text">total playlist length</div>
-            <div style="margin-top:14px;">
-              <div class="mastery-bar-row"><span class="label">Watched</span><div class="progress-track"><span class="progress-fill" style="width:60%"></span></div><span class="mastery-pct">60%</span></div>
-              <div class="mastery-bar-row"><span class="label">With notes</span><div class="progress-track"><span class="progress-fill gold" style="width:40%"></span></div><span class="mastery-pct">40%</span></div>
-              <div class="mastery-bar-row"><span class="label">Quiz done</span><div class="progress-track"><span class="progress-fill orange" style="width:25%"></span></div><span class="mastery-pct">25%</span></div>
-            </div>
-          </div>
-
-          <div class="card side-panel">
-            <div class="panel-heading"><h3>AI on this video</h3></div>
-            <div class="ai-actions">
-              <button class="ai-action-chip" onclick="quickAI('Summarize this lecture in 3 bullet points')">📋 Summarize</button>
-              <button class="ai-action-chip" onclick="quickAI('Generate a quiz from this video lesson')">? Quiz me</button>
-              <button class="ai-action-chip" onclick="quickAI('Explain the confusing part at 24:05')">🤔 Explain</button>
-            </div>
-            <div id="videoAiResponse" style="display:none;" class="note green" style="margin-top:8px;"></div>
+          <div class="card side-panel card-padding">
+            <div class="kicker">Your video progress</div><div class="analytics-number" style="font-size:28px;" id="videoWatchedTime">0m</div><div class="muted small-text">tracked watch time</div>
+            <div style="margin-top:14px;"><div class="mastery-bar-row"><span class="label">Completed</span><div class="progress-track"><span class="progress-fill" id="videoCompletedBar" style="width:0%"></span></div><span class="mastery-pct" id="videoCompletedPct">0%</span></div>
+            <div class="mastery-bar-row"><span class="label">Transcript</span><div class="progress-track"><span class="progress-fill gold" id="videoTranscriptBar" style="width:0%"></span></div><span class="mastery-pct" id="videoTranscriptPct">0%</span></div>
+            <div class="mastery-bar-row"><span class="label">Quiz</span><div class="progress-track"><span class="progress-fill orange" id="videoQuizBar" style="width:0%"></span></div><span class="mastery-pct" id="videoQuizPct">0%</span></div></div>
           </div>
         </aside>
       </div>

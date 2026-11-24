@@ -55,15 +55,16 @@ window.callAIGuide = async function(prompt,style){
       question:prompt,
       style:style||'',
       history,
-      resource_id:typeof state!=='undefined'?state.currentResourceId:null,
+      resource_id:typeof state!=='undefined'&&!state.currentVideo?state.currentResourceId:null,
       current_page:typeof state!=='undefined'?Number(state.currentResourcePage)||1:1,
       context:typeof state!=='undefined'?[
-        'Current resource: '+(state.currentResourceTitle||''),
+        state.currentVideo?'CURRENT VIDEO SOURCE: '+state.currentVideo.title:'Current resource: '+(state.currentResourceTitle||''),
+        state.currentVideo?'VIDEO TRANSCRIPT (authoritative source): '+(state.currentVideo.transcript||'No transcript has been saved for this video.'):'',
         'Current page: '+(state.currentResourcePage||1),
         'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
         'Selected passage: '+(state.selectedText||''),
         'Annotations: '+(state.annotations||[]).slice(-8).map(x=>typeof x==='string'?x:x.text||x.note||'').join('; ')
-      ].join('\\n'): ''
+      ].filter(Boolean).join('\\n'): ''
     });
     return data.text||'The AI Guide returned an empty response.';
   }catch(error){return 'AI Guide error: '+(error&&error.message||'Unknown error');}
@@ -75,9 +76,30 @@ window.callLucidAgent = async function(prompt){
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
 // The source-aware quiz builder is defined in index.html. Do not override it here.
-window.generateFlashcards = async function(){showToast('Generating flashcards from your notes…','✦');const notes=state.annotations.slice(0,3).map(x=>typeof x==='string'?x:(x.text||x.note||''));const prompt='Create three concise flashcards from these notes: '+(notes.join('. ')||'Machine Learning fundamentals, overfitting, bias-variance tradeoff');try{const data=await window.callLearningEngine('flashcards',prompt,{annotations:notes});const cards=data.result?.cards||[];if(cards.length){state.flashcards=cards.map(c=>({q:c.front,a:c.back}));state.flashcardIndex=0;document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';}console.log('Lucid flashcards:',data.result);showToast(cards.length?cards.length+' flashcards generated.':'No flashcards returned.','✦');}catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}};
-window.evaluateOral = async function(){const q=document.getElementById('oralQuestion').textContent;const a=document.getElementById('oralAnswer').value.trim();if(!a){showToast('Write your explanation first.','⚠');return;}const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer…';try{const data=await window.callLearningEngine('evaluate_recall','Evaluate coverage, accuracy and clarity. Question: '+q+' Student answer: '+a,{question:q,answer:a});const text=window.formatLearningResult(data.result);resultEl.innerHTML='<div class="note green"><strong>AI evaluation:</strong><br>'+escapeHTML(text).replace(/\n/g,'<br>')+'</div>';state.xp+=15;updateXP();showToast('Oral recall evaluated! +15 XP','🎙');}catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Evaluation failed.','⚠');}};
-window.practiceWeak = async function(topic){openPage('practice');showToast('Preparing targeted practice for '+topic+'…','📝');try{const data=await window.callLearningEngine('quiz','Create one remedial MCQ about '+topic+' with four options, answer and explanation.',{weak_topic:topic,practice_mode:'remedial'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);showToast('Targeted AI practice ready for '+topic+'.','✦');}else{showToast('AI returned no valid practice question.','⚠');}}catch(error){showToast('Practice generation failed: '+error.message,'⚠');}};
+window.generateFlashcards = async function(){
+  try{
+    const source=await getLucidPracticeContext();showToast('Generating flashcards from '+source.title+'…','✦');
+    const data=await window.callLearningEngine('flashcards','Create concise active-recall flashcards exclusively from the selected source. Do not add general knowledge or topics absent from the source.',{page_content:source.content,source_title:source.title,question_count:12});
+    const cards=data.result?.cards||[];if(!cards.length)throw new Error('No source-grounded flashcards were returned.');
+    state.flashcards=cards.map(c=>({q:c.front,a:c.back}));state.flashcardIndex=0;
+    document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;
+    document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';
+    document.getElementById('flashcardSourceLabel').textContent='Source: '+source.title;showToast(cards.length+' flashcards generated from '+source.title+'.','✦');
+  }catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}
+};
+window.evaluateOral = async function(){
+  const q=document.getElementById('oralQuestion').textContent,a=document.getElementById('oralAnswer').value.trim();if(!a){showToast('Write your explanation first.','⚠');return;}
+  const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer against the selected source…';
+  try{const source=await getLucidPracticeContext();const data=await window.callLearningEngine('evaluate_recall','Evaluate the learner response only against the supplied source. Question: '+q+' Student answer: '+a,{page_content:source.content,source_title:source.title,question:q,answer:a});resultEl.textContent=window.formatLearningResult(data.result);showToast('Oral recall evaluated against '+source.title+'.','🎙');}
+  catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast(error.message,'⚠');}
+};
+window.practiceWeak = async function(topic){
+  openPage('practice');try{const source=await getLucidPracticeContext();const data=await window.callLearningEngine('quiz','Create five remedial multiple-choice questions about '+topic+' using only this selected source. If the source does not cover the topic, state that it is not covered and do not invent questions.',{page_content:source.content,source_title:source.title,weak_topic:topic,question_count:5,question_format:'mcq'});
+    const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+    if(!qs.length)throw new Error('The selected source does not provide enough evidence for this weak-area topic.');
+    quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;loadQuiz(0);showToast('Practice questions grounded in '+source.title+'.','✦');
+  }catch(error){showToast(error.message,'⚠');}
+};
 window.askGuide = async function(){const q=document.getElementById('aiQuestion').value.trim();const el=document.getElementById('aiAnswer');if(!q){el.style.display='block';el.textContent='Ask a question first.';return;}el.style.display='block';el.textContent='Thinking…';const selected=(state.selectedText||'').trim();const context='Current resource: '+(state.currentResourceTitle||'Reading Room document')+'. '+(selected?'SELECTED PASSAGE (answer specifically about this text):\n'+selected:'No passage is currently selected. Use the current resource and notes only.')+'\nSaved annotations: '+state.annotations.slice(-5).join('; ');const answer=await window.callAIGuide('Learning context:\n'+context+'\n\nStudent question: '+q,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide ('+escapeHTML(state.coachMode)+'):</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
 window.quickAIModal = async function(prompt){const el=document.getElementById('aiAnswer');document.getElementById('aiQuestion').value=prompt;el.style.display='block';el.textContent='Thinking…';const selected=(state.selectedText||'').trim();const context=selected?'Selected passage (use this exact text as the subject):\n'+selected+'\n\n':'Current resource and saved annotations: '+(state.currentResourceTitle||'Reading Room document')+'; '+state.annotations.slice(-5).join('; ')+'\n\n';const answer=await window.callAIGuide(context+'Student request: '+prompt,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide:</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
 window.sendAIChatWithPrompt = async function(prompt){const chat=document.getElementById('aiChat');const empty=document.getElementById('aiChatEmpty');if(empty)empty.style.display='none';state.chatMessages.push({role:'user',text:prompt});const userEl=document.createElement('div');userEl.className='ai-msg user';userEl.textContent=prompt;chat.appendChild(userEl);const thinking=document.createElement('div');thinking.className='ai-msg bot thinking';thinking.textContent='✦ Thinking…';chat.appendChild(thinking);chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;const selected=(state.selectedText||'').trim();const context='Learner: '+state.preferences.name+'. Current study: '+(state.currentResourceTitle||'Reading Room document')+'. '+(selected?'SELECTED PASSAGE — answer the request specifically about this exact text:\\n'+selected:'No passage is selected.')+'\\nRecent annotations: '+state.annotations.slice(-5).join('; ')+'. Coach mode: '+state.coachMode+'.';let answer;try{answer=await window.callLucidAgent('Learning context:\\n'+context+'\\n\\nCoaching style: '+(systemInstructions[state.coachMode]||systemInstructions.Gentle)+'\\n\\nStudent: '+prompt);}catch(error){answer='Lucid Agent error: '+error.message;}thinking.className='ai-msg bot';thinking.style.whiteSpace='pre-wrap';thinking.textContent=answer;state.chatMessages.push({role:'bot',text:answer});chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;saveState();};
@@ -371,6 +393,8 @@ window.loadLucidProfile = async function(){
   }
   const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   setText('profileDisplayHeading',name);setText('profileEmail',user.email||'');setText('sideProfileName',name);
+  setText('dashboardProfileName',name);setText('dashboardProfileBio',profile.bio||user.email||'Your learning profile');setText('dashboardProfileLevel','Level '+(profile.level||state.level||1));setText('dashboardProfileXP',(profile.xp||state.xp||0)+' XP');
+  const dashboardAvatar=document.getElementById('dashboardProfileAvatar');if(dashboardAvatar){dashboardAvatar.textContent=name.split(/\\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();if(profile.avatar_url){dashboardAvatar.innerHTML='';const image=document.createElement('img');image.src=profile.avatar_url;image.alt='';image.className='avatar-image';dashboardAvatar.appendChild(image);}}
   const ni=document.getElementById('profileNameInput');if(ni)ni.value=name;
   const bi=document.getElementById('profileBioInput');if(bi)bi.value=profile.bio||'';
   setText('profileLevel',profile.level==null?1:profile.level);setText('profileXP',profile.xp==null?0:profile.xp);setText('profileWeeklyGoal',profile.weekly_goal==null?200:profile.weekly_goal);
@@ -680,12 +704,15 @@ window.loadLucidCatalogues = async function(){
     if(!ids.includes(link.catalogue_id))ids.push(link.catalogue_id);
   });
   const ownedResourceIds=new Set((resources||[]).map(resource=>resource.id));
+  state.catalogues=cats||[];
   state.uploadedBooks=(resources||[]).map(r=>{
     const catalogueIds=catalogueIdsByResource.get(r.id)||[];
     return {id:r.id,resourceId:r.id,name:r.title,type:r.type,pages:Number(r.metadata?.page_count||0),
       status:r.processing_status,catalogueId:catalogueIds[0]||null,catalogueIds};
   });
   if(typeof renderUploadedBooks==='function')renderUploadedBooks();
+  if(typeof refreshPracticeSources==='function')refreshPracticeSources();
+  if(typeof renderVideoPlaylist==='function')renderVideoPlaylist();
   const countByCatalogue=new Map();
   (links||[]).forEach(link=>{
     if(!ownedResourceIds.has(link.resource_id))return;

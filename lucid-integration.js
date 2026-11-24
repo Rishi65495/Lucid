@@ -131,7 +131,8 @@ window.invokeLucidAgentLocalFirst = async function(body){
 };
 window.callLucidAgent = async function(prompt){
   if(typeof state!=='undefined'&&state.currentVideoContext){if(!String(state.currentVideoContext.transcript||'').trim())return 'Lucid could not retrieve public captions for this video. Try a video with captions enabled; Lucid will use its transcript automatically when available.';return await window.callAIGuide(prompt,state.coachMode||'Gentle');}
-  const payload={action:'chat',request:prompt,preferred_name:typeof state!=='undefined'?String(state.preferences?.name||'').trim():null,resource_id:typeof state!=='undefined'?state.currentResourceId:null};
+  const progressIntent=/\b(my name|what'?s my name|who am i|progress|analyse|analyze|weak|strong|mastery|accuracy|quiz|performance|study|pages|focus|completion|learning|improve|insight)\b/i.test(String(prompt||''));
+  const payload={action:progressIntent?'home_chat':'chat',request:prompt,preferred_name:typeof state!=='undefined'?String(state.preferences?.name||'').trim():null,...(progressIntent?{}:{resource_id:typeof state!=='undefined'?state.currentResourceId:null})};
   const data=await window.invokeLucidAgentLocalFirst(payload);
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };

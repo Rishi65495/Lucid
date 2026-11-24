@@ -11,7 +11,7 @@ const CORS = {
 async function getLearnerContext(sb: any, user: any, request: string, preferredName: string | null) {
   const userId = user.id;
   const q = request.toLowerCase();
-  const identityOnly = /\b(my name|what'?s my name|who am i|what is my name|my profile name)\b/.test(q);
+  const identityOnly = /\b(my name|what'?s my name|who am i|what is my name|my profile name)\b|मेरा नाम|मेरा नाम क्या|मैं कौन हूं|मैं कौन हूँ/.test(q);
   const asksResources = /\b(resource|library|upload|pdf|video|catalogue|catalog)\b/.test(q);
   const asksAchievements = /\b(achievement|badge|xp|level|streak)\b/.test(q);
   const asksProgress = /\b(progress|analyse|analyze|weak|strong|mastery|accuracy|quiz|performance|study|pages|focus|completion|learning|improve|insight)\b/.test(q);

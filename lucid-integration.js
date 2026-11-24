@@ -1475,10 +1475,12 @@ window.generateFlashcards = async function(){
 (function(){
   const style=document.createElement('style');
   style.textContent=`
-    #aiGuide > .grid.two-col{grid-template-columns:minmax(0,1fr) minmax(230px,.48fr);align-items:start}
+    #aiGuide > .grid.two-col{grid-template-columns:minmax(0,1fr);align-items:start}
+    #aiGuide > .grid.two-col > div:last-child{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+    #aiGuide > .grid.two-col > div:last-child .card{margin-bottom:0!important}
     #aiGuide #aiChat{min-height:320px;max-height:58vh;overflow:auto}
     #aiGuide .ai-chat + .empty-state{max-width:560px;margin:0 auto}
-    @media(max-width:900px){#aiGuide > .grid.two-col{grid-template-columns:1fr}}
+    @media(max-width:700px){#aiGuide > .grid.two-col > div:last-child{grid-template-columns:1fr}}
   `;
   document.head.appendChild(style);
   document.querySelectorAll('#aiGuide .grid.two-col > div:last-child .card').forEach(card=>{

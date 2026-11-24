@@ -1463,8 +1463,9 @@ window.generateFlashcards = async function(){
     const front=document.getElementById('flashFront'),back=document.getElementById('flashBack'),progress=document.getElementById('cardProgress');
     if(front)front.textContent=state.flashcards[0].q;if(back)back.textContent=state.flashcards[0].a;
     if(progress)progress.textContent='Card 1 of '+state.flashcards.length+' · Click to flip';
+    openPage('practice');
     const practiceTab=document.querySelector('[onclick*="practiceTab"][onclick*="flashcards"]');
-    if(practiceTab)practiceTab.click();else openPage('practice');
+    if(practiceTab)practiceTab.click();
     showToast(state.flashcards.length+' source-grounded flashcards generated.','✦');
   }catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}
   finally{if(button){button.disabled=false;button.textContent=button.dataset.oldText||'Make flashcards';}}

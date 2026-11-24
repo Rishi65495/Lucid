@@ -253,7 +253,10 @@ window.loadLucidCatalogues = async function(){
   }
   if(typeof renderUploadedBooks==='function')renderUploadedBooks();
   const countByCatalogue=new Map();
-  links.forEach(link=>countByCatalogue.set(link.catalogue_id,(countByCatalogue.get(link.catalogue_id)||0)+1));
+  links.forEach(link=>{
+    if(!countByCatalogue.has(link.catalogue_id))countByCatalogue.set(link.catalogue_id,new Set());
+    countByCatalogue.get(link.catalogue_id).add(link.resource_id);
+  });
   const grid=document.getElementById('catalogueGrid');
   if(grid){
     grid.innerHTML='';
@@ -263,7 +266,7 @@ window.loadLucidCatalogues = async function(){
       const icon=document.createElement('div');icon.className='cat-icon';icon.textContent=cat.icon||'📁';
       const title=document.createElement('h3');title.style.cssText="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;";title.textContent=cat.title;
       const desc=document.createElement('p');desc.className='muted small-text';desc.style.marginTop='6px';desc.textContent=cat.description||'A folder for your study resources.';
-      const count=document.createElement('p');count.className='cat-meta';count.textContent=(countByCatalogue.get(cat.id)||0)+' resources';
+      const count=document.createElement('p');count.className='cat-meta';count.textContent=(countByCatalogue.get(cat.id)?.size||0)+' resources';
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:7px;margin-top:14px;';
       const open=document.createElement('button');open.className='secondary-button btn-sm';open.textContent='View resources';
       open.onclick=()=>window.openLucidCatalogue(cat.id).catch(error=>showToast('Could not open catalogue: '+error.message,'⚠'));
@@ -291,6 +294,12 @@ window.moveLucidResourceToCatalogue = async function(resourceId,catalogueId){
   if(!resourceId)throw new Error('Missing resource ID.');
   const {data:resource,error:resourceError}=await lucidSupabase.from('lucid_resources').select('id').eq('id',resourceId).eq('owner_id',lucidSession.user.id).single();
   if(resourceError)throw resourceError;
+  if(catalogueId){
+    const {data:catalogue,error:catalogueError}=await lucidSupabase.from('catalogues')
+      .select('id').eq('id',catalogueId).eq('owner_id',lucidSession.user.id).maybeSingle();
+    if(catalogueError)throw catalogueError;
+    if(!catalogue)throw new Error('The selected catalogue is not available in your account.');
+  }
   const removed=await lucidSupabase.from('catalogue_resources').delete().eq('resource_id',resourceId);
   if(removed.error)throw removed.error;
   if(catalogueId){
@@ -330,8 +339,13 @@ window.openLucidCatalogue = async function(id){
     resources=result.data||[];
   }
   const resourceById=new Map(resources.map(resource=>[resource.id,resource]));
+  const seenResourceIds=new Set();
   const rows=(links||[]).map(link=>({link,resource:resourceById.get(link.resource_id)}))
-    .filter(row=>row.resource);
+    .filter(row=>{
+      if(!row.resource||seenResourceIds.has(row.link.resource_id))return false;
+      seenResourceIds.add(row.link.resource_id);
+      return true;
+    });
   if(list)list.innerHTML='';
   if(empty)empty.style.display=rows.length?'none':'block';
   rows.forEach(({link,resource})=>{

@@ -11,7 +11,7 @@ window.updateLucidAuthUI = async function(session){
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidVideoLibrary();}catch(error){console.warn('Could not load video library:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidVideoLibrary();}catch(error){console.warn('Could not load video library:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}try{await window.loadLucidDashboardMetrics();}catch(error){console.warn('Could not load dashboard metrics:',error.message);}}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
@@ -969,7 +969,94 @@ window.loadLucidCatalogues = async function(){
     else{select.disabled=false;(cats||[]).forEach(cat=>select.add(new Option(cat.title,cat.id)));if(cats.some(c=>c.id===chosen))select.value=chosen;else select.value=cats[0].id;}
   }
   state.catalogues=cats||[];
+  if(window.renderLucidDashboardBooks)window.renderLucidDashboardBooks();
   return cats||[];
+};
+window.renderLucidDashboardBooks=function(){
+  const grid=document.getElementById('dashboardBooks');if(!grid)return;
+  const resources=(state.uploadedBooks||[]).filter(x=>['pdf','video','playlist'].includes(x.type)).slice(0,3);
+  grid.innerHTML='';
+  if(!resources.length){grid.innerHTML='<p class="muted small-text">No resources yet. Upload a PDF or import a YouTube lesson to start learning.</p>';return;}
+  resources.forEach(resource=>{
+    const card=document.createElement('article');card.className='book-card card';
+    const main=document.createElement('div');main.className='book-main';
+    const cover=document.createElement('div');cover.className='book-cover '+(resource.type==='video'?'cover-orange':resource.type==='playlist'?'cover-green':'cover-blue');cover.textContent=resource.type==='pdf'?'PDF':resource.type==='playlist'?'LIST':'▶';
+    const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=resource.name||'Untitled resource';
+    const meta=document.createElement('div');meta.className='book-author';meta.textContent=resource.type==='pdf'?(resource.pages?resource.pages+' pages · ':'')+(resource.status||'saved'):resource.type==='playlist'?'YouTube playlist':'YouTube video';
+    info.append(title,meta);main.append(cover,info);
+    const footer=document.createElement('div');footer.className='book-footer';const tag=document.createElement('span');tag.className='tag';tag.textContent=resource.status||resource.type;
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(resource.resourceId||resource.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));
+    footer.append(tag,open);card.append(main,footer);grid.appendChild(card);
+  });
+};
+window.continueLucidLearning=function(){
+  if(state.currentVideoResourceId&&window.selectLucidVideo){openPage('video');window.selectLucidVideo(state.currentVideoResourceId).catch(error=>showToast(error.message,'⚠'));return;}
+  if(state.currentResourceId&&window.openLucidResource){window.openLucidResource(state.currentResourceId).catch(error=>showToast(error.message,'⚠'));return;}
+  const resource=(state.uploadedBooks||[]).find(x=>x.type==='pdf'||x.type==='video'||x.type==='playlist');
+  if(resource){window.openLucidResource(resource.resourceId||resource.id).catch(error=>showToast(error.message,'⚠'));return;}
+  openPage('library');
+};
+window.loadLucidDashboardMetrics=async function(){
+  if(!lucidSession?.user)return null;
+  const uid=lucidSession.user.id,now=new Date(),today=new Date(now);today.setHours(0,0,0,0);
+  const weekStart=new Date(today);weekStart.setDate(today.getDate()-((today.getDay()+6)%7));
+  const [profileResult,xpResult,readingResult,videoResult,attemptResult]=await Promise.all([
+    lucidSupabase.from('profiles').select('weekly_goal,display_name').eq('id',uid).maybeSingle(),
+    lucidSupabase.from('user_xp').select('streak_days').eq('user_id',uid).maybeSingle(),
+    lucidSupabase.from('reading_sessions').select('active_seconds,pages_completed,started_at,resource_id').eq('user_id',uid).gte('started_at',weekStart.toISOString()).limit(1000),
+    lucidSupabase.from('video_sessions').select('active_seconds,resource_id,completed,started_at').eq('user_id',uid).gte('started_at',weekStart.toISOString()).limit(1000),
+    lucidSupabase.from('quiz_attempts').select('id,score,max_score,started_at,completed_at').eq('user_id',uid).gte('started_at',weekStart.toISOString()).not('completed_at','is',null).limit(1000)
+  ]);
+  for(const result of [profileResult,xpResult,readingResult,videoResult,attemptResult])if(result.error)throw result.error;
+  const reading=readingResult.data||[],videos=videoResult.data||[],attempts=attemptResult.data||[];
+  const attemptIds=attempts.map(x=>x.id);
+  let answerCount=0;
+  if(attemptIds.length){const answers=await lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true}).in('attempt_id',attemptIds);if(answers.error)throw answers.error;answerCount=Number(answers.count||0);}
+  const focusSeconds=reading.reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0)+videos.reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
+  const focusMinutes=Math.round(focusSeconds/60),pages=reading.reduce((sum,x)=>sum+(Number(x.pages_completed)||0),0);
+  const watchedVideos=new Set(videos.filter(x=>(Number(x.active_seconds)||0)>0).map(x=>x.resource_id).filter(Boolean)).size;
+  const recall=attempts.length?Math.round(attempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/attempts.length):null;
+  const goalMinutes=Math.max(1,Number(profileResult.data?.weekly_goal)||200),percent=Math.max(0,Math.min(100,Math.round(focusMinutes/goalMinutes*100)));
+  const streak=Math.max(0,Number(xpResult.data?.streak_days)||0);
+  const formatMinutes=value=>{const n=Math.max(0,Math.round(value)),h=Math.floor(n/60),m=n%60;return h?h+'h '+m+'m':n+'m';};
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  const setWidth=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=Math.max(0,Math.min(100,Number(value)||0))+'%';};
+  set('focusHours',formatMinutes(focusMinutes));set('weeklyPercent',percent+'%');setWidth('weeklyProgress',percent);set('focusGoalLabel',goalMinutes+' min');
+  set('focusLeft',focusMinutes>=goalMinutes?'Weekly target reached':formatMinutes(goalMinutes-focusMinutes)+' left');
+  set('streakValue',streak);set('streakStatus',streak?'🔥 Active':'No streak');set('streakLabel',streak+' day'+(streak===1?'':'s'));setWidth('streakProgress',Math.min(100,streak/7*100));
+  set('statPages',pages.toLocaleString());set('statVideos',watchedVideos.toLocaleString());set('statQuestions',answerCount.toLocaleString());set('statRecall',recall===null?'—':recall+'%');
+  set('analyticsFocus',formatMinutes(focusMinutes));set('analyticsPages',pages.toLocaleString());set('analyticsQuestions',answerCount.toLocaleString());set('analyticsRecall',recall===null?'—':recall+'%');
+  setWidth('analyticsFocusBar',percent);setWidth('analyticsRecallBar',recall||0);
+  const chart=document.getElementById('weeklyFocusChart');
+  if(chart){
+    const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],daily=Array(7).fill(0);
+    const dayIndex=date=>{const d=new Date(date),weekday=(d.getDay()+6)%7;return weekday;};
+    reading.concat(videos).forEach(row=>{const index=dayIndex(row.started_at);daily[index]+=(Number(row.active_seconds)||0)/60;});
+    const max=Math.max(1,...daily);chart.innerHTML='';
+    daily.forEach((minutes,index)=>{
+      const col=document.createElement('div');col.className='chart-column';
+      const bar=document.createElement('span');bar.className='chart-bar'+(index===((now.getDay()+6)%7)?' highlighted':'');bar.style.height=Math.max(minutes>0?2:0,minutes/max*100)+'%';bar.title=Math.round(minutes)+' minutes';
+      const label=document.createElement('span');label.textContent=dayNames[index];col.append(bar,label);chart.appendChild(col);
+    });
+  }
+  window.renderLucidDashboardBooks();
+  const weak=window.currentLucidLearningProfile?.weakConcepts?.[0],first=(state.uploadedBooks||[]).find(x=>['pdf','video','playlist'].includes(x.type));
+  const heroTitle=document.getElementById('heroTitle'),heroDesc=document.getElementById('heroDesc'),heroButton=document.querySelector('#dashboard .hero-card button');
+  if(weak){
+    if(heroTitle)heroTitle.textContent='Strengthen '+weak.name;
+    if(heroDesc)heroDesc.textContent='Your lowest recorded mastery is '+Math.round(weak.mastery)+'%. Practise this concept using one of your saved learning sources.';
+    if(heroButton){heroButton.textContent='Practise weak area →';heroButton.onclick=()=>window.practiceWeak(weak.name);}
+  }else if(first){
+    if(heroTitle)heroTitle.textContent='Continue with '+first.name;
+    if(heroDesc)heroDesc.textContent='Your resources and learning history are ready. Open this source to continue.';
+    if(heroButton){heroButton.textContent='Open resource →';heroButton.onclick=()=>window.openLucidResource(first.resourceId||first.id);}
+  }else{
+    if(heroTitle)heroTitle.textContent='Add your first learning resource';
+    if(heroDesc)heroDesc.textContent='Upload a PDF or import a YouTube lesson. Lucid will build your learning context from your actual material.';
+    if(heroButton){heroButton.textContent='Open library →';heroButton.onclick=()=>openPage('library');}
+  }
+  const date=document.getElementById('dashKicker');if(date)date.textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  return {focusMinutes,pages,watchedVideos,answerCount,recall,streak,weeklyGoalMinutes:goalMinutes};
 };
 window.moveLucidResourceToCatalogue = async function(resourceId,catalogueId){
   if(!lucidSession?.user)throw new Error('Sign in first.');

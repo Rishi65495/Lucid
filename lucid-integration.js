@@ -442,7 +442,36 @@ window.selectLucidResource = function(id){
   state.currentResourceId=id;
   const item=state.uploadedBooks.find(x=>(x.resourceId||x.id)===id);
   state.currentResourceTitle=item&&item.name||'Selected PDF';
-  saveState();showToast('Selected resource for AI context.','📄');openPage('aiGuide');
+  saveState();
+  if(window.renderLucidAIContext)window.renderLucidAIContext();
+  showToast('Selected resource for AI context.','📄');
+  openPage('aiGuide');
 };
+
+window.renderLucidAIContext = function(){
+  const resource=document.getElementById('aiCurrentResourceTag');
+  const page=document.getElementById('aiCurrentPageTag');
+  const selected=document.getElementById('aiSelectedTextTag');
+  if(resource)resource.textContent=state.currentResourceTitle?'📄 '+state.currentResourceTitle:'No PDF selected';
+  if(page)page.textContent=state.currentResourcePage?'Page '+state.currentResourcePage:'No page selected';
+  if(selected)selected.textContent=state.selectedText?'Selected passage ready':'No passage selected';
+};
+window.continueLucidReading = async function(){
+  const books=state.uploadedBooks||[];
+  const current=books.find(book=>(book.resourceId||book.id)===state.currentResourceId&&book.type==='pdf');
+  const target=current||books.find(book=>book.type==='pdf');
+  if(!target){
+    openPage('library');
+    showToast('Import a PDF to start reading.','📄');
+    return false;
+  }
+  try{return await window.openLucidResource(target.resourceId||target.id);}
+  catch(error){
+    openPage('library');
+    showToast('Could not continue reading: '+error.message,'⚠');
+    return false;
+  }
+};
+window.renderLucidAIContext();
 
 window.initLucidAuth();

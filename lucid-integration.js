@@ -11,7 +11,7 @@ window.updateLucidAuthUI = async function(session){
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidVideoLibrary();}catch(error){console.warn('Could not load video library:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}try{await window.loadLucidDashboardMetrics();}catch(error){console.warn('Could not load dashboard metrics:',error.message);}}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidVideoLibrary();}catch(error){console.warn('Could not load video library:',error.message);}try{await window.loadLucidPracticeCards();}catch(error){console.warn('Could not load due practice cards:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}try{await window.loadLucidDashboardMetrics();}catch(error){console.warn('Could not load dashboard metrics:',error.message);}}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
@@ -160,6 +160,18 @@ window.generateAIQuiz = async function(){
     }catch(error){status.textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
   };
 };
+window.loadLucidPracticeCards=async function(){
+  if(!lucidSession?.user)return [];
+  const {data,error}=await lucidSupabase.from('practice_cards').select('id,front,back,resource_id,catalogue_id,due_at,stability,repetitions').eq('user_id',lucidSession.user.id).order('due_at',{ascending:true}).limit(200);
+  if(error)throw error;
+  const now=Date.now(),due=(data||[]).filter(x=>!x.due_at||new Date(x.due_at).getTime()<=now);
+  state.flashcardRecords=due;state.flashcards=due.map(x=>({id:x.id,q:x.front,a:x.back,repetitions:x.repetitions,stability:x.stability}));state.flashcardIndex=0;
+  const front=document.getElementById('flashFront'),back=document.getElementById('flashBack'),progress=document.getElementById('cardProgress');
+  if(!due.length){if(front)front.textContent='No cards due right now. Generate cards from your learning sources or return when a card is due.';if(back)back.textContent='The answer will appear here.';if(progress)progress.textContent='No cards due';}
+  else{if(front)front.textContent=state.flashcards[0].q;if(back)back.textContent=state.flashcards[0].a;if(progress)progress.textContent='Card 1 of '+due.length+' due · Click to flip';}
+  document.getElementById('flashcard')?.classList.remove('flipped');
+  return due;
+};
 window.generateFlashcards = async function(){
   const selection=await window.openLucidPracticeSourcePicker();if(!selection)return;
   showToast('Preparing flashcards from selected PDFs…','✦');
@@ -178,16 +190,18 @@ window.generateFlashcards = async function(){
   }catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}
 };
 window.rateCard = async function(rating){
-  const card=state.flashcards?.[state.flashcardIndex];if(!card){showToast('Generate flashcards from a source first.','⚠');return;}
+  const card=state.flashcards?.[state.flashcardIndex];if(!card){showToast('No flashcards are due. Generate cards from a source first.','⚠');return;}
   try{
     const days=rating==='hard'?0.25:rating==='okay'?1:4,repetitions=(Number(card.repetitions)||0)+(rating==='hard'?0:1),stability=Math.max(1,Number(card.stability)||1)*(rating==='hard'?1.1:rating==='okay'?1.6:2.4),dueAt=new Date(Date.now()+days*86400000).toISOString();
     const {error}=await lucidSupabase.from('practice_cards').update({repetitions,stability,due_at:dueAt,updated_at:new Date().toISOString()}).eq('id',card.id).eq('user_id',lucidSession.user.id);
     if(error)throw error;
     if(rating==='easy'){state.xp+=5;updateXP();}
     showToast('Card scheduled for review in '+(days<1?'6 hours':days+' days')+'.','✓');
-    state.flashcardIndex=(state.flashcardIndex+1)%state.flashcards.length;
-    document.getElementById('flashcard').classList.remove('flipped');
-    const next=state.flashcards[state.flashcardIndex];document.getElementById('flashFront').textContent=next.q;document.getElementById('flashBack').textContent=next.a;document.getElementById('cardProgress').textContent='Card '+(state.flashcardIndex+1)+' of '+state.flashcards.length+' · Click to flip';
+    state.flashcards.splice(state.flashcardIndex,1);state.flashcardRecords=state.flashcardRecords.filter(x=>x.id!==card.id);state.flashcardIndex=0;
+    const next=state.flashcards[0],front=document.getElementById('flashFront'),back=document.getElementById('flashBack'),progress=document.getElementById('cardProgress');
+    document.getElementById('flashcard')?.classList.remove('flipped');
+    if(next){front.textContent=next.q;back.textContent=next.a;progress.textContent='Next due card · '+state.flashcards.length+' remaining';}
+    else{front.textContent='No more cards due right now.';back.textContent='You have completed today’s due review.';progress.textContent='Review complete';}
   }catch(error){showToast('Could not save card rating: '+error.message,'⚠');}
 };
 window.newOralQuestion = async function(){

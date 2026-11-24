@@ -765,17 +765,16 @@ window.loadLucidAchievements = async function(){
   const uid=lucidSession.user.id;
   const {data:badges,error:badgeError}=await lucidSupabase.from('badges').select('id,slug,name,family,description,rule').order('family').order('name');
   if(badgeError)throw badgeError;
-  const [xp,sessions,resourceProgress,answerCount,messageCount]=await Promise.all([
+  const [xp,sessions,resourceProgress,answerCount]=await Promise.all([
     lucidSupabase.from('user_xp').select('streak_days').eq('user_id',uid).maybeSingle(),
     lucidSupabase.from('reading_sessions').select('id,active_seconds,pages_completed').eq('user_id',uid).limit(1000),
     lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(2000),
-    lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true}),
-    lucidSupabase.from('room_discussion_messages').select('id',{count:'exact',head:true}).eq('user_id',uid)
+    lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true})
   ]);
   const sessionsRows=sessions.error?[]:(sessions.data||[]);
   const resourcesRows=resourceProgress.error?[]:(resourceProgress.data||[]);
   const evidence={
-    collaboration:messageCount.error?0:Number(messageCount.count||0),
+    collaboration:0,
     completion:new Set(resourcesRows.map(x=>x.resource_id)).size,
     consistency:Number(xp.data?.streak_days||0),
     deep_work:sessionsRows.filter(x=>Number(x.active_seconds)>0).length,

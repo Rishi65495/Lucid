@@ -2293,6 +2293,7 @@ function switchTab(groupId, tabId, btn) {
   const row = btn.closest('.tab-row');
   if (row) row.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  if(groupId==='practiceTab'&&tabId==='flashcards'&&window.loadLucidPracticeCards)window.loadLucidPracticeCards().catch(error=>showToast('Could not load due flashcards: '+error.message,'⚠'));
 }
 
 // ─── Dashboard setup ──────────────────────────────

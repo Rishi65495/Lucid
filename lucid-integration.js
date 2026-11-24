@@ -99,7 +99,7 @@ window.recordLucidQuizAnswer = async function(answer){
   const {error}=await lucidSupabase.rpc('track_learning_event',{
     p_event_type:'quiz_answered',
     p_catalogue_id:state.selectedCatalogueId||null,
-    p_resource_id:state.currentResourceId||null,
+    p_resource_id:state.quizSourceId||state.currentResourceId||null,
     p_session_id:null,
     p_payload:payload
   });
@@ -314,6 +314,21 @@ window.loadLucidAchievements = async function(){
   if(badges.error){shelf.textContent='Achievements unavailable: '+badges.error.message;return;}
   if(!badges.data?.length){shelf.innerHTML='<div class="empty-state"><p>No achievements earned yet.</p><p class="muted small-text">Badges are awarded when a defined learning milestone is reached. Your goals are separate targets you set yourself.</p></div>';return;}
   badges.data.forEach(row=>{const badge=row.badges||{},card=document.createElement('article');card.className='card card-padding';const icon=document.createElement('div');icon.className='reward-badge';icon.textContent='✦';const name=document.createElement('h3');name.textContent=badge.name||'Achievement';const desc=document.createElement('p');desc.className='muted small-text';desc.textContent=badge.description||'Milestone achieved';const earned=document.createElement('span');earned.className='tag';earned.textContent='Earned · '+new Date(row.awarded_at).toLocaleDateString();card.append(icon,name,desc,earned);shelf.appendChild(card);});
+};
+window.updateLucidAIContext = async function(){
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  const title=state.currentResourceTitle||'No resource selected';
+  set('aiContextResource',title);
+  set('aiContextPage',state.currentResourceId?'PDF page '+(state.currentResourcePage||1):'No page selected');
+  set('aiContextRecall','Recall: not enough data');
+  set('aiContextWeak','Weak areas: not evaluated');
+  if(!lucidSession?.user||!state.currentResourceId)return;
+  const {data,error}=await lucidSupabase.from('learning_journeys').select('recall,understanding,application').eq('owner_id',lucidSession.user.id).eq('resource_id',state.currentResourceId).maybeSingle();
+  if(error){console.warn('AI context summary unavailable:',error.message);return;}
+  if(data){
+    const values=[data.recall,data.understanding,data.application].map(Number).filter(v=>Number.isFinite(v)&&v>0);
+    if(values.length)set('aiContextRecall','Recall: '+Math.round(values[0])+'%');
+  }
 };
 window.loadAIImprovementSuggestions = async function(){
   const list=document.getElementById('aiImprovementList'),summary=document.getElementById('aiImprovementSummary');if(!list||!summary)return;

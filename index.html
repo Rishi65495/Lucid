@@ -1167,18 +1167,13 @@ textarea{min-height:75px;resize:vertical;}
       <div class="tab-content active" id="practiceTab-quiz">
         <div class="grid two-col">
           <div class="quiz-card card">
-            <div class="kicker">Machine Learning · Adaptive quiz</div>
+            <div class="kicker" id="quizSourceLabel">No source selected · Generate a quiz to begin</div>
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-              <span class="tag">Question <span id="qNum">1</span> of <span id="qTotal">5</span></span>
+              <span class="tag">Question <span id="qNum">0</span> of <span id="qTotal">0</span></span>
               <span class="tag gold">Difficulty: Medium</span>
             </div>
-            <div class="quiz-question" id="quizQuestion">What is overfitting in a machine learning model?</div>
-            <div id="quizOptions">
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the model fails to learn the training data</button>
-              <button class="quiz-option" onclick="answerQuiz(true,this)">When the model learns training data too well and performs poorly on new data</button>
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the model takes too long to train</button>
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the dataset has too many features</button>
-            </div>
+            <div class="quiz-question" id="quizQuestion">Choose a source PDF to create your first quiz.</div>
+            <div id="quizOptions"><div class="empty-state"><p>No quiz loaded. Select a source PDF to begin.</p></div></div>
             <div class="quiz-result" id="quizResult"></div>
             <div style="display:flex;gap:8px;margin-top:16px;">
               <button class="secondary-button btn-sm" onclick="skipQuiz()">Skip</button>
@@ -2382,33 +2377,25 @@ function addTimestampNote() {
 }
 
 // ─── Quiz ─────────────────────────────────────────
-const quizBank = [
-  { q: 'What is overfitting in a machine learning model?', opts: ['Model fails to learn training data','Model learns training data too well and performs poorly on new data','Model takes too long to train','Dataset has too many features'], ans: 1 },
-  { q: 'According to Deep Work, what enables high-quality knowledge work?', opts: ['Frequent context-switching','Social media breaks','Sustained concentration without distraction','Multitasking efficiently'], ans: 2 },
-  { q: 'What is gradient descent used for in ML?', opts: ['Data visualization','Feature selection','Minimizing a loss function through iterative updates','Evaluating model accuracy'], ans: 2 },
-  { q: 'What does DOM stand for in web development?', opts: ['Data Object Model','Document Object Model','Dynamic Object Manipulation','Document Operation Module'], ans: 1 },
-  { q: 'In the bias-variance tradeoff, high variance typically means?', opts: ['Underfitting','Good generalization','Overfitting to training data','Low training error and high test error'], ans: 3 }
-];
+const quizBank = [];
 let currentQuizIdx = 0;
 
 function loadQuiz(idx) {
-  const q = quizBank[idx % quizBank.length];
-  document.getElementById('quizQuestion').textContent = q.q;
-  document.getElementById('qNum').textContent = idx + 1;
-  document.getElementById('qTotal').textContent = quizBank.length;
-  document.getElementById('quizResult').textContent = '';
-  document.getElementById('nextQBtn').style.display = 'none';
-  const opts = document.getElementById('quizOptions');
-  opts.innerHTML = '';
-  q.opts.forEach((o, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'quiz-option';
-    btn.textContent = o;
-    btn.onclick = () => answerQuiz(i === q.ans, btn);
-    opts.appendChild(btn);
-  });
+  const questionEl=document.getElementById('quizQuestion'),opts=document.getElementById('quizOptions'),result=document.getElementById('quizResult');
+  const qNum=document.getElementById('qNum'),qTotal=document.getElementById('qTotal'),next=document.getElementById('nextQBtn');
+  if(!quizBank.length){
+    if(questionEl)questionEl.textContent='Choose a source PDF to create your first quiz.';
+    if(opts)opts.innerHTML='<div class="empty-state"><p>No quiz loaded. Select a resource, configure your questions and generate a source-grounded quiz.</p><button class="primary-button btn-sm" onclick="generateAIQuiz()">Choose source and build quiz</button></div>';
+    if(qNum)qNum.textContent='0';if(qTotal)qTotal.textContent='0';if(result)result.textContent='';if(next)next.style.display='none';
+    return;
+  }
+  currentQuizIdx=Math.max(0,Math.min(Number(idx)||0,quizBank.length-1));
+  const q=quizBank[currentQuizIdx];
+  if(questionEl)questionEl.textContent=q.q;
+  if(qNum)qNum.textContent=currentQuizIdx+1;if(qTotal)qTotal.textContent=quizBank.length;
+  if(result)result.textContent='';if(next)next.style.display='none';
+  if(opts){opts.innerHTML='';q.opts.forEach((o,i)=>{const btn=document.createElement('button');btn.className='quiz-option';btn.textContent=o;btn.onclick=()=>answerQuiz(i===q.ans,btn);opts.appendChild(btn);});}
 }
-
 function answerQuiz(correct, btn) {
   document.querySelectorAll('.quiz-option').forEach(b => b.disabled = true);
   state.quizTotal++;
@@ -2443,32 +2430,59 @@ function nextQuestion() {
 function skipQuiz() { nextQuestion(); showToast('Skipped — no mastery change.'); }
 
 async function generateAIQuiz() {
+  if(!window.lucidSession?.user){showToast('Sign in to generate a quiz.','⚠');return;}
   const existing=document.getElementById('aiQuizSetup');if(existing){existing.remove();return;}
   const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf');
   const modal=document.createElement('div');modal.id='aiQuizSetup';modal.className='modal-backdrop open';
-  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Build a quiz from your material</h2><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack">'+
-    '<label class="form-label">Source resource<select id="quizSource"><option value="">Choose a PDF…</option>'+resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+'</option>').join('')+'</select></label>'+
-    '<div class="form-row"><label class="form-label">Question format<select id="quizFormat"><option value="mixed">Mixed question types</option><option value="mcq">Multiple choice</option><option value="true_false">True / False</option><option value="case_based">Application / case-based</option></select></label><label class="form-label">Difficulty<select id="quizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div>'+
-    '<div class="form-row"><label class="form-label">Question count<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Whole resource</option><option value="current">Current page</option><option value="selected">Selected passage</option></select></label></div>'+
-    '<label class="form-label">Instructions<textarea id="quizPrompt" placeholder="Tell Lucid what to focus on: definitions, comparisons, applications, exam-style questions…"></textarea></label><button class="primary-button full-width" id="buildAIQuiz">Generate quiz →</button><p class="muted small-text" id="quizBuildStatus">Select a source and describe the quiz you want.</p></div></div>';
+  const options=resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+' · '+(Number(r.pages)||'pages unknown')+'</option>').join('');
+  modal.innerHTML='<div class="modal"><div class="modal-header"><div><div class="kicker">Practice builder · Step 1 of 2</div><h2>Choose your source</h2></div><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack"><p class="muted small-text">Every question will be generated from the PDF you choose. Your other resources will not be mixed in.</p><label class="form-label">Source PDF<select id="quizSource"><option value="">Choose a PDF…</option>'+options+'</select></label><p class="muted small-text" id="quizSourceStatus">'+(resources.length?'Select one of your uploaded PDFs to continue.':'No PDFs found. Upload a PDF to your Library first.')+'</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="primary-button" id="quizContinue" '+(resources.length?'':'disabled')+'>Continue →</button></div></div></div>';
   document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
-  modal.querySelector('#buildAIQuiz').onclick=async()=>{
-    const resourceId=modal.querySelector('#quizSource').value,format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim();
-    if(!resourceId){modal.querySelector('#quizBuildStatus').textContent='Select a source PDF first.';return;}if(coverage==='selected'&&resourceId!==state.currentResourceId){modal.querySelector('#quizBuildStatus').textContent='Open the selected PDF and select a passage first.';return;}if(coverage==='selected'&&!state.selectedText){modal.querySelector('#quizBuildStatus').textContent='Select a passage in the PDF first.';return;}
-    const resource=resources.find(r=>(r.resourceId||r.id)===resourceId),btn=modal.querySelector('#buildAIQuiz');btn.disabled=true;btn.textContent='Generating…';
-    modal.querySelector('#quizBuildStatus').textContent='Preparing source-grounded questions…';
-    try{
-      const currentPageForSource=resourceId===state.currentResourceId?state.currentResourcePage:1;const pages=coverage==='selected'?[]:await window.getLucidResourcePages(resourceId,{page:coverage==='current'?currentPageForSource:null});
-      const stride=Math.max(1,Math.ceil(pages.length/24));
-      const selectedPages=coverage==='current'?pages:pages.filter((_,index)=>index%stride===0);
-      const pageContext=coverage==='selected'?(state.selectedText||'') :selectedPages.map(p=>'Page '+p.page_number+': '+String(p.text_content||'').slice(0,760)).join('\\n\\n').slice(0,18000);
-      const prompt='Create '+count+' quiz questions from "'+(resource?.name||'the selected PDF')+'". Format: '+format+'. Difficulty: '+difficulty+'. Coverage: '+coverage+'. Instructions: '+(instructions||'Test understanding and application, not only memorization')+'. Return structured questions with prompt, options, answer_index and explanation. Do not invent facts beyond the supplied source.';
-      const data=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:resource?.name,question_format:format,difficulty,question_count:count,coverage,page_content:pageContext});
-      const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
-      if(!qs.length)throw new Error('No structured questions returned. Try fewer questions or a different format.');
-      quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);close();openPage('practice');showToast(qs.length+' questions generated from '+(resource?.name||'your PDF')+'.','✦');
-    }catch(error){modal.querySelector('#quizBuildStatus').textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
+  const sourceSelect=modal.querySelector('#quizSource');
+  if(state.currentResourceId&&resources.some(r=>(r.resourceId||r.id)===state.currentResourceId))sourceSelect.value=state.currentResourceId;
+  modal.querySelector('#quizContinue').onclick=()=>{
+    const resourceId=sourceSelect.value,resource=resources.find(r=>(r.resourceId||r.id)===resourceId);
+    if(!resource){modal.querySelector('#quizSourceStatus').textContent='Choose a source PDF before continuing.';return;}
+    modal.dataset.resourceId=resourceId;
+    modal.querySelector('.modal-header').innerHTML='<div><div class="kicker">Practice builder · Step 2 of 2</div><h2>Configure your quiz</h2><p class="muted small-text">Source: '+escapeHTML(resource.name)+'</p></div><button class="close-button" id="closeAIQuizStep2">×</button>';
+    modal.querySelector('#closeAIQuizStep2').onclick=close;
+    modal.querySelector('.form-stack').innerHTML=
+      '<div class="form-row"><label class="form-label">Question type<select id="quizFormat"><option value="mixed">Mixed questions</option><option value="mcq">Multiple choice</option><option value="true_false">True / False</option><option value="case_based">Application / case-based</option></select></label><label class="form-label">Difficulty<select id="quizDifficulty"><option value="balanced">Balanced</option><option value="easy">Easy</option><option value="moderate" selected>Moderate</option><option value="hard">Hard</option><option value="exam">Exam level</option></select></label></div>'+
+      '<div class="form-row"><label class="form-label">Number of questions<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Entire PDF</option><option value="current">Current PDF page</option><option value="selected">Selected passage</option></select></label></div>'+
+      '<label class="form-label">Your instructions<textarea id="quizPrompt" placeholder="Example: Focus on definitions, compare related concepts, include practical applications and exam-style questions…"></textarea></label>'+
+      '<div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;"><button class="secondary-button" id="quizBack">← Change source</button><button class="primary-button" id="buildAIQuiz">Generate quiz →</button></div><p class="muted small-text" id="quizBuildStatus">Questions will be grounded only in '+escapeHTML(resource.name)+'.</p>';
+    modal.querySelector('#quizBack').onclick=()=>{modal.querySelector('.modal-header').innerHTML='<div><div class="kicker">Practice builder · Step 1 of 2</div><h2>Choose your source</h2></div><button class="close-button" id="closeAIQuiz">×</button>';modal.querySelector('#closeAIQuiz').onclick=close;modal.querySelector('.form-stack').innerHTML='<p class="muted small-text">Choose the PDF that should be used as the only source for this quiz.</p><label class="form-label">Source PDF<select id="quizSource"><option value="">Choose a PDF…</option>'+options+'</select></label><p class="muted small-text">Select one of your uploaded PDFs to continue.</p><div style="display:flex;justify-content:flex-end;"><button class="primary-button" id="quizContinue">Continue →</button></div>';const sel=modal.querySelector('#quizSource');sel.value=resourceId;modal.querySelector('#quizContinue').onclick=()=>{modal.remove();generateAIQuiz();};};
+    modal.querySelector('#buildAIQuiz').onclick=async()=>{
+      const format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim(),btn=modal.querySelector('#buildAIQuiz'),status=modal.querySelector('#quizBuildStatus');
+      const resourceId=modal.dataset.resourceId,chosen=resources.find(r=>(r.resourceId||r.id)===resourceId);
+      if(coverage==='selected'&&(resourceId!==state.currentResourceId||!state.selectedText)){status.textContent='Open this PDF in Reading room and select a passage first.';return;}
+      if(coverage==='current'&&resourceId!==state.currentResourceId){status.textContent='Open this PDF in Reading room first, then choose Current PDF page.';return;}
+      btn.disabled=true;btn.textContent='Generating…';status.textContent='Step 1/3 · Reading the selected PDF…';
+      try{
+        let pages=coverage==='selected'?[]:await window.getLucidResourcePages(resourceId,{page:coverage==='current'?state.currentResourcePage:null});
+        if(coverage!=='selected'&&!pages.length)throw new Error('No extracted page text exists for this PDF. Reprocess it with OCR before generating questions.');
+        if(coverage!=='selected'&&!pages.some(p=>String(p.text_content||'').trim()))throw new Error('This PDF has no readable text. OCR is required before AI quiz generation.');
+        const stride=Math.max(1,Math.ceil(pages.length/24));let selectedPages=coverage==='current'?pages:pages.filter((_,index)=>index%stride===0);
+        if(coverage==='whole'&&pages.length>1&&selectedPages[selectedPages.length-1]?.page_number!==pages[pages.length-1]?.page_number)selectedPages.push(pages[pages.length-1]);
+        const pageContext=coverage==='selected'?state.selectedText:selectedPages.map(p=>'[PDF page '+p.page_number+']\n'+String(p.text_content||'').slice(0,850)).join('\n\n').slice(0,20000);
+        if(!pageContext.trim())throw new Error('No readable text was found in the selected source scope.');
+        status.textContent='Step 2/3 · Generating '+count+' '+difficulty+' questions from '+chosen.name+'…';
+        const prompt='Generate exactly '+count+' questions using only the supplied PDF excerpts from '+chosen.name+'. Question format: '+format+'. Difficulty: '+difficulty+'. User instructions: '+(instructions||'Test understanding, conceptual distinctions and practical application.')+'. Every correct answer must be supported by the supplied text. Do not use outside facts. Each item must include prompt, type, options, answer_index and explanation. For true/false use exactly two options. For other formats use four plausible options. Return exactly '+count+' questions.';
+        const data=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:chosen.name,question_format:format,difficulty,question_count:count,coverage,source_pages:selectedPages.map(p=>p.page_number),page_content:pageContext});
+        const rawQuestions=data?.result?.questions||data?.questions||[];
+        const qs=rawQuestions.filter(q=>q&&String(q.prompt||'').trim()&&Array.isArray(q.options)&&q.options.length>=2&&Number.isInteger(Number(q.answer_index))&&Number(q.answer_index)>=0&&Number(q.answer_index)<q.options.length).slice(0,count).map(q=>({q:String(q.prompt),opts:q.options.map(String),ans:Number(q.answer_index),explanation:String(q.explanation||''),type:String(q.type||'mcq')}));
+        if(!qs.length)throw new Error(data?.result?.text||'The AI did not return valid structured questions. Try a smaller question count.');
+        status.textContent='Step 3/3 · Saving quiz and preparing your practice session…';
+        state.quizSourceTitle=chosen.name;state.quizSourceId=resourceId;state.quizTotal=0;state.quizCorrect=0;state.quizAnswered=0;
+        quizBank.splice(0,quizBank.length,...qs);currentQuizIdx=0;loadQuiz(0);
+        const sourceLabel=document.getElementById('quizSourceLabel');if(sourceLabel)sourceLabel.textContent=chosen.name+' · '+coverage+' · '+difficulty;
+        const score=document.getElementById('quizScore');if(score)score.textContent='0/0';
+        const bar=document.getElementById('quizScoreBar');if(bar)bar.style.width='0%';
+        const accuracy=document.getElementById('accuracyPct');if(accuracy)accuracy.textContent='—';
+        if(window.saveGeneratedLucidQuiz){try{await window.saveGeneratedLucidQuiz({resourceId,title:chosen.name+' · '+format+' quiz',format,difficulty,coverage,instructions,questions:qs,sourcePages:selectedPages.map(p=>p.page_number)});}catch(saveError){console.warn('Quiz generated but history was not saved:',saveError.message);showToast('Quiz generated; history could not be saved.','⚠');}}
+        close();openPage('practice');showToast(qs.length+' questions generated from '+chosen.name+'.','✦');
+      }catch(error){status.textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
+    };
   };
 }
 // ─── Flashcards ───────────────────────────────────

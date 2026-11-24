@@ -641,9 +641,10 @@ window.renderLucidReaderPage = async function(){
     if(error?.name==='RenderingCancelledException')return;
     if(renderId!==window.lucidPdfRenderId)return;
     if(status)status.textContent='PDF could not be rendered';
-    stage.innerHTML='';
-    const errorNode=document.createElement('div');errorNode.className='pdf-render-error';errorNode.style.cssText='padding:22px;color:#9b3d38;background:#fff;border-radius:8px;';errorNode.textContent='Could not render this PDF page: '+String(error.message||error);
-    stage.appendChild(errorNode);
+    window.currentPdfLoading=null;window.currentPdfLoadingUrl=null;
+    let errorNode=stage.querySelector('.pdf-render-error');
+    if(!errorNode){errorNode=document.createElement('div');errorNode.className='pdf-render-error';errorNode.style.cssText='padding:22px;color:#9b3d38;background:#fff;border-radius:8px;';stage.appendChild(errorNode);}
+    errorNode.textContent='Could not render this PDF page: '+String(error.message||error);
   }
 };
 window.goLucidPdfPage=function(value){

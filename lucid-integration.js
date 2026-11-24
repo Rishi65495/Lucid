@@ -61,7 +61,7 @@ window.sendAIChatWithPrompt = async function(prompt){const chat=document.getElem
 window.loadYoutubeURL = async function(url){if(!url){showToast('Paste a YouTube URL first.','⚠');return;}showToast('Importing YouTube content securely…','▶');try{const imported=await window.invokeLucidFunction('youtube-import',{url});openPage('video');const wrapper=document.getElementById('youtubePlayerWrapper'),player=document.getElementById('youtubePlayer'),frame=document.getElementById('ytFrame');if(imported.type==='playlist'&&imported.playlist_id){frame.src='https://www.youtube.com/embed/videoseries?list='+encodeURIComponent(imported.playlist_id);showToast('Playlist imported: '+(imported.playlist?.title||'YouTube playlist'),'▶');}else if(imported.type==='video'&&imported.item?.video_id){frame.src='https://www.youtube.com/embed/'+encodeURIComponent(imported.item.video_id)+'?rel=0&modestbranding=1&enablejsapi=1';showToast('Loaded: '+(imported.item.title||'YouTube video'),'▶');}else{throw new Error('Unsupported YouTube import response.');}if(wrapper)wrapper.style.display='none';if(player)player.style.display='block';}catch(error){showToast('YouTube import failed: '+error.message,'⚠');}};
 
 window.recordLucidQuizAnswer = async function(answer){
-  if(!lucidSession?.user||!window.lucidSupabase)return false;
+  if(!lucidSession?.user||typeof lucidSupabase==='undefined')return false;
   const payload={
     question:String(answer.question||'').slice(0,2000),
     selected_option:String(answer.selectedOption||'').slice(0,1000),
@@ -349,7 +349,7 @@ window.renderLucidReaderPage = function(){
   const pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
   const page=Math.max(1,Math.min(pageCount||1,Number(state.currentResourcePage)||1));
   const meta=document.getElementById('docMeta'),heading=document.getElementById('docTitle'),content=document.getElementById('readerPageContent'),empty=document.getElementById('readerEmptyState'),footer=document.getElementById('readerDocumentFooter'),tag=document.getElementById('pageTag'),kicker=document.getElementById('readerKicker'),status=document.getElementById('readerPageStatus'),panel=document.getElementById('pdfViewerPanel'),frame=document.getElementById('originalPdfViewer'),label=document.getElementById('pdfViewerTitle');
-  const hasPdf=Boolean(state.currentPdfUrl);
+  const hasPdf=Boolean(window.currentPdfUrl);
   if(meta)meta.textContent=title+' · Original PDF';
   if(heading)heading.textContent=title;
   if(kicker)kicker.textContent=title;
@@ -360,7 +360,7 @@ window.renderLucidReaderPage = function(){
   if(tag)tag.textContent=hasPdf?(pageCount?'PDF · '+pageCount+' pages':'Original PDF'):'No page';
   if(status)status.textContent=hasPdf?'PDF page '+page+(pageCount?' of '+pageCount:''):'No PDF selected';
   if(footer)footer.style.display=hasPdf?'flex':'none';
-  if(frame&&hasPdf&&state.currentPdfUrl)frame.src=state.currentPdfUrl+'#page='+page+'&toolbar=1&navpanes=1&view=FitH';
+  if(frame&&hasPdf&&window.currentPdfUrl)frame.src=window.currentPdfUrl+'#page='+page+'&toolbar=1&navpanes=1&view=FitH';
 };
 window.openLucidResource = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');
@@ -380,7 +380,7 @@ window.openLucidResource = async function(id){
   state.currentResourceTitle=resource.title;
   state.currentResourcePage=1;
   state.currentResourcePageCount=Number(resource.metadata?.page_count||pages?.length||0);
-  state.currentPdfUrl=signed.signedUrl;
+  window.currentPdfUrl=signed.signedUrl;
   state.resourcePages=pages||[];
   saveState();
   const openLink=document.getElementById('pdfOpenNewTab');if(openLink)openLink.href=signed.signedUrl;
@@ -390,7 +390,7 @@ window.openLucidResource = async function(id){
 };
 window.changeLucidReaderPage = function(delta){
   const pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
-  if(!state.currentPdfUrl||!pageCount)return;
+  if(!window.currentPdfUrl||!pageCount)return;
   state.currentResourcePage=Math.max(1,Math.min(pageCount,(state.currentResourcePage||1)+delta));
   saveState();window.renderLucidReaderPage();
 };

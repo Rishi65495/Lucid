@@ -1819,23 +1819,8 @@ const state = {
   quizCorrect: 0,
   quizTotal: 0,
   flashcardIndex: 0,
-  flashcards: [
-    { q: 'What is the bias-variance tradeoff?', a: 'The tension between a model\'s ability to fit training data (low bias) and generalize to new data (low variance). Reducing one typically increases the other.' },
-    { q: 'Define overfitting.', a: 'When a model learns the training data too well, including noise, and performs poorly on unseen data.' },
-    { q: 'What is gradient descent?', a: 'An iterative optimization algorithm that minimizes a loss function by moving in the direction of steepest descent.' },
-    { q: 'What is the purpose of a validation set?', a: 'To evaluate model performance during training and tune hyperparameters without touching the test set.' },
-    { q: 'Explain regularization.', a: 'Techniques (L1, L2, dropout) that add a penalty for model complexity to reduce overfitting.' },
-    { q: 'What is cross-validation?', a: 'A technique that divides data into k folds, training on k-1 and testing on 1, repeated k times to get a robust performance estimate.' },
-    { q: 'Define precision and recall.', a: 'Precision = TP/(TP+FP). Recall = TP/(TP+FN). Precision measures correctness of positives; recall measures coverage of actual positives.' },
-    { q: 'What is the difference between supervised and unsupervised learning?', a: 'Supervised uses labeled data to learn a mapping; unsupervised finds patterns in unlabeled data.' }
-  ],
-  oralQuestions: [
-    'Explain overfitting and how you would prevent it in a machine learning model.',
-    'What is the difference between gradient descent and stochastic gradient descent?',
-    'Explain the concept of deep work and why it matters in a knowledge economy.',
-    'What is event delegation in JavaScript and why is it useful?',
-    'Describe the bias-variance tradeoff in your own words.'
-  ]
+  flashcards: [],
+  oralQuestions: []
 };
 
 const pageNames = {
@@ -2212,16 +2197,11 @@ function addTimestampNote() {
 }
 
 // ─── Quiz ─────────────────────────────────────────
-const quizBank = [
-  { q: 'What is overfitting in a machine learning model?', opts: ['Model fails to learn training data','Model learns training data too well and performs poorly on new data','Model takes too long to train','Dataset has too many features'], ans: 1 },
-  { q: 'According to Deep Work, what enables high-quality knowledge work?', opts: ['Frequent context-switching','Social media breaks','Sustained concentration without distraction','Multitasking efficiently'], ans: 2 },
-  { q: 'What is gradient descent used for in ML?', opts: ['Data visualization','Feature selection','Minimizing a loss function through iterative updates','Evaluating model accuracy'], ans: 2 },
-  { q: 'What does DOM stand for in web development?', opts: ['Data Object Model','Document Object Model','Dynamic Object Manipulation','Document Operation Module'], ans: 1 },
-  { q: 'In the bias-variance tradeoff, high variance typically means?', opts: ['Underfitting','Good generalization','Overfitting to training data','Low training error and high test error'], ans: 3 }
-];
+const quizBank = [];
 let currentQuizIdx = 0;
 
 function loadQuiz(idx) {
+  if(!quizBank.length){document.getElementById('quizQuestion').textContent='Choose a catalogue or resource above, then generate a quiz.';document.getElementById('qNum').textContent='0';document.getElementById('qTotal').textContent='0';document.getElementById('quizOptions').innerHTML='<p class="muted small-text">No sample questions are loaded. Questions will come from your selected source.</p>';return;}
   const q = quizBank[idx % quizBank.length];
   document.getElementById('quizQuestion').textContent = q.q;
   document.getElementById('qNum').textContent = idx + 1;
@@ -2311,8 +2291,9 @@ async function generateAIQuiz() {
   };
 }
 // ─── Flashcards ───────────────────────────────────
-function flipCard() { document.getElementById('flashcard').classList.toggle('flipped'); }
+function flipCard() { if(state.flashcards.length)document.getElementById('flashcard').classList.toggle('flipped'); }
 function rateCard(rating) {
+  if(!state.flashcards?.length){showToast('Generate flashcards from a selected source first.','⚠');return;}
   const fc = state.flashcards[state.flashcardIndex];
   showToast(`Rated "${rating}" — ${rating === 'easy' ? '+5 XP' : 'marked for review'}.`);
   if (rating === 'easy') { state.xp += 5; updateXP(); }

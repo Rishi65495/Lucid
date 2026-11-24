@@ -1068,6 +1068,20 @@ window.removeLucidResourceFromCatalogue = async function(resourceId,catalogueId)
   await window.openLucidCatalogue(catalogueId);
   return true;
 };
+window.removeSelectedLucidResourcesFromCatalogue = async function(catalogueId,resourceIds){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  const ids=[...new Set((resourceIds||[]).filter(Boolean))];
+  if(!catalogueId||!ids.length)throw new Error('Select at least one resource.');
+  const owned=await lucidSupabase.from('lucid_resources').select('id').eq('owner_id',lucidSession.user.id).in('id',ids);
+  if(owned.error)throw owned.error;
+  const ownedIds=(owned.data||[]).map(row=>row.id);
+  if(ownedIds.length!==ids.length)throw new Error('One or more selected resources are not in your library. Nothing was removed.');
+  const removed=await lucidSupabase.from('catalogue_resources').delete().eq('catalogue_id',catalogueId).in('resource_id',ids);
+  if(removed.error)throw removed.error;
+  await window.loadLucidCatalogues();
+  await window.openLucidCatalogue(catalogueId);
+  return ids.length;
+};
 window.deleteLucidCatalogue = async function(catalogueId){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   if(!catalogueId)throw new Error('Missing catalogue.');
@@ -1323,6 +1337,28 @@ window.openLucidCatalogue = async function(id){
   const rows=(links||[]).map(link=>({...link,lucid_resources:resourceById.get(link.resource_id)})).filter(row=>row.lucid_resources);
   if(list)list.innerHTML='';
   if(empty)empty.style.display=rows.length?'none':'block';
+  let selectionBar=document.getElementById('catalogueResourceSelectionBar');
+  if(!selectionBar){
+    selectionBar=document.createElement('div');selectionBar.id='catalogueResourceSelectionBar';
+    selectionBar.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;margin:12px 0 16px;border:1px solid var(--line);border-radius:14px;background:var(--paper-2);';
+    if(panel&&list)panel.insertBefore(selectionBar,list);
+  }
+  selectionBar.style.display=rows.length?'flex':'none';
+  selectionBar.innerHTML='';
+  const selectionLeft=document.createElement('div');selectionLeft.style.cssText='display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
+  const selectAllLabel=document.createElement('label');selectAllLabel.style.cssText='display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;cursor:pointer;';
+  const selectAll=document.createElement('input');selectAll.type='checkbox';selectAll.id='catalogueSelectAll';selectAll.style.accentColor='var(--forest)';
+  const selectedCount=document.createElement('span');selectedCount.id='catalogueSelectedCount';selectedCount.className='muted small-text';selectedCount.textContent='0 selected';
+  selectAllLabel.append(selectAll,document.createTextNode('Select all'));selectionLeft.append(selectAllLabel,selectedCount);
+  const selectionActions=document.createElement('div');selectionActions.style.cssText='display:flex;gap:7px;align-items:center;';
+  const clearSelection=document.createElement('button');clearSelection.className='ghost-button btn-sm';clearSelection.textContent='Clear';
+  const bulkRemove=document.createElement('button');bulkRemove.className='danger-button btn-sm';bulkRemove.textContent='Remove selected';bulkRemove.disabled=true;
+  selectionActions.append(clearSelection,bulkRemove);selectionBar.append(selectionLeft,selectionActions);
+  const getChecks=()=>Array.from(list?.querySelectorAll('[data-catalogue-resource-select]')||[]);
+  const updateSelection=()=>{const checks=getChecks(),selected=checks.filter(x=>x.checked).length;selectedCount.textContent=selected+' selected';bulkRemove.disabled=!selected;selectAll.checked=checks.length>0&&selected===checks.length;selectAll.indeterminate=selected>0&&selected<checks.length;};
+  selectAll.onchange=()=>{getChecks().forEach(x=>x.checked=selectAll.checked);updateSelection();};
+  clearSelection.onclick=()=>{getChecks().forEach(x=>x.checked=false);updateSelection();};
+  bulkRemove.onclick=async()=>{const ids=getChecks().filter(x=>x.checked).map(x=>x.value);if(!ids.length)return;if(!confirm('Remove '+ids.length+' selected resource(s) from this catalogue? The originals will remain in My Library.'))return;bulkRemove.disabled=true;bulkRemove.textContent='Removing…';try{const count=await window.removeSelectedLucidResourcesFromCatalogue(id,ids);showToast(count+' resource(s) removed from this catalogue. Library files were kept.','✓');}catch(error){showToast('Bulk removal failed: '+error.message,'⚠');bulkRemove.disabled=false;bulkRemove.textContent='Remove selected';}};
   rows.forEach(row=>{
     const resource=row.lucid_resources;
     const card=document.createElement('article');card.className='book-card card';
@@ -1331,10 +1367,14 @@ window.openLucidCatalogue = async function(id){
     const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=resource.title||'Untitled resource';
     const status=document.createElement('div');status.className='book-author';status.textContent=(resource.metadata?.page_count?resource.metadata.page_count+' pages · ':'')+(resource.processing_status||'saved');
     info.append(title,status);main.append(cover,info);
-    const footer=document.createElement('div');footer.className='book-footer';const tag=document.createElement('span');tag.className='tag';tag.textContent=resource.type||'resource';
+    const footer=document.createElement('div');footer.className='book-footer';footer.style.flexWrap='wrap';footer.style.gap='8px';const tag=document.createElement('span');tag.className='tag';tag.textContent=resource.type||'resource';
+    const controls=document.createElement('div');controls.style.cssText='display:flex;align-items:center;gap:7px;flex-wrap:wrap;';
+    const selectLabel=document.createElement('label');selectLabel.style.cssText='display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);cursor:pointer;';
+    const selectResource=document.createElement('input');selectResource.type='checkbox';selectResource.value=resource.id;selectResource.setAttribute('data-catalogue-resource-select','');selectResource.style.accentColor='var(--forest)';selectResource.onchange=updateSelection;
+    selectLabel.append(selectResource,document.createTextNode('Select'));
     const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(resource.id);
     const remove=document.createElement('button');remove.className='danger-button btn-sm';remove.textContent='Remove';remove.title='Remove this resource from this catalogue; keep it in My Library';remove.onclick=async()=>{if(!confirm('Remove "'+(resource.title||'this resource')+'" from this catalogue? It will remain in My Library.'))return;remove.disabled=true;try{await window.removeLucidResourceFromCatalogue(resource.id,id);showToast('Resource removed from catalogue; kept in My Library.','✓');}catch(error){showToast('Could not remove resource: '+error.message,'⚠');remove.disabled=false;}};
-    footer.append(tag,open,remove);card.append(main,footer);list?.appendChild(card);
+    controls.append(selectLabel,open,remove);footer.append(tag,controls);card.append(main,footer);list?.appendChild(card);
   });
   if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
   return rows.length;

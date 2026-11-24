@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#17251d" />
-<title>Leafline | Learning Platform</title>
+<title>Lucid | AI Learning Platform</title>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=DM+Serif+Display&family=Space+Mono:wght@400;700&display=swap');
@@ -564,6 +564,12 @@ textarea{min-height:75px;resize:vertical;}
   .main{padding-right:22px;padding-left:22px;}
   .dashboard-hero-grid,.reader-layout,.insight-grid{grid-template-columns:1fr;}
   .reader-sidebar{grid-template-columns:repeat(3,1fr);align-items:start;}
+.reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr);}
+.reader-layout.sidebar-hidden>.reader-sidebar{display:none;}
+.pdf-viewer-panel{width:100%;min-width:0;overflow:hidden;}
+#originalPdfViewer{display:block;width:100%;height:min(78vh,1000px);min-height:620px;border:0;background:#202522;}
+.annotation-open:hover span{text-decoration:underline;}
+@media(max-width:780px){#originalPdfViewer{min-height:520px;height:72vh;}}
   .analytics-grid{grid-template-columns:repeat(2,1fr);}
   .four-col{grid-template-columns:repeat(2,1fr);}
 }
@@ -613,7 +619,7 @@ textarea{min-height:75px;resize:vertical;}
     <div class="brand">
       <div class="brand-mark">L</div>
       <div>
-        <div class="brand-name">leafline</div>
+        <div class="brand-name">Lucid</div>
         <span class="brand-subtitle">learning platform</span>
       </div>
     </div>
@@ -949,6 +955,7 @@ textarea{min-height:75px;resize:vertical;}
       <div class="page-heading">
         <div><div class="kicker" id="readerKicker">No resource selected</div><h1>Reading room.</h1></div>
         <div style="display:flex;align-items:center;gap:9px;">
+          <button class="secondary-button btn-sm" id="toggleReaderSidebar" onclick="toggleReaderSidebar()" aria-expanded="true">Hide panel ◂</button>
           <span class="tag" id="pageTag">No page</span>
           <button class="secondary-button btn-sm" onclick="openModal('focusModal')">⚡ Focus mode</button>
         </div>
@@ -961,7 +968,7 @@ textarea{min-height:75px;resize:vertical;}
         <button class="secondary-button btn-sm" onclick="listenAI()">🎧 AI Teach</button>
       </div>
 
-      <div class="reader-layout">
+      <div class="reader-layout" id="readerLayout">
         <div>
           <div class="reader-stage">
             <article class="document pdf-document" id="documentText">
@@ -1032,20 +1039,7 @@ textarea{min-height:75px;resize:vertical;}
             <button class="primary-button full-width btn-sm" style="margin-top:8px;" onclick="saveAnnotation()">Save annotation</button>
           </div>
 
-          <!-- Ambient sounds -->
-          <div class="card side-panel">
-            <div class="panel-heading"><h3>Focus atmosphere</h3><span>♫</span></div>
-            <div class="music-control">
-              <div><strong id="musicName">Rain on windows</strong><small id="musicStatus">Sound off</small></div>
-              <button class="toggle" id="musicToggle" onclick="toggleMusic()"></button>
-            </div>
-            <div style="display:grid;gap:6px;margin-top:9px;">
-              <button class="secondary-button full-width btn-sm" onclick="changeSound('Rain on windows')">🌧 Rain on windows</button>
-              <button class="secondary-button full-width btn-sm" onclick="changeSound('Quiet forest')">🌿 Quiet forest</button>
-              <button class="secondary-button full-width btn-sm" onclick="changeSound('Soft café')">☕ Soft café</button>
-              <button class="secondary-button full-width btn-sm" onclick="changeSound('Lo-fi beats')">🎵 Lo-fi beats</button>
-            </div>
-          </div>
+          <!-- Focus music removed to keep the reader distraction-free. -->
         </aside>
       </div>
     </section>
@@ -1508,7 +1502,7 @@ textarea{min-height:75px;resize:vertical;}
           </div>
         </article>
         <article class="insight-card card">
-          <div class="kicker">Leafline noticed</div>
+          <div class="kicker">Lucid noticed</div>
           <div class="insight-quote">You retain more when you read for 20–30 minutes and write one annotation per chapter.</div>
           <p class="muted small-text">Recommended: 25 min session tonight at 8 PM. Will adapt as your patterns change.</p>
           <button class="primary-button btn-sm" style="margin-top:14px;" onclick="openPage('reader')">Start recommended session</button>
@@ -1787,7 +1781,7 @@ textarea{min-height:75px;resize:vertical;}
   <aside class="sidebar" style="display:flex;">
     <div class="brand">
       <div class="brand-mark">L</div>
-      <div><div class="brand-name">leafline</div><span class="brand-subtitle">learning platform</span></div>
+      <div><div class="brand-name">Lucid</div><span class="brand-subtitle">learning platform</span></div>
     </div>
     <nav>
       <div class="nav-label">Learn</div>
@@ -1921,7 +1915,7 @@ textarea{min-height:75px;resize:vertical;}
 <div class="modal-backdrop" id="videoImportModal">
   <div class="modal">
     <div class="modal-header"><h2>Load YouTube video</h2><button class="close-button" onclick="closeModal('videoImportModal')">×</button></div>
-    <p class="muted small-text">Paste a YouTube URL to embed it in Leafline's focused learning shell.</p>
+    <p class="muted small-text">Paste a YouTube URL to embed it in Lucid's focused learning shell.</p>
     <div class="form-stack">
       <label class="form-label">YouTube URL<input id="ytURL" placeholder="https://youtube.com/watch?v=dQw4w9WgXcQ" /></label>
       <button class="primary-button full-width" onclick="loadYoutubeVideo()">Load in classroom →</button>
@@ -1968,7 +1962,7 @@ const state = {
   streak: 7,
   xp: 390,
   level: 16,
-  annotations: ['Clarity about what deserves your attention.', 'Tools should serve values, not replace them.'],
+  annotations: [],
   highlights: [],
   selectedText: '',
   uploadedBooks: [],
@@ -2012,7 +2006,7 @@ const pageNames = {
 
 // ─── State persistence ───────────────────────────
 function saveState() {
-  localStorage.setItem('leafline-state-v2', JSON.stringify({
+  localStorage.setItem('Lucid-state-v2', JSON.stringify({
     pagesRead: state.pagesRead, streak: state.streak, xp: state.xp,
     annotations: state.annotations, highlights: state.highlights, selectedText: state.selectedText, uploadedBooks: state.uploadedBooks, selectedCatalogueId: state.selectedCatalogueId, currentResourceId: state.currentResourceId, currentResourceTitle: state.currentResourceTitle, currentResourcePage: state.currentResourcePage,
     preferences: state.preferences, quizCorrect: state.quizCorrect,
@@ -2023,7 +2017,7 @@ function saveState() {
 
 function restoreState() {
   try {
-    const s = JSON.parse(localStorage.getItem('leafline-state-v2') || '{}');
+    const s = JSON.parse(localStorage.getItem('Lucid-state-v2') || '{}');
     if (s.pagesRead !== undefined) state.pagesRead = s.pagesRead;
     if (s.streak !== undefined) state.streak = s.streak;
     if (s.xp !== undefined) state.xp = s.xp;
@@ -2040,7 +2034,7 @@ function restoreState() {
     if (s.quizTotal !== undefined) state.quizTotal = s.quizTotal;
     if (s.chatMessages) state.chatMessages = s.chatMessages;
     if (s.coachMode) state.coachMode = s.coachMode;
-  } catch { localStorage.removeItem('leafline-state-v2'); }
+  } catch { localStorage.removeItem('Lucid-state-v2'); }
 }
 
 // ─── Navigation ──────────────────────────────────
@@ -2151,46 +2145,53 @@ function openReaderAI() {
   openModal('aiModal');
 }
 function focusAnnotation() { document.getElementById('annotationInput').focus(); }
-function saveAnnotation() {
-  const input = document.getElementById('annotationInput');
-  const val = input.value.trim();
-  if (!val) { showToast('Write something first.', '⚠'); return; }
-  state.annotations.push(val);
-  input.value = '';
-  renderAnnotations();
-  saveState();
-  showToast('Annotation saved. +5 XP', '✓');
-  state.xp += 5; updateXP();
+async function saveAnnotation() {
+  const input=document.getElementById('annotationInput'),val=input.value.trim();
+  if(!val){showToast('Write something first.','⚠');return;}
+  if(!state.currentResourceId){showToast('Open a PDF first so this annotation can be linked to its page.','⚠');return;}
+  const item={id:null,text:val,page:Number(state.currentResourcePage)||1,color:state.currentHL||'yellow',resourceId:state.currentResourceId};
+  try{
+    if(window.saveLucidAnnotation){const saved=await window.saveLucidAnnotation(item);item.id=saved.id;}
+    state.annotations.push(item);input.value='';renderAnnotations();saveState();
+    showToast('Annotation saved on PDF page '+item.page+'. +5 XP','✓');state.xp+=5;updateXP();
+  }catch(error){showToast('Could not save annotation: '+error.message,'⚠');}
 }
 function renderAnnotations() {
-  const list = document.getElementById('noteList');
-  const count = document.getElementById('annotationCount');
-  if (!list || !count) return;
-  list.innerHTML = '';
-  state.annotations.forEach((a, i) => {
-    const d = document.createElement('div');
-    d.className = 'note';
-    d.innerHTML = `<div><small class="note-kind">NOTE</small><span>${escapeHTML(a)}</span></div><button class="note-del" data-kind="note" data-index="${i}" onclick="delNote(this)">×</button>`;
-    list.appendChild(d);
+  const list=document.getElementById('noteList'),count=document.getElementById('annotationCount');
+  if(!list||!count)return;list.innerHTML='';
+  state.annotations.forEach((item,i)=>{
+    const a=typeof item==='string'?{text:item,page:1}:item;
+    const d=document.createElement('div');d.className='note '+(a.color||'yellow');
+    d.innerHTML='<button type="button" class="annotation-open" style="all:unset;display:block;cursor:pointer;width:100%;"><small class="note-kind">NOTE · PAGE '+(Number(a.page)||1)+'</small><span>'+escapeHTML(a.text||a.note||'')+'</span></button><button class="note-del" data-kind="note" data-index="'+i+'" onclick="event.stopPropagation();delNote(this)">×</button>';
+    d.querySelector('.annotation-open').addEventListener('click',()=>openAnnotation(i));list.appendChild(d);
   });
-  const labels = { yellow: 'IMPORTANT', green: 'KEY INSIGHT', blue: 'DEFINITION', red: 'REVIEW', purple: 'EXAM POINT' };
-  state.highlights.forEach((h, i) => {
-    const d = document.createElement('div');
-    d.className = 'note ' + (h.color || 'yellow');
-    d.style.borderLeftColor = 'var(--' + ({yellow:'gold',green:'forest-2',blue:'blue',red:'rose',purple:'violet'}[h.color] || 'gold') + ')';
-    d.innerHTML = `<div><small class="note-kind">${labels[h.color] || 'HIGHLIGHT'}</small><span>${escapeHTML(h.text || '')}</span></div><button class="note-del" data-kind="highlight" data-index="${i}" onclick="delNote(this)">×</button>`;
-    list.appendChild(d);
+  const labels={yellow:'IMPORTANT',green:'KEY INSIGHT',blue:'DEFINITION',red:'REVIEW',purple:'EXAM POINT'};
+  state.highlights.forEach((h,i)=>{
+    const d=document.createElement('div');d.className='note '+(h.color||'yellow');
+    const page=Number(h.page)||Number(state.currentResourcePage)||1;
+    d.innerHTML='<button type="button" class="annotation-open" style="all:unset;display:block;cursor:pointer;width:100%;"><small class="note-kind">'+(labels[h.color]||'HIGHLIGHT')+' · PAGE '+page+'</small><span>'+escapeHTML(h.text||'')+'</span></button><button class="note-del" data-kind="highlight" data-index="'+i+'" onclick="event.stopPropagation();delNote(this)">×</button>';
+    d.querySelector('.annotation-open').addEventListener('click',()=>{state.currentResourcePage=page;saveState();window.renderLucidReaderPage?.();});list.appendChild(d);
   });
-  count.textContent = state.annotations.length + state.highlights.length;
+  count.textContent=state.annotations.length+state.highlights.length;
 }
-function delNote(btn) {
-  const kind = btn.dataset.kind || 'note';
-  const idx = Number(btn.dataset.index);
-  if (kind === 'highlight') state.highlights.splice(idx, 1);
-  else state.annotations.splice(idx, 1);
-  renderAnnotations();
-  saveState();
-  showToast('Saved item removed.');
+function openAnnotation(index){
+  const item=state.annotations[index];if(!item)return;const a=typeof item==='string'?{text:item,page:1}:item;
+  if(a.resourceId&&state.currentResourceId&&a.resourceId!==state.currentResourceId){showToast('This annotation belongs to another PDF. Open that resource first.','⚠');return;}
+  state.currentResourcePage=Math.max(1,Number(a.page)||1);saveState();window.renderLucidReaderPage?.();
+  const input=document.getElementById('annotationInput');if(input)input.value=a.text||a.note||'';
+  showToast('Opened annotation from PDF page '+state.currentResourcePage+'.');
+}
+async function delNote(btn) {
+  const kind=btn.dataset.kind||'note',idx=Number(btn.dataset.index);
+  if(kind==='highlight')state.highlights.splice(idx,1);
+  else{
+    const item=state.annotations[idx];
+    if(item&&typeof item==='object'&&item.id&&window.deleteLucidAnnotation){
+      try{await window.deleteLucidAnnotation(item.id);}catch(error){showToast('Could not delete annotation: '+error.message,'⚠');return;}
+    }
+    state.annotations.splice(idx,1);
+  }
+  renderAnnotations();saveState();showToast('Saved item removed.');
 }
 
 // ─── Page completion ─────────────────────────────
@@ -2352,7 +2353,7 @@ function loadYoutubeURL(url) {
   frame.src = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&enablejsapi=1`;
   wrapper.style.display = 'none';
   player.style.display = 'block';
-  showToast('Video loaded in Leafline classroom!', '▶');
+  showToast('Video loaded in Lucid classroom!', '▶');
 }
 function videoSpeed(x) { showToast(`Playback speed set to ${x}×`, '⚡'); }
 function addTimestampNote() {
@@ -2434,15 +2435,32 @@ function nextQuestion() {
 function skipQuiz() { nextQuestion(); showToast('Skipped — no mastery change.'); }
 
 async function generateAIQuiz() {
-  showToast('✦ Generating AI quiz from your content…', '✦');
-  const prompt = `Create 1 multiple-choice question about Machine Learning for a student studying overfitting. 
-Format: Question | Option A | Option B | Option C | Option D | Correct answer (A/B/C/D)
-Be specific and educational. Keep it concise.`;
-  const resp = await callAIGuide(prompt, `You are an expert learning assistant helping a student practice recall.`);
-  showToast('AI quiz generated! Check Practice center.', '✦');
-  console.log('AI quiz:', resp);
+  const existing=document.getElementById('aiQuizSetup');if(existing){existing.remove();return;}
+  const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf');
+  const modal=document.createElement('div');modal.id='aiQuizSetup';modal.className='modal-backdrop open';
+  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Build a quiz from your material</h2><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack">'+
+    '<label class="form-label">Source resource<select id="quizSource"><option value="">Choose a PDF…</option>'+resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+'</option>').join('')+'</select></label>'+
+    '<div class="form-row"><label class="form-label">Question format<select id="quizFormat"><option value="mixed">Mixed question types</option><option value="mcq">Multiple choice</option><option value="short_answer">Short answer</option><option value="true_false">True / False</option><option value="case_based">Application / case-based</option></select></label><label class="form-label">Difficulty<select id="quizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div>'+
+    '<div class="form-row"><label class="form-label">Question count<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Whole resource</option><option value="current">Current page</option><option value="selected">Selected passage</option></select></label></div>'+
+    '<label class="form-label">Instructions<textarea id="quizPrompt" placeholder="Tell Lucid what to focus on: definitions, comparisons, applications, exam-style questions…"></textarea></label><button class="primary-button full-width" id="buildAIQuiz">Generate quiz →</button><p class="muted small-text" id="quizBuildStatus">Select a source and describe the quiz you want.</p></div></div>';
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
+  modal.querySelector('#buildAIQuiz').onclick=async()=>{
+    const resourceId=modal.querySelector('#quizSource').value,format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim();
+    if(!resourceId){modal.querySelector('#quizBuildStatus').textContent='Select a source PDF first.';return;}
+    const resource=resources.find(r=>(r.resourceId||r.id)===resourceId),btn=modal.querySelector('#buildAIQuiz');btn.disabled=true;btn.textContent='Generating…';
+    modal.querySelector('#quizBuildStatus').textContent='Preparing source-grounded questions…';
+    try{
+      const pages=(state.resourcePages||[]).filter(p=>coverage==='current'?Number(p.page_number)===Number(state.currentResourcePage):true);
+      const pageContext=coverage==='selected'?(state.selectedText||'') :pages.slice(0,coverage==='current'?1:12).map(p=>'Page '+p.page_number+': '+p.text_content).join('\\n\\n').slice(0,18000);
+      const prompt='Create '+count+' quiz questions from "'+(resource?.name||'the selected PDF')+'". Format: '+format+'. Difficulty: '+difficulty+'. Coverage: '+coverage+'. Instructions: '+(instructions||'Test understanding and application, not only memorization')+'. Return structured questions with prompt, options, answer_index and explanation. Do not invent facts beyond the supplied source.';
+      const data=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:resource?.name,question_format:format,difficulty,question_count:count,coverage,page_content:pageContext});
+      const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+      if(!qs.length)throw new Error('No structured questions returned. Try fewer questions or a different format.');
+      quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);close();openPage('practice');showToast(qs.length+' questions generated from '+(resource?.name||'your PDF')+'.','✦');
+    }catch(error){modal.querySelector('#quizBuildStatus').textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
+  };
 }
-
 // ─── Flashcards ───────────────────────────────────
 function flipCard() { document.getElementById('flashcard').classList.toggle('flipped'); }
 function rateCard(rating) {
@@ -2674,19 +2692,33 @@ function getTimeOfDay() {
 function exportData() {
   const data = { ...state, exportedAt: new Date().toISOString() };
   const url = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-  const a = document.createElement('a'); a.href=url; a.download='leafline-data.json'; a.click();
+  const a = document.createElement('a'); a.href=url; a.download='Lucid-data.json'; a.click();
   URL.revokeObjectURL(url);
   showToast('Data exported!', '📦');
 }
 function clearLocalData() {
   if (!confirm('Clear all local data (annotations, progress, preferences)?')) return;
-  localStorage.removeItem('leafline-state-v2');
+  localStorage.removeItem('Lucid-state-v2');
   location.reload();
 }
 function exportWeeklyReport() { showToast('Weekly report prepared for export.', '📊'); }
-function listenAI() { showToast('✦ AI Teach mode — AI will explain this section as a structured mini-lesson. Connect TTS to enable audio.', '🎧'); }
+async function listenAI() {
+  if(!state.currentResourceId){showToast('Open a PDF before starting AI Teach.','⚠');return;}
+  const page=Number(state.currentResourcePage)||1;
+  const pageText=(state.resourcePages||[]).find(p=>Number(p.page_number)===page)?.text_content||'';
+  if(!pageText.trim()){showToast('This PDF page has no extracted text. AI Teach needs OCR or text extraction for this page.','⚠');return;}
+  const prompt='Teach me PDF page '+page+' of "'+(state.currentResourceTitle||'my PDF')+'" step by step. Explain key ideas, define terms, give a practical example, and finish with three quick checks. Use only this page content; say if it is insufficient.\\n\\nPAGE CONTENT:\\n'+pageText.slice(0,9000);
+  openReaderAI();document.getElementById('aiQuestion').value=prompt;await quickAIModal(prompt);
+}
 
 // ─── Mobile drawer ────────────────────────────────
+function toggleReaderSidebar(){
+  const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
+  if(!layout||!button)return;
+  const hidden=layout.classList.toggle('sidebar-hidden');
+  button.textContent=hidden?'Show panel ▸':'Hide panel ◂';button.setAttribute('aria-expanded',String(!hidden));
+  localStorage.setItem('lucid-reader-sidebar-hidden',hidden?'1':'0');
+}
 function toggleMobileDrawer() {
   document.getElementById('mobileDrawer').classList.toggle('open');
 }
@@ -2734,8 +2766,8 @@ document.addEventListener('click', e => {
 });
 
 // Clear any old browser-stored Gemini credential from the previous implementation.
-localStorage.removeItem('leafline-gemini-key');
-localStorage.removeItem('leafline-gemini-model');
+localStorage.removeItem('Lucid-gemini-key');
+localStorage.removeItem('Lucid-gemini-model');
 restoreState();
 initDashboard();
 renderAnnotations();

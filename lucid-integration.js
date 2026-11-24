@@ -11,7 +11,7 @@ window.updateLucidAuthUI = async function(session){
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidDashboardMetrics();}catch(error){console.warn('Could not load dashboard metrics:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
@@ -521,6 +521,29 @@ window.getLucidResourcePages = async function(resourceId,options={}){
   if(options.page)query=query.eq('page_number',Number(options.page));
   else query=query.range(0,499);
   const {data,error}=await query;if(error)throw error;return data||[];
+};
+window.loadLucidDashboardMetrics=async function(){
+  if(!lucidSession?.user)return null;
+  const uid=lucidSession.user.id,now=new Date(),start=new Date(now);start.setDate(now.getDate()-((now.getDay()+6)%7));start.setHours(0,0,0,0);
+  const [reading,videos,attempts,xp]=await Promise.all([
+    lucidSupabase.from('reading_sessions').select('active_seconds,pages_completed,started_at').eq('user_id',uid).gte('started_at',start.toISOString()).limit(1000),
+    lucidSupabase.from('video_sessions').select('resource_id,active_seconds,started_at').eq('user_id',uid).gte('started_at',start.toISOString()).limit(1000),
+    lucidSupabase.from('quiz_attempts').select('id,score,max_score,completed_at').eq('user_id',uid).not('completed_at','is',null).limit(1000),
+    lucidSupabase.from('user_xp').select('streak_days').eq('user_id',uid).maybeSingle()
+  ]);
+  for(const result of [reading,videos,attempts,xp])if(result.error)throw result.error;
+  const readRows=reading.data||[],videoRows=videos.data||[],attemptRows=attempts.data||[];
+  const focusSeconds=readRows.reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0)+videoRows.reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
+  const pages=readRows.reduce((sum,x)=>sum+(Number(x.pages_completed)||0),0),videoCount=new Set(videoRows.filter(x=>Number(x.active_seconds)>0).map(x=>x.resource_id)).size;
+  let questionCount=0;if(attemptRows.length){const answers=await lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true}).in('attempt_id',attemptRows.map(x=>x.id));if(!answers.error)questionCount=Number(answers.count||0);}
+  const accuracyRows=attemptRows.filter(x=>Number(x.max_score)>0),accuracy=accuracyRows.length?Math.round(accuracyRows.reduce((sum,x)=>sum+Number(x.score)/Number(x.max_score)*100,0)/accuracyRows.length):null;
+  const hours=Math.floor(focusSeconds/3600),minutes=Math.floor(focusSeconds%3600/60),streak=Number(xp.data?.streak_days)||0;
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  const bar=document.getElementById('weeklyProgress');if(bar)bar.style.width='0%';
+  set('weeklyPercent','This week');set('focusHours',hours+'h '+minutes+'m');set('focusLeft',readRows.length+' reading · '+videoRows.length+' video sessions');
+  set('streakValue',streak);set('streakStatus',streak?'🔥 Active':'No streak yet');set('streakBest',streak+' current days');
+  set('statPages',pages);set('statVideos',videoCount);set('statQuestions',questionCount);set('statRecall',accuracy===null?'—':accuracy+'%');
+  return {focusSeconds,pages,videoCount,questionCount,accuracy,streak};
 };
 window.loadLucidGoals = async function(){
   if(!lucidSession?.user)return [];

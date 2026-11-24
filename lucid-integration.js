@@ -421,6 +421,7 @@ window.loadLucidProfile = async function(){
     if(upd.error)throw upd.error;profile=Object.assign({},profile,upd.data);
   }
   const name=profile.display_name||fallback;
+  if(typeof state!=='undefined'){state.preferences=state.preferences||{};state.preferences.name=name;const greeting=document.getElementById('dashGreet');if(greeting)greeting.textContent='Good '+(typeof getTimeOfDay==='function'?getTimeOfDay():'day')+', '+name+'.';}
   if(typeof state!=='undefined'){
     state.xp=Math.max(Number(state.xp)||0,Number(profile.xp)||0);
     state.level=Math.max(Number(state.level)||1,Number(profile.level)||1);

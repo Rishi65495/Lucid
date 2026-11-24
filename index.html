@@ -722,7 +722,7 @@ textarea{min-height:75px;resize:vertical;}
         </div>
         <div style="display:flex;gap:9px;">
           <button class="secondary-button" onclick="openModal('uploadModal')">＋ Add resource</button>
-          <button class="primary-button" onclick="openPage('reader')">Continue studying →</button>
+          <button class="primary-button" onclick="continueLucidReading()">Continue studying →</button>
         </div>
       </div>
 
@@ -732,7 +732,7 @@ textarea{min-height:75px;resize:vertical;}
           <div class="kicker">AI recommendation</div>
           <h2 id="heroTitle">You have 26 minutes. Finish the ML section and do a 5-question recall.</h2>
           <p id="heroDesc">Based on your weak areas and available time. Your focus is strongest right now.</p>
-          <button class="primary-button" onclick="openPage('reader')">Start session →</button>
+          <button class="primary-button" onclick="continueLucidReading()">Start session →</button>
         </article>
         <article class="stat-card card">
           <div class="stat-top"><span>Weekly focus</span><span id="weeklyPercent">74%</span></div>
@@ -787,53 +787,7 @@ textarea{min-height:75px;resize:vertical;}
         <h2>Continue where you left off</h2>
         <button class="ghost-button" onclick="openPage('library')">View full library →</button>
       </div>
-      <div class="grid library-grid" id="dashboardBooks">
-        <article class="book-card card" data-title="Machine Learning Fundamentals">
-          <div class="book-main">
-            <div class="book-cover cover-blue">ML<br>Fund.</div>
-            <div>
-              <div class="book-title">Machine Learning Fundamentals</div>
-              <div class="book-author">MCA Semester 5</div>
-              <div class="book-author">Page 72 of 180 · DOM Manipulation</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>40% complete</span><span>Recall: 72%</span></div>
-            <div class="progress-track"><span class="progress-fill" style="width:40%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-        <article class="book-card card" data-title="Deep Work">
-          <div class="book-main">
-            <div class="book-cover cover-green">Deep<br>Work</div>
-            <div>
-              <div class="book-title">Deep Work</div>
-              <div class="book-author">Cal Newport</div>
-              <div class="book-author">Page 142 of 304</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>47% complete</span><span>18 min left</span></div>
-            <div class="progress-track"><span class="progress-fill orange" style="width:47%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-        <article class="book-card card" data-title="Atomic Habits">
-          <div class="book-main">
-            <div class="book-cover cover-orange">Atomic<br>Habits</div>
-            <div>
-              <div class="book-title">Atomic Habits</div>
-              <div class="book-author">James Clear</div>
-              <div class="book-author">Page 86 of 272</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>32% complete</span><span>24 min left</span></div>
-            <div class="progress-track"><span class="progress-fill" style="width:32%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag blue">Habit building</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-      </div>
+      <div class="grid library-grid" id="dashboardBooks"><div class="card card-padding muted">Your uploaded resources will appear here after sign-in.</div></div>
 
       <!-- Activity rhythm -->
       <div class="section-row"><h2>Your learning rhythm</h2><span class="muted small-text">Last 30 days</span></div>
@@ -872,7 +826,7 @@ textarea{min-height:75px;resize:vertical;}
       <!-- Quick actions -->
       <div class="section-row"><h2>Quick actions</h2></div>
       <div class="quick-actions">
-        <button class="quick-action" onclick="openPage('reader')"><span class="qa-icon">◉</span><strong>Start focused reading</strong></button>
+        <button class="quick-action" onclick="continueLucidReading()"><span class="qa-icon">◉</span><strong>Start focused reading</strong></button>
         <button class="quick-action" onclick="openPage('video')"><span class="qa-icon">▶</span><strong>Watch a lecture</strong></button>
         <button class="quick-action" onclick="openPage('aiGuide')"><span class="qa-icon">✦</span><strong>Ask AI guide</strong></button>
         <button class="quick-action" onclick="openPage('practice')"><span class="qa-icon">?</span><strong>Practice recall</strong></button>
@@ -906,45 +860,13 @@ textarea{min-height:75px;resize:vertical;}
           <button class="tab-btn" onclick="switchLibTab('video',this)">Videos</button>
           <button class="tab-btn" onclick="switchLibTab('inprogress',this)">In Progress</button>
         </div>
-        <div class="grid library-grid" id="libraryBooks">
-          <article class="book-card card" data-title="Machine Learning Fundamentals" data-progress="40" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-blue">ML</div><div><div class="book-title">Machine Learning Fundamentals</div><div class="book-author">MCA Semester 5</div><div class="book-author">180 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>40%</span><span>Recall 72%</span></div><div class="progress-track"><span class="progress-fill" style="width:40%"></span></div></div>
-            <div class="book-footer"><span class="tag">Reading now</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="Deep Work" data-progress="47" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-green">Deep<br>Work</div><div><div class="book-title">Deep Work</div><div class="book-author">Cal Newport</div><div class="book-author">304 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>47%</span><span>142 pages</span></div><div class="progress-track"><span class="progress-fill orange" style="width:47%"></span></div></div>
-            <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="Atomic Habits" data-progress="32" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-orange">Atomic<br>Habits</div><div><div class="book-title">Atomic Habits</div><div class="book-author">James Clear</div><div class="book-author">272 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>32%</span><span>86 pages</span></div><div class="progress-track"><span class="progress-fill" style="width:32%"></span></div></div>
-            <div class="book-footer"><span class="tag blue">Habit building</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="MCA Algorithm Lecture Playlist" data-progress="60" data-type="video">
-            <div class="book-main"><div class="book-cover type-video">▶<br>MCA</div><div><div class="book-title">Algorithm Lectures</div><div class="book-author">MCA Semester 5 Playlist</div><div class="book-author">24 videos · 6h 20m</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>60% complete</span><span>14/24 videos</span></div><div class="progress-track"><span class="progress-fill" style="width:60%"></span></div></div>
-            <div class="book-footer"><span class="tag rose">Video playlist</span><button class="ghost-button" onclick="openPage('video')">Watch →</button></div>
-          </article>
-          <article class="book-card card" data-title="The Almanack of Naval Ravikant" data-progress="0" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-purple">The<br>Almanack</div><div><div class="book-title">The Almanack of Naval Ravikant</div><div class="book-author">Eric Jorgenson</div><div class="book-author">242 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>Not started</span><span>242 pages</span></div><div class="progress-track"><span class="progress-fill" style="width:2%"></span></div></div>
-            <div class="book-footer"><span class="tag muted">Saved for later</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="Cyber Security Notes" data-progress="15" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-red">Cyber<br>Sec.</div><div><div class="book-title">Cyber Security Notes</div><div class="book-author">MCA Semester 5</div><div class="book-author">120 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>15%</span><span>18 pages</span></div><div class="progress-track"><span class="progress-fill rose" style="width:15%"></span></div></div>
-            <div class="book-footer"><span class="tag">Exam prep</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-        </div>
+        <div class="grid library-grid" id="libraryBooks"><div class="card card-padding muted">Your resources will load here after sign-in.</div></div>/div>
       </div>
 
       <div class="section-row"><h2>Catalogues</h2><button class="secondary-button" onclick="openPage('catalogues')">Manage →</button></div>
-      <div class="grid three-col">
-        <article class="card card-padding"><div class="kicker">MCA Semester 5</div><h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-top:8px;">MCA 2026</h3><p class="muted small-text">6 resources · 47% average progress</p><div class="progress-track" style="margin-top:12px;"><span class="progress-fill" style="width:47%"></span></div></article>
-        <article class="card card-padding"><div class="kicker">Deep reading</div><h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-top:8px;">Better work</h3><p class="muted small-text">3 books · 40% average completion</p><div class="progress-track" style="margin-top:12px;"><span class="progress-fill orange" style="width:40%"></span></div></article>
-        <article class="card card-padding"><div class="kicker">Revision</div><h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-top:8px;">Exam sprint</h3><p class="muted small-text">8 highlights · 12 annotations</p><div class="progress-track" style="margin-top:12px;"><span class="progress-fill gold" style="width:25%"></span></div></article>
+      <div class="card card-padding">
+        <p class="muted small-text">Catalogues are folders that organize your uploaded resources. Open Catalogues to see each folder, its resource count, and the exact PDFs inside.</p>
+        <button class="secondary-button btn-sm" style="margin-top:12px;" onclick="openPage('catalogues')">View my catalogues →</button>
       </div>
     </section>
 
@@ -1352,10 +1274,9 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <div class="kicker">Current context</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-              <span class="tag">📄 Deep Work · Ch.4</span>
-              <span class="tag blue">🎓 MCA Semester 5</span>
-              <span class="tag gold">Recall: 81%</span>
-              <span class="tag rose">Weak: Overfitting</span>
+              <span class="tag" id="aiCurrentResourceTag">No PDF selected</span>
+              <span class="tag blue" id="aiCurrentPageTag">No page selected</span>
+              <span class="tag gold" id="aiSelectedTextTag">No passage selected</span>
             </div>
           </div>
 
@@ -1363,10 +1284,10 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <h3 style="margin-bottom:12px;">Quick actions</h3>
             <div class="ai-actions" style="flex-wrap:wrap;">
-              <button class="ai-action-chip" onclick="quickAI('Explain the main idea of Deep Work Chapter 4 in simple terms')">📋 Explain page</button>
-              <button class="ai-action-chip" onclick="quickAI('Give me an analogy to understand overfitting better')">🔗 Give analogy</button>
-              <button class="ai-action-chip" onclick="quickAI('Summarize my annotations and find patterns')">📝 Summarize notes</button>
-              <button class="ai-action-chip" onclick="quickAI('Generate 5 flashcards from Deep Work Chapter 4')">🃏 Make flashcards</button>
+              <button class="ai-action-chip" onclick="quickAI('Explain my current PDF or selected passage in simple terms')">📋 Explain page</button>
+              <button class="ai-action-chip" onclick="quickAI('Give me an analogy for the concept in my current resource or selected passage')">🔗 Give analogy</button>
+              <button class="ai-action-chip" onclick="quickAI('Summarize my selected passage and related annotations')">📝 Summarize notes</button>
+              <button class="ai-action-chip" onclick="quickAI('Generate 5 flashcards from my current resource')">🃏 Make flashcards</button>
               <button class="ai-action-chip" onclick="quickAI('Create a quiz to test my understanding of this material')">? Generate quiz</button>
               <button class="ai-action-chip" onclick="quickAI('What should I study next based on my weak areas?')">🗺 What next?</button>
               <button class="ai-action-chip" onclick="quickAI('Create a 7-day study plan for my MCA semester 5 exam')">📅 Study plan</button>
@@ -1624,7 +1545,7 @@ textarea{min-height:75px;resize:vertical;}
           <div class="kicker">Leafline noticed</div>
           <div class="insight-quote">You retain more when you read for 20–30 minutes and write one annotation per chapter.</div>
           <p class="muted small-text">Recommended: 25 min session tonight at 8 PM. Will adapt as your patterns change.</p>
-          <button class="primary-button btn-sm" style="margin-top:14px;" onclick="openPage('reader')">Start recommended session</button>
+          <button class="primary-button btn-sm" style="margin-top:14px;" onclick="continueLucidReading()">Start recommended session</button>
         </article>
       </div>
 
@@ -2270,6 +2191,7 @@ function highlightSelection(color) {
   if (!sel) { showToast('Select text in the document first.', '⚠'); return; }
   const chosenColor = color || state.currentHL || 'yellow';
   state.selectedText = sel;
+  if(window.renderLucidAIContext)window.renderLucidAIContext();
   state.highlights.push({ id: String(Date.now()) + '-' + String(state.highlights.length), text: sel, color: chosenColor, createdAt: new Date().toISOString() });
   // Keep the passage in the legacy notes array until all existing study tools use highlight records.
   if (!state.annotations.includes(sel)) state.annotations.push(sel);
@@ -2296,6 +2218,7 @@ function highlightSelection(color) {
 function openReaderAI() {
   const selection = window.getSelection()?.toString().trim();
   if (selection) state.selectedText = selection;
+  if(window.renderLucidAIContext)window.renderLucidAIContext();
   const status = document.getElementById('aiContextStatus');
   if (status) status.textContent = state.selectedText
     ? 'Selected passage will be included: “' + state.selectedText.slice(0, 180) + (state.selectedText.length > 180 ? '…' : '') + '”'
@@ -2448,25 +2371,71 @@ function renderUploadedBooks(){
   lib.innerHTML='';
   if(!books.length){lib.innerHTML='<div class="card card-padding muted">No uploaded resources yet. Import a PDF to get started.</div>';return;}
   books.forEach(b=>{
+    const resourceId=b.resourceId||b.id;
     const el=document.createElement('article');el.className='book-card card';
+    el.dataset.title=String(b.name||'Untitled resource').toLowerCase();
+    el.dataset.type=String(b.type||'pdf').toLowerCase();
+    el.dataset.progress=String(Number(b.progress||0));
     const main=document.createElement('div');main.className='book-main';
     const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent=(b.type||'PDF').toUpperCase();
-    const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
-    const sub=document.createElement('div');sub.className='book-author';sub.textContent=(b.pages||0)+' pages · '+(b.status||'saved');
+    const info=document.createElement('div');
+    const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
+    const sub=document.createElement('div');sub.className='book-author';
+    sub.textContent=(b.pages||0)+' pages · '+(b.status||'saved');
     info.append(title,sub);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';
     const tag=document.createElement('span');tag.className='tag';tag.textContent=b.catalogueId?'In catalogue':'Not in a catalogue';
-    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open PDF →';
+    open.disabled=!resourceId;
+    open.onclick=()=>window.openLucidResource(resourceId)
+      .catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
     footer.append(tag,open);el.append(main,footer);
     const move=document.createElement('div');move.style.cssText='display:flex;gap:8px;align-items:center;margin-top:10px;';
     const label=document.createElement('span');label.className='muted small-text';label.textContent='Folder:';
-    const select=document.createElement('select');select.style.flex='1';select.add(new Option('Not in a catalogue',''));
-    const catalogueOptions=Array.from(document.querySelectorAll('#uploadCatalogue option')).filter(o=>o.value);
-    catalogueOptions.forEach(o=>select.add(new Option(o.textContent,o.value)));
+    const select=document.createElement('select');select.style.flex='1';
+    select.add(new Option('Not in a catalogue',''));
+    const catalogueOptions=Array.from(document.querySelectorAll('#uploadCatalogue option')).filter(option=>option.value);
+    catalogueOptions.forEach(option=>select.add(new Option(option.textContent,option.value)));
     select.value=b.catalogueId||'';
-    select.onchange=async()=>{select.disabled=true;try{await window.moveLucidResourceToCatalogue(b.resourceId||b.id,select.value);showToast('Resource folder updated.','✓');}catch(error){showToast('Could not update folder: '+error.message,'⚠');select.value=b.catalogueId||'';}finally{select.disabled=false;}};
+    select.onchange=async()=>{
+      select.disabled=true;
+      try{
+        await window.moveLucidResourceToCatalogue(resourceId,select.value);
+        showToast('Resource folder updated.','✓');
+      }catch(error){
+        showToast('Could not update folder: '+error.message,'⚠');
+        select.value=b.catalogueId||'';
+      }finally{select.disabled=false;}
+    };
     move.append(label,select);el.appendChild(move);lib.appendChild(el);
   });
+  const dashboard=document.getElementById('dashboardBooks');
+  if(dashboard){
+    dashboard.innerHTML='';
+    const recent=books.filter(book=>(book.type||'pdf')==='pdf').slice(0,3);
+    if(!recent.length){
+      dashboard.innerHTML='<div class="card card-padding muted">No PDFs yet. Import a PDF from Library to start reading.</div>';
+    }else{
+      recent.forEach(book=>{
+        const resourceId=book.resourceId||book.id;
+        const card=document.createElement('article');card.className='book-card card';
+        const main=document.createElement('div');main.className='book-main';
+        const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent='PDF';
+        const info=document.createElement('div');
+        const title=document.createElement('div');title.className='book-title';title.textContent=book.name||'Untitled PDF';
+        const meta=document.createElement('div');meta.className='book-author';
+        meta.textContent=(book.pages||0)+' pages · '+(book.status||'saved');
+        info.append(title,meta);main.append(cover,info);
+        const footer=document.createElement('div');footer.className='book-footer';
+        const tag=document.createElement('span');tag.className='tag';tag.textContent=book.catalogueId?'In catalogue':'In library';
+        const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open PDF →';
+        open.disabled=!resourceId;
+        open.onclick=()=>window.openLucidResource(resourceId)
+          .catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
+        footer.append(tag,open);card.append(main,footer);dashboard.appendChild(card);
+      });
+    }
+  }
 }
 function sortBooks(order) {
   const lib = document.getElementById('libraryBooks');
@@ -2676,7 +2645,7 @@ async function askGuide() {
   const ansEl = document.getElementById('aiAnswer');
   if (!q) { ansEl.style.display='block'; ansEl.textContent='Ask a question first.'; return; }
   ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student annotations: ${state.annotations.slice(0,3).join('; ')}. Student weak areas: Overfitting (22%). Recall: 81%.`;
+  const context = `Current resource: ${state.currentResourceTitle||'None selected'}. Current page: ${state.currentResourcePage||'Not selected'}. Selected passage: ${state.selectedText||'None selected'}. Student annotations: ${state.annotations.slice(0,3).join('; ')}.`;
   const prompt = `Context: ${context}\n\nStudent question: ${q}`;
   const resp = await callGemini(prompt, systemInstructions[state.coachMode] || systemInstructions.Gentle);
   ansEl.innerHTML = `<strong>Guide (${state.coachMode}):</strong><br>${resp.replace(/\n/g,'<br>')}`;
@@ -2686,7 +2655,7 @@ async function quickAIModal(prompt) {
   const ansEl = document.getElementById('aiAnswer');
   document.getElementById('aiQuestion').value = prompt;
   ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student notes: ${state.annotations.slice(0,2).join('; ')}.`;
+  const context = `Current resource: ${state.currentResourceTitle||'None selected'}. Selected passage: ${state.selectedText||'None selected'}. Student notes: ${state.annotations.slice(0,2).join('; ')}.`;
   const resp = await callGemini(`Context: ${context}\n\n${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
   ansEl.innerHTML = `<strong>Guide:</strong><br>${resp.replace(/\n/g,'<br>')}`;
 }
@@ -2725,7 +2694,7 @@ async function sendAIChatWithPrompt(prompt) {
 
   document.getElementById('chatCount').textContent = state.chatMessages.length;
 
-  const context = `Learner: ${state.preferences.name}. Current study: Deep Work Ch.4 + MCA Semester 5 ML. Weak areas: Overfitting (22%), Algorithms (55%). Recall: 81%. Streak: ${state.streak} days. Coach mode: ${state.coachMode}. Recent annotations: ${state.annotations.slice(0,2).join('; ')}.`;
+  const context = `Learner: ${state.preferences.name}. Current resource: ${state.currentResourceTitle||'None selected'}. Current page: ${state.currentResourcePage||'Not selected'}. Selected passage: ${state.selectedText||'None selected'}. Streak: ${state.streak} days. Coach mode: ${state.coachMode}. Recent annotations: ${state.annotations.slice(0,2).join('; ')}.`;
   const resp = await callGemini(`Learning context: ${context}\n\nStudent: ${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
 
   // Replace thinking with real response

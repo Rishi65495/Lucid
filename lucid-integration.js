@@ -96,6 +96,7 @@ window.recordLucidQuizAnswer = async function(answer){
     const result=await window.awardLucidXP('recall_passed',source);
     return {xpAwarded:Number(result?.xp_awarded)||0};
   }
+  await window.evaluateLucidBadges();
   return {xpAwarded:0};
 };
 window.awardLucidXP = async function(eventType,sourceId,improvement=0){
@@ -126,8 +127,8 @@ window.recordLucidPageCompleted = async function(resourceId,page,totalPages){
     const completion=Math.min(100,Math.round((uniquePages.size/Math.max(1,payload.total_pages))*100));
     await lucidSupabase.from('learning_journeys').update({completion,position:{page:payload.page},last_activity_at:new Date().toISOString()}).eq('id',journey.id);
     if(completion>=100)await window.awardLucidXP('resource_completed',resourceId);
+    else await window.evaluateLucidBadges();
   }
-  await window.evaluateLucidBadges();
   if(state.activePage==='rewards')await window.loadLucidAchievements(true);
 };
 window.recordLucidFocusCompleted = async function(sourceId){

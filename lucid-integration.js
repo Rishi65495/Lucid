@@ -20,16 +20,26 @@ window.invokeLucidFunction = async function(name,body){
   const {data:{session},error:sessionError}=await lucidSupabase.auth.getSession();
   if(sessionError)throw new Error('Could not refresh your sign-in session: '+sessionError.message);
   if(!session?.access_token)throw new Error('Your sign-in session expired. Sign in again.');
-  const response=await fetch(LUCID_SUPABASE_URL+'/functions/v1/'+encodeURIComponent(name),{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+session.access_token,'apikey':LUCID_SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify(body||{})
-  });
-  const raw=await response.text();
-  let payload={};try{payload=raw?JSON.parse(raw):{};}catch(_){payload={error:raw||'The server returned an unreadable response.'};}
-  if(!response.ok)throw new Error('HTTP '+response.status+' · '+(payload.error||payload.message||payload.msg||raw||'Edge Function request failed'));
-  if(payload&&payload.error)throw new Error(payload.error);
-  return payload;
+  async function send(accessToken){
+    const response=await fetch(LUCID_SUPABASE_URL+'/functions/v1/'+encodeURIComponent(name),{
+      method:'POST',headers:{'Authorization':'Bearer '+accessToken,'apikey':LUCID_SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify(body||{})
+    });
+    const raw=await response.text();let payload={};try{payload=raw?JSON.parse(raw):{};}catch(_){payload={error:raw||'The server returned an unreadable response.'};}
+    return {response,payload,raw};
+  }
+  let result=await send(session.access_token);
+  if(result.response.status===401){
+    const refreshed=await lucidSupabase.auth.refreshSession();
+    if(!refreshed.error&&refreshed.data?.session?.access_token){
+      lucidSession=refreshed.data.session;
+      result=await send(refreshed.data.session.access_token);
+      await window.updateLucidAuthUI(refreshed.data.session);
+    }
+  }
+  if(!result.response.ok)throw new Error('HTTP '+result.response.status+' · '+(result.payload.error||result.payload.message||result.payload.msg||result.raw||'Edge Function request failed'));
+  if(result.payload?.error)throw new Error(result.payload.error);
+  return result.payload;
 };
 window.callAIGuide = async function(prompt,style){
   try{
@@ -37,10 +47,17 @@ window.callAIGuide = async function(prompt,style){
     // Do not download PDF pages in the browser. The Edge Function routes the
     // request first and retrieves only the relevant, user-owned resource pages.
     const data=await window.invokeLucidFunction('ai-guide',{
-      question:prompt,
+      question:(typeof state!=='undefined'&&state.currentResourceId?'Current PDF page: '+(state.currentResourcePage||1)+'. ':'')+prompt,
       style:style||'',
       history,
-      resource_id:typeof state!=='undefined'?state.currentResourceId:null
+      resource_id:typeof state!=='undefined'?state.currentResourceId:null,
+      context:typeof state!=='undefined'?[
+        'Current resource: '+(state.currentResourceTitle||''),
+        'Current page: '+(state.currentResourcePage||1),
+        'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
+        'Selected passage: '+(state.selectedText||''),
+        'Annotations: '+(state.annotations||[]).slice(-8).map(x=>typeof x==='string'?x:x.text||x.note||'').join('; ')
+      ].join('\\n'): ''
     });
     return data.text||'The AI Guide returned an empty response.';
   }catch(error){return 'AI Guide error: '+(error&&error.message||'Unknown error');}
@@ -233,6 +250,23 @@ window.uploadLucidPdf = async function(file,catalogueId){
     throw error;
   }
 };
+window.loadLucidAnnotations = async function(resourceId){
+  if(!lucidSession?.user||!resourceId)return [];
+  const {data,error}=await lucidSupabase.from('annotations').select('id,text,note,color,page,created_at').eq('user_id',lucidSession.user.id).eq('book_id',String(resourceId)).order('created_at',{ascending:true});
+  if(error)throw error;return data||[];
+};
+window.saveLucidAnnotation = async function(input){
+  if(!lucidSession?.user)throw new Error('Sign in to save annotations.');
+  if(!input?.resourceId)throw new Error('Open a PDF before saving a page annotation.');
+  const row={id:crypto.randomUUID(),user_id:lucidSession.user.id,book_id:String(input.resourceId),text:String(input.text||''),note:String(input.text||''),color:String(input.color||'yellow'),page:Math.max(1,Number(input.page)||1)};
+  const {data,error}=await lucidSupabase.from('annotations').insert(row).select('id,text,note,color,page,created_at').single();
+  if(error)throw error;return data;
+};
+window.deleteLucidAnnotation = async function(id){
+  if(!lucidSession?.user||!id)return;
+  const {error}=await lucidSupabase.from('annotations').delete().eq('id',id).eq('user_id',lucidSession.user.id);
+  if(error)throw error;
+};
 window.createLucidCatalogue = async function(input){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {data,error}=await lucidSupabase.from('catalogues').insert({owner_id:lucidSession.user.id,title:input.title,description:input.description||null,icon:input.icon||'📁'}).select('id,title,description,icon').single();
@@ -360,7 +394,7 @@ window.renderLucidReaderPage = function(){
   if(tag)tag.textContent=hasPdf?(pageCount?'PDF · '+pageCount+' pages':'Original PDF'):'No page';
   if(status)status.textContent=hasPdf?'PDF page '+page+(pageCount?' of '+pageCount:''):'No PDF selected';
   if(footer)footer.style.display=hasPdf?'flex':'none';
-  if(frame&&hasPdf&&window.currentPdfUrl)frame.src=window.currentPdfUrl+'#page='+page+'&toolbar=1&navpanes=1&view=FitH';
+  if(frame&&hasPdf&&window.currentPdfUrl)frame.src=window.currentPdfUrl+'#page='+page+'&zoom=page-width&toolbar=1&navpanes=1&view=FitH';
 };
 window.openLucidResource = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');
@@ -382,6 +416,11 @@ window.openLucidResource = async function(id){
   state.currentResourcePageCount=Number(resource.metadata?.page_count||pages?.length||0);
   window.currentPdfUrl=signed.signedUrl;
   state.resourcePages=pages||[];
+  try{
+    const saved=await window.loadLucidAnnotations(id);
+    state.annotations=saved.map(row=>({id:row.id,text:row.note||row.text||'',page:row.page||1,color:row.color||'yellow',resourceId:id}));
+    renderAnnotations();
+  }catch(annotationError){console.warn('Could not load page annotations:',annotationError.message);}
   saveState();
   const openLink=document.getElementById('pdfOpenNewTab');if(openLink)openLink.href=signed.signedUrl;
   openPage('reader');window.renderLucidReaderPage();

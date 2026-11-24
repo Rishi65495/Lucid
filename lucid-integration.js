@@ -421,6 +421,8 @@ window.loadLucidProfile = async function(){
   const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   setText('profileDisplayHeading',name);setText('profileEmail',user.email||'');setText('sideProfileName',name);
   setText('dashboardProfileName',name);setText('dashboardProfileBio',profile.bio||user.email||'Your learning profile');setText('dashboardProfileLevel','Level '+(profile.level||state.level||1));setText('dashboardProfileXP',(profile.xp||state.xp||0)+' XP');
+  const dashboardAvatar=document.getElementById('dashboardProfileAvatar');if(dashboardAvatar){dashboardAvatar.textContent=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();if(profile.avatar_url){dashboardAvatar.innerHTML='';const image=document.createElement('img');image.src=profile.avatar_url;image.alt='';image.className='avatar-image';dashboardAvatar.appendChild(image);}}
+  setText('dashboardProfileName',name);setText('dashboardProfileBio',profile.bio||user.email||'Your learning profile');setText('dashboardProfileLevel','Level '+(profile.level||state.level||1));setText('dashboardProfileXP',(profile.xp||state.xp||0)+' XP');
   const dashboardAvatar=document.getElementById('dashboardProfileAvatar');if(dashboardAvatar){dashboardAvatar.textContent=name.split(/\\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();if(profile.avatar_url){dashboardAvatar.innerHTML='';const image=document.createElement('img');image.src=profile.avatar_url;image.alt='';image.className='avatar-image';dashboardAvatar.appendChild(image);}}
   const ni=document.getElementById('profileNameInput');if(ni)ni.value=name;
   const bi=document.getElementById('profileBioInput');if(bi)bi.value=profile.bio||'';
@@ -732,12 +734,15 @@ window.loadLucidCatalogues = async function(){
   });
   const ownedResourceIds=new Set((resources||[]).map(resource=>resource.id));
   state.catalogues=cats||[];
+  state.catalogues=cats||[];
   state.uploadedBooks=(resources||[]).map(r=>{
     const catalogueIds=catalogueIdsByResource.get(r.id)||[];
     return {id:r.id,resourceId:r.id,name:r.title,type:r.type,pages:Number(r.metadata?.page_count||0),
       status:r.processing_status,catalogueId:catalogueIds[0]||null,catalogueIds};
   });
   if(typeof renderUploadedBooks==='function')renderUploadedBooks();
+  if(typeof refreshPracticeSources==='function')refreshPracticeSources();
+  if(window.loadLucidVideoPlaylist)await window.loadLucidVideoPlaylist(state.selectedCatalogueId||null);
   if(typeof refreshPracticeSources==='function')refreshPracticeSources();
   if(window.loadLucidVideoPlaylist)await window.loadLucidVideoPlaylist(state.selectedCatalogueId||null);
     if(typeof renderVideoPlaylist==='function')renderVideoPlaylist();

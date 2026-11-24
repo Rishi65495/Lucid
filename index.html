@@ -2166,6 +2166,8 @@ function renderAnnotations() {
   if(!list||!count)return;list.innerHTML='';
   state.annotations.forEach((item,i)=>{
     const a=typeof item==='string'?{text:item,page:1}:item;
+    if(Number(a.page||1)!==Number(state.currentResourcePage||1))return;
+    if(a.resourceId&&state.currentResourceId&&a.resourceId!==state.currentResourceId)return;
     const d=document.createElement('div');d.className='note '+(a.color||'yellow');
     d.innerHTML='<button type="button" class="annotation-open" style="all:unset;display:block;cursor:pointer;width:100%;"><small class="note-kind">NOTE · PAGE '+(Number(a.page)||1)+'</small><span>'+escapeHTML(a.text||a.note||'')+'</span></button><button class="note-del" data-kind="note" data-index="'+i+'" onclick="event.stopPropagation();delNote(this)">×</button>';
     d.querySelector('.annotation-open').addEventListener('click',()=>openAnnotation(i));list.appendChild(d);
@@ -2174,6 +2176,8 @@ function renderAnnotations() {
   state.highlights.forEach((h,i)=>{
     const d=document.createElement('div');d.className='note '+(h.color||'yellow');
     const page=Number(h.page)||Number(state.currentResourcePage)||1;
+    if(page!==Number(state.currentResourcePage||1))return;
+    if(h.resourceId&&state.currentResourceId&&h.resourceId!==state.currentResourceId)return;
     d.innerHTML='<button type="button" class="annotation-open" style="all:unset;display:block;cursor:pointer;width:100%;"><small class="note-kind">'+(labels[h.color]||'HIGHLIGHT')+' · PAGE '+page+'</small><span>'+escapeHTML(h.text||'')+'</span></button><button class="note-del" data-kind="highlight" data-index="'+i+'" onclick="event.stopPropagation();delNote(this)">×</button>';
     d.querySelector('.annotation-open').addEventListener('click',()=>{state.currentResourcePage=page;saveState();window.renderLucidReaderPage?.();});list.appendChild(d);
   });
@@ -2774,6 +2778,10 @@ document.addEventListener('click', e => {
 localStorage.removeItem('Lucid-gemini-key');
 localStorage.removeItem('Lucid-gemini-model');
 restoreState();
+if(localStorage.getItem('lucid-reader-sidebar-hidden')==='1'){
+  const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
+  layout?.classList.add('sidebar-hidden');if(button){button.textContent='Show panel ▸';button.setAttribute('aria-expanded','false');}
+}
 initDashboard();
 renderAnnotations();
 renderUploadedBooks();

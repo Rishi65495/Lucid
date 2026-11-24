@@ -1340,10 +1340,10 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <div class="kicker">Current context</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-              <span class="tag">📄 Deep Work · Ch.4</span>
-              <span class="tag blue">🎓 MCA Semester 5</span>
-              <span class="tag gold">Recall: 81%</span>
-              <span class="tag rose">Weak: Overfitting</span>
+              <span class="tag" id="aiContextResource">No resource selected</span>
+              <span class="tag blue" id="aiContextPage">No page selected</span>
+              <span class="tag gold" id="aiContextRecall">Recall: not enough data</span>
+              <span class="tag rose" id="aiContextWeak">Weak areas: not evaluated</span>
             </div>
           </div>
 
@@ -1351,13 +1351,13 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <h3 style="margin-bottom:12px;">Quick actions</h3>
             <div class="ai-actions" style="flex-wrap:wrap;">
-              <button class="ai-action-chip" onclick="quickAI('Explain the main idea of Deep Work Chapter 4 in simple terms')">📋 Explain page</button>
+              <button class="ai-action-chip" onclick="quickAI('Explain the current PDF page in simple terms')">📋 Explain page</button>
               <button class="ai-action-chip" onclick="quickAI('Give me an analogy to understand overfitting better')">🔗 Give analogy</button>
               <button class="ai-action-chip" onclick="quickAI('Summarize my annotations and find patterns')">📝 Summarize notes</button>
-              <button class="ai-action-chip" onclick="quickAI('Generate 5 flashcards from Deep Work Chapter 4')">🃏 Make flashcards</button>
+              <button class="ai-action-chip" onclick="quickAI('Generate flashcards from my current learning resource')">🃏 Make flashcards</button>
               <button class="ai-action-chip" onclick="quickAI('Create a quiz to test my understanding of this material')">? Generate quiz</button>
               <button class="ai-action-chip" onclick="quickAI('What should I study next based on my weak areas?')">🗺 What next?</button>
-              <button class="ai-action-chip" onclick="quickAI('Create a 7-day study plan for my MCA semester 5 exam')">📅 Study plan</button>
+              <button class="ai-action-chip" onclick="quickAI('Create a study plan based on my actual learning progress and active goals')">📅 Study plan</button>
               <button class="ai-action-chip" onclick="quickAI('Teach me overfitting as if I were a 12-year-old')">🧒 Simplify</button>
             </div>
           </div>
@@ -1394,14 +1394,14 @@ textarea{min-height:75px;resize:vertical;}
             <div class="tag" style="margin-top:12px;">✦ Protected by Supabase</div>
             <div class="muted small-text" id="aiConnectionStatus" style="margin-top:9px;">Checking secure session…</div>
           </div>
+          <div class="card card-padding" style="margin-bottom:17px;">
+            <div class="panel-heading"><h3>AI improvement suggestions</h3><button class="secondary-button btn-sm" onclick="loadAIImprovementSuggestions()">Refresh</button></div>
+            <p class="muted small-text" id="aiImprovementSummary">Suggestions will use your recorded reading, quiz attempts, mastery and active goals.</p>
+            <div id="aiImprovementList" style="display:grid;gap:10px;margin-top:12px;"><p class="muted small-text">Open AI Guide to evaluate your progress.</p></div>
+          </div>
           <div class="card card-padding">
-            <h3 style="margin-bottom:10px;">Learning profile summary</h3>
-            <div style="font-size:12px;display:grid;gap:8px;">
-              <div class="mastery-bar-row"><span class="label">Focus quality</span><div class="progress-track"><span class="progress-fill" style="width:82%"></span></div><span class="mastery-pct">82%</span></div>
-              <div class="mastery-bar-row"><span class="label">Recall</span><div class="progress-track"><span class="progress-fill gold" style="width:81%"></span></div><span class="mastery-pct">81%</span></div>
-              <div class="mastery-bar-row"><span class="label">Consistency</span><div class="progress-track"><span class="progress-fill orange" style="width:70%"></span></div><span class="mastery-pct">70%</span></div>
-            </div>
-            <p class="muted small-text" style="margin-top:12px;">Best focus window: 8–10 PM. Strongest mode: PDF reading. Typical session: 28 min.</p>
+            <h3 style="margin-bottom:10px;">Learning profile</h3>
+            <p class="muted small-text">Lucid summarizes your recall, consistency and study patterns as you complete reading sessions and practice. Sample percentages are not presented as personal results.</p>
           </div>
         </div>
       </div>
@@ -1409,59 +1409,12 @@ textarea{min-height:75px;resize:vertical;}
 
     <!-- ══ LEADERBOARD ══ -->
     <section class="page" id="leaderboard">
-      <div class="page-heading">
-        <div><div class="kicker">Room standings</div><h1>Leaderboard.</h1></div>
-        <span class="tag gold">MCA Semester Group</span>
-      </div>
+<div class="page-heading"><div><div class="kicker">Opt-in comparison of learner activity</div><h1>Leaderboard.</h1></div><span class="tag gold">XP &amp; level</span></div>
+<div class="card card-padding" style="margin-bottom:17px;"><h3>What the leaderboard shows</h3><p class="muted small-text">The leaderboard compares learners using their recorded XP and level. It is a relative ranking, not a measure of mastery and not the same as an achievement badge. Focus-time and improvement rankings will appear only when comparable activity data is available.</p></div>
+<div class="card card-padding"><div class="panel-heading"><h3>XP &amp; level rankings</h3><span class="panel-count">Live profiles</span></div><div id="lbList" style="display:grid;gap:8px;"><div class="muted small-text">Sign in to load learner standings.</div></div></div>
+</section>
 
-      <div class="grid two-col">
-        <div>
-          <div class="card card-padding">
-            <div class="tab-row">
-              <button class="tab-btn active" onclick="switchTab('lbTab','xp',this)">XP &amp; Level</button>
-              <button class="tab-btn" onclick="switchTab('lbTab','focus',this)">Focus time</button>
-              <button class="tab-btn" onclick="switchTab('lbTab','improvement',this)">Most improved</button>
-            </div>
-            <div class="tab-content active" id="lbTab-xp">
-              <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
-            </div>
-            <div class="tab-content" id="lbTab-focus">
-              <div style="display:grid;gap:6px;">
-                <div class="leaderboard-row gold-row"><div class="rank-num">🥇</div><div class="mini-avatar">R</div><div class="lb-info"><div class="lb-name">Rishabh (You)</div><div class="lb-sub">18h 22m this week</div></div><div class="lb-xp">18h</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥈</div><div class="mini-avatar blue">M</div><div class="lb-info"><div class="lb-name">Maya</div><div class="lb-sub">16h 45m</div></div><div class="lb-xp">17h</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥉</div><div class="mini-avatar green">A</div><div class="lb-info"><div class="lb-name">Arjun</div><div class="lb-sub">14h 30m</div></div><div class="lb-xp">15h</div></div>
-              </div>
-            </div>
-            <div class="tab-content" id="lbTab-improvement">
-              <div style="display:grid;gap:6px;">
-                <div class="leaderboard-row gold-row"><div class="rank-num">🥇</div><div class="mini-avatar">R</div><div class="lb-info"><div class="lb-name">Rishabh (You)</div><div class="lb-sub">Recall +14% · Focus +18%</div></div><div class="lb-xp">+14%</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥈</div><div class="mini-avatar green">A</div><div class="lb-info"><div class="lb-name">Arjun</div><div class="lb-sub">Quiz accuracy +9%</div></div><div class="lb-xp">+9%</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥉</div><div class="mini-avatar blue">M</div><div class="lb-info"><div class="lb-name">Maya</div><div class="lb-sub">Completion +7%</div></div><div class="lb-xp">+7%</div></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="card card-padding" style="margin-bottom:17px;">
-            <div class="kicker">Room weak area</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Overfitting</h3>
-            <p class="muted small-text">Average recall for this topic: 34%. Suggested: group practice session.</p>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="generateAIQuiz()">✦ Start room quiz on Overfitting</button>
-          </div>
-          <div class="card card-padding">
-            <div class="kicker">Room challenge</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Machine Learning Test</h3>
-            <p class="muted small-text">10 questions · 20 min · Room test</p>
-            <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" style="width:0%"></span></div>
-            <div class="progress-label"><span>Not started</span><span>0/14 members ready</span></div>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="startRoomTest()">Start room test</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══ ANALYTICS / INSIGHTS ══ -->
+<!-- ══ ANALYTICS / INSIGHTS ══ -->
     <section class="page" id="analytics">
       <div class="page-heading">
         <div><div class="kicker">Personalized feedback</div><h1>Your insights.</h1></div>
@@ -1903,6 +1856,11 @@ function openPage(pageId) {
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.page === pageId));
   state.activePage = pageId;
   document.getElementById('breadcrumbText').textContent = pageNames[pageId];
+  if(pageId==='reader')restoreReaderSidebarState();
+  if(pageId==='goals'&&window.loadLucidGoals)window.loadLucidGoals();
+  if(pageId==='rewards'&&window.loadLucidAchievements)window.loadLucidAchievements();
+  if(pageId==='leaderboard'&&window.loadLucidLeaderboard)window.loadLucidLeaderboard();
+  if(pageId==='aiGuide'){if(window.updateLucidAIContext)window.updateLucidAIContext();if(window.loadAIImprovementSuggestions)window.loadAIImprovementSuggestions();}
   window.scrollTo({ top: 0, behavior: 'smooth' });
   closeNotifPanel();
 }
@@ -2589,13 +2547,19 @@ async function listenAI() {
 }
 
 // ─── Mobile drawer ────────────────────────────────
-function toggleReaderSidebar(){
-  const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
-  if(!layout||!button)return;
-  const hidden=layout.classList.toggle('sidebar-hidden');
+function setReaderSidebarHidden(hidden){
+  const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar'),panel=layout?.querySelector('.reader-sidebar');
+  if(!layout||!button||!panel)return;
+  layout.classList.toggle('sidebar-hidden',Boolean(hidden));panel.hidden=Boolean(hidden);panel.style.display=hidden?'none':'';
+  layout.style.gridTemplateColumns=hidden?'minmax(0,1fr)':'';
   button.textContent=hidden?'Show panel ▸':'Hide panel ◂';button.setAttribute('aria-expanded',String(!hidden));
   localStorage.setItem('lucid-reader-sidebar-hidden',hidden?'1':'0');
 }
+function toggleReaderSidebar(){
+  const layout=document.getElementById('readerLayout');if(!layout)return;
+  setReaderSidebarHidden(!layout.classList.contains('sidebar-hidden'));
+}
+function restoreReaderSidebarState(){setReaderSidebarHidden(localStorage.getItem('lucid-reader-sidebar-hidden')==='1');}
 function toggleMobileDrawer() {
   document.getElementById('mobileDrawer').classList.toggle('open');
 }

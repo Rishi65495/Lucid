@@ -45,6 +45,6 @@ jobs:
           assert "openLucidPracticeSourcePicker" in integration, "Practice source picker is missing."
           assert "practice_cards" in integration, "Flashcard persistence is missing."
           assert "startLucidVideoSession" in integration and "video_sessions" in integration, "Video watch tracking is missing."
-          assert "No transcript is saved for this video" in integration, "Missing-transcript guard is missing."
+          assert "This video has no saved transcript" in integration, "Missing-transcript guard is missing."
           print("Lucid source-integrity checks passed.")
           PY

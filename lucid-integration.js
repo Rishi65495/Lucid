@@ -166,6 +166,7 @@ window.finishLucidVideoSession=async function(completed){
     if(error)console.warn('Could not finish video session:',error.message);
   }
   window.lucidVideoSessionId=null;window.lucidVideoSessionStartedAt=null;window.lucidVideoActiveSeconds=0;
+  try{await window.loadLucidDashboardMetrics();}catch(error){console.warn('Could not refresh dashboard video metrics:',error.message);}
 };
 window.formatLucidVideoTime=function(seconds){const n=Math.max(0,Math.floor(Number(seconds)||0));return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');};
 window.loadYoutubeURL = async function(url){
@@ -331,7 +332,7 @@ window.recordLucidQuizAnswer = async function(answer){
   const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:window.currentQuizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
   if(error)throw error;
   if(answer.quizId&&Number(answer.quizIndex)+1>=Number(answer.totalQuestions)){
-    try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
+    try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();await window.loadLucidDashboardMetrics();await window.loadLucidGoals();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
   }
   return true;
 };
@@ -356,7 +357,7 @@ window.finishLucidReadingSession = async function(input){
   if(error)throw error;
   await lucidSupabase.rpc('track_learning_event',{p_event_type:input.completed?'focus_session_completed':'focus_session_stopped',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:state.currentResourceId||null,p_session_id:input.id,p_payload:{active_seconds:Math.max(0,Number(input.activeSeconds)||0),pages_completed:Math.max(0,Number(input.pagesCompleted)||0)}});
   window.currentLucidReadingSessionId=null;
-  try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(error){console.warn('Could not refresh learning achievements:',error.message);}
+  try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();await window.loadLucidDashboardMetrics();await window.loadLucidGoals();}catch(error){console.warn('Could not refresh learning achievements:',error.message);}
   return true;
 };
 window.syncLucidXP = async function(xp,level){

@@ -2168,7 +2168,7 @@ const systemInstructions = {
   Casual: 'You are a friendly, casual AI study buddy. Keep it conversational, use examples, and keep it fun.'
 };
 
-async async function askGuide() {
+async function askGuide() {
   const q=document.getElementById('aiQuestion').value.trim(),ansEl=document.getElementById('aiAnswer');
   if(!q){ansEl.style.display='block';ansEl.textContent='Ask a question first.';return;}
   ansEl.style.display='block';ansEl.textContent='✦ Lucid is analysing your current learning context…';
@@ -2331,7 +2331,7 @@ function clearLocalData() {
   location.reload();
 }
 function exportWeeklyReport() { showToast('Weekly report prepared for export.', '📊'); }
-async async function listenAI() {
+async function listenAI() {
   if(!state.currentResourceId){showToast('Open a PDF before starting AI Teach.','⚠');return;}
   const page=Number(state.currentResourcePage)||1;
   const pageText=(state.resourcePages||[]).find(p=>Number(p.page_number)===page)?.text_content||'';

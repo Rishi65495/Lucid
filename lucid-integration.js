@@ -15,11 +15,24 @@ window.updateLucidAuthUI = async function(session){
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
+window.getValidLucidSession = async function(forceRefresh=false){
+  const current=await lucidSupabase.auth.getSession();
+  if(current.error)throw new Error('Could not read your sign-in session: '+current.error.message);
+  let session=current.data?.session||null;
+  if(!session){lucidSession=null;await window.updateLucidAuthUI(null);throw new Error('Your session has ended. Sign in again to use AI features.');}
+  const expiresAt=Number(session.expires_at||0)*1000;
+  if(forceRefresh||!expiresAt||expiresAt<Date.now()+90000){
+    const refreshed=await lucidSupabase.auth.refreshSession();
+    if(refreshed.error||!refreshed.data?.session){
+      await lucidSupabase.auth.signOut();lucidSession=null;await window.updateLucidAuthUI(null);
+      throw new Error('Your sign-in session expired and could not be renewed. Sign in again to continue.');
+    }
+    session=refreshed.data.session;
+  }
+  lucidSession=session;return session;
+};
 window.invokeLucidFunction = async function(name,body){
-  if(!lucidSession)throw new Error('Please sign in before using Lucid AI.');
-  const {data:{session},error:sessionError}=await lucidSupabase.auth.getSession();
-  if(sessionError)throw new Error('Could not refresh your sign-in session: '+sessionError.message);
-  if(!session?.access_token)throw new Error('Your sign-in session expired. Sign in again.');
+  let session=await window.getValidLucidSession(false);
   async function send(accessToken){
     const response=await fetch(LUCID_SUPABASE_URL+'/functions/v1/'+encodeURIComponent(name),{
       method:'POST',headers:{'Authorization':'Bearer '+accessToken,'apikey':LUCID_SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
@@ -30,12 +43,8 @@ window.invokeLucidFunction = async function(name,body){
   }
   let result=await send(session.access_token);
   if(result.response.status===401){
-    const refreshed=await lucidSupabase.auth.refreshSession();
-    if(!refreshed.error&&refreshed.data?.session?.access_token){
-      lucidSession=refreshed.data.session;
-      result=await send(refreshed.data.session.access_token);
-      await window.updateLucidAuthUI(refreshed.data.session);
-    }
+    session=await window.getValidLucidSession(true);
+    result=await send(session.access_token);
   }
   if(!result.response.ok)throw new Error('HTTP '+result.response.status+' · '+(result.payload.error||result.payload.message||result.payload.msg||result.raw||'Edge Function request failed'));
   if(result.payload?.error)throw new Error(result.payload.error);
@@ -68,7 +77,7 @@ window.callLucidAgent = async function(prompt){
   const data=await window.invokeLucidFunction('lucid-agent',{action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null});
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
-window.generateAIQuiz = async function(){showToast('Generating an AI quiz…','✦');const prompt='Create one multiple-choice question about Machine Learning and overfitting.';try{const data=await window.callLearningEngine('quiz',prompt,{subject:'Machine Learning',topic:'overfitting'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);openPage('practice');showToast(qs.length+' AI question(s) added to Practice Center.','✦');}else{showToast('AI returned no valid quiz questions.','⚠');}}catch(error){showToast('AI quiz failed: '+error.message,'⚠');}};
+// Quiz generation is owned by the source-first Practice Centre wizard in index.html.
 window.generateFlashcards = async function(){showToast('Generating flashcards from your notes…','✦');const notes=state.annotations.slice(0,3).map(x=>typeof x==='string'?x:(x.text||x.note||''));const prompt='Create three concise flashcards from these notes: '+(notes.join('. ')||'Machine Learning fundamentals, overfitting, bias-variance tradeoff');try{const data=await window.callLearningEngine('flashcards',prompt,{annotations:notes});const cards=data.result?.cards||[];if(cards.length){state.flashcards=cards.map(c=>({q:c.front,a:c.back}));state.flashcardIndex=0;document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';}console.log('Lucid flashcards:',data.result);showToast(cards.length?cards.length+' flashcards generated.':'No flashcards returned.','✦');}catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}};
 window.evaluateOral = async function(){const q=document.getElementById('oralQuestion').textContent;const a=document.getElementById('oralAnswer').value.trim();if(!a){showToast('Write your explanation first.','⚠');return;}const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer…';try{const data=await window.callLearningEngine('evaluate_recall','Evaluate coverage, accuracy and clarity. Question: '+q+' Student answer: '+a,{question:q,answer:a});const text=window.formatLearningResult(data.result);resultEl.innerHTML='<div class="note green"><strong>AI evaluation:</strong><br>'+escapeHTML(text).replace(/\n/g,'<br>')+'</div>';state.xp+=15;updateXP();showToast('Oral recall evaluated! +15 XP','🎙');}catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Evaluation failed.','⚠');}};
 window.practiceWeak = async function(topic){openPage('practice');showToast('Preparing targeted practice for '+topic+'…','📝');try{const data=await window.callLearningEngine('quiz','Create one remedial MCQ about '+topic+' with four options, answer and explanation.',{weak_topic:topic,practice_mode:'remedial'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);showToast('Targeted AI practice ready for '+topic+'.','✦');}else{showToast('AI returned no valid practice question.','⚠');}}catch(error){showToast('Practice generation failed: '+error.message,'⚠');}};
@@ -134,7 +143,7 @@ window.showPublicLearnerProfile = async function(id){
   modal.style.display='flex';
 };
 
-window.initLucidAuth = async function(){try{const {data,error}=await lucidSupabase.auth.getSession();if(error)throw error;window.updateLucidAuthUI(data.session);lucidSupabase.auth.onAuthStateChange((_event,session)=>window.updateLucidAuthUI(session));}catch(error){lucidAuthMessage('Supabase connection error: '+(error?.message||'Unknown error'),'error');}};
+window.initLucidAuth = async function(){try{let {data,error}=await lucidSupabase.auth.getSession();if(error)throw error;let session=data.session;if(session&&Number(session.expires_at||0)*1000<Date.now()+90000){const refreshed=await lucidSupabase.auth.refreshSession();if(refreshed.error||!refreshed.data?.session){await lucidSupabase.auth.signOut();session=null;}else session=refreshed.data.session;}await window.updateLucidAuthUI(session);lucidSupabase.auth.onAuthStateChange((_event,nextSession)=>{window.updateLucidAuthUI(nextSession);});}catch(error){lucidAuthMessage('Supabase connection error: '+(error?.message||'Unknown error'),'error');}};
 
 /* Learner profile, administrator authorization and PDF-to-resource pipeline */
 window.loadLucidProfile = async function(){
@@ -249,6 +258,84 @@ window.uploadLucidPdf = async function(file,catalogueId){
     if(uploaded)await lucidSupabase.storage.from('learning-assets').remove([path]);
     throw error;
   }
+};
+window.saveGeneratedLucidQuiz = async function(input){
+  if(!lucidSession?.user)throw new Error('Sign in to save quiz history.');
+  const difficultyMap={easy:1,balanced:2,moderate:2,hard:3,exam:4};
+  const quizRow={owner_id:lucidSession.user.id,resource_id:input.resourceId||null,quiz_type:input.format||'mixed',title:input.title||'Practice quiz',difficulty:input.difficulty||'moderate',source_context:{coverage:input.coverage,instructions:input.instructions||'',source_pages:input.sourcePages||[],generated_at:new Date().toISOString()},skippable:true,milestone_required:false};
+  const {data:quiz,error}=await lucidSupabase.from('quizzes').insert(quizRow).select('id').single();if(error)throw error;
+  const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.q,options:q.opts,answer:{answer_index:q.ans},explanation:q.explanation||null,difficulty:difficultyMap[input.difficulty]||2,order_index:index}));
+  const inserted=await lucidSupabase.from('questions').insert(rows);
+  if(inserted.error){await lucidSupabase.from('quizzes').delete().eq('id',quiz.id);throw inserted.error;}
+  return quiz.id;
+};
+window.loadLucidGoals = async function(){
+  const list=document.getElementById('goalList');if(!list||!lucidSession?.user)return [];
+  list.innerHTML='<p class="muted small-text">Loading your goals…</p>';
+  const {data,error}=await lucidSupabase.from('learning_goals').select('id,title,description,target_type,target_value,deadline,status,created_at,completed_at').eq('owner_id',lucidSession.user.id).order('created_at',{ascending:false});
+  if(error){list.textContent='Goals could not be loaded: '+error.message;return [];}
+  list.innerHTML='';
+  if(!data?.length){list.innerHTML='<div class="empty-state"><p>You have not created a learning goal yet.</p><p class="muted small-text">Goals are targets you choose for yourself, such as finishing a resource, reaching a recall score or studying consistently.</p></div>';return [];}
+  data.forEach(goal=>{
+    const item=document.createElement('article');item.className='goal-item'+(goal.status==='completed'?' done':'');
+    const title=document.createElement('strong');title.textContent=goal.title;
+    const details=document.createElement('div');details.className='muted small-text';details.textContent=(goal.description||'Personal learning target')+(goal.deadline?' · Due '+new Date(goal.deadline).toLocaleDateString():'');
+    const status=document.createElement('span');status.className='tag '+(goal.status==='completed'?'':'blue');status.textContent=goal.status==='completed'?'Completed':goal.status||'Active';
+    const main=document.createElement('div');main.style.flex='1';main.append(title,details);
+    item.append(main,status);
+    if(goal.status!=='completed'){const done=document.createElement('button');done.className='secondary-button btn-sm';done.textContent='Mark complete';done.onclick=async()=>{done.disabled=true;try{await window.completeLucidGoal(goal.id);await window.loadLucidGoals();showToast('Goal completed.','✓');}catch(e){done.disabled=false;showToast('Could not update goal: '+e.message,'⚠');}};item.append(done);}
+    list.appendChild(item);
+  });
+  return data;
+};
+window.createLucidGoal = async function(title,deadline){
+  if(!lucidSession?.user)throw new Error('Sign in to create a goal.');
+  const row={owner_id:lucidSession.user.id,title:String(title||'').trim(),description:null,target_type:'milestone',target_value:null,deadline:deadline?new Date(deadline+'T23:59:59').toISOString():null,status:'active'};
+  if(!row.title)throw new Error('Enter a goal title.');
+  const {data,error}=await lucidSupabase.from('learning_goals').insert(row).select('id,title,status,deadline').single();if(error)throw error;return data;
+};
+window.completeLucidGoal = async function(id){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  const {error}=await lucidSupabase.from('learning_goals').update({status:'completed',completed_at:new Date().toISOString()}).eq('id',id).eq('owner_id',lucidSession.user.id);if(error)throw error;
+};
+window.loadLucidAchievements = async function(){
+  const shelf=document.getElementById('achievementShelf');if(!shelf||!lucidSession?.user)return;
+  shelf.innerHTML='<p class="muted small-text">Loading earned achievements…</p>';
+  const [profile,badges,xp]=await Promise.all([
+    lucidSupabase.from('profiles').select('level,xp').eq('id',lucidSession.user.id).maybeSingle(),
+    lucidSupabase.from('user_badges').select('awarded_at,metadata,badges(name,description,family)').eq('user_id',lucidSession.user.id).order('awarded_at',{ascending:false}),
+    lucidSupabase.from('user_xp').select('xp,level,streak_days').eq('user_id',lucidSession.user.id).maybeSingle()
+  ]);
+  const p=profile.data||{},x=xp.data||{},total=Number(x.xp??p.xp??0),level=Number(x.level??p.level??1),progress=total%500,remaining=500-progress;
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  set('achievementLevel','Level '+level);set('achievementXP',total.toLocaleString()+' XP');set('achievementNext','Level '+(level+1)+' · '+remaining+' XP to go');
+  const fill=document.getElementById('achievementProgress');if(fill)fill.style.width=(progress/500*100)+'%';
+  shelf.innerHTML='';
+  if(badges.error){shelf.textContent='Achievements unavailable: '+badges.error.message;return;}
+  if(!badges.data?.length){shelf.innerHTML='<div class="empty-state"><p>No achievements earned yet.</p><p class="muted small-text">Badges are awarded when a defined learning milestone is reached. Your goals are separate targets you set yourself.</p></div>';return;}
+  badges.data.forEach(row=>{const badge=row.badges||{},card=document.createElement('article');card.className='card card-padding';const icon=document.createElement('div');icon.className='reward-badge';icon.textContent='✦';const name=document.createElement('h3');name.textContent=badge.name||'Achievement';const desc=document.createElement('p');desc.className='muted small-text';desc.textContent=badge.description||'Milestone achieved';const earned=document.createElement('span');earned.className='tag';earned.textContent='Earned · '+new Date(row.awarded_at).toLocaleDateString();card.append(icon,name,desc,earned);shelf.appendChild(card);});
+};
+window.loadAIImprovementSuggestions = async function(){
+  const list=document.getElementById('aiImprovementList'),summary=document.getElementById('aiImprovementSummary');if(!list||!summary)return;
+  if(!lucidSession?.user){summary.textContent='Sign in to receive progress-based recommendations.';return;}
+  list.innerHTML='<p class="muted small-text">Reviewing your recent learning evidence…</p>';summary.textContent='Analyzing actual reading, recall and goal data.';
+  try{
+    const userId=lucidSession.user.id;
+    const [journeys,attempts,goals,resources]=await Promise.all([
+      lucidSupabase.from('learning_journeys').select('resource_id,completion,exposure,understanding,recall,application,next_review_at,last_activity_at').eq('owner_id',userId).order('updated_at',{ascending:false}).limit(20),
+      lucidSupabase.from('quiz_attempts').select('score,max_score,completed_at,skipped,quiz_id').eq('user_id',userId).order('started_at',{ascending:false}).limit(15),
+      lucidSupabase.from('learning_goals').select('title,status,deadline').eq('owner_id',userId).eq('status','active').limit(10),
+      lucidSupabase.from('lucid_resources').select('id,title,type').eq('owner_id',userId).limit(20)
+    ]);
+    for(const result of [journeys,attempts,goals,resources])if(result.error)throw result.error;
+    const context={learning_journeys:journeys.data||[],recent_quiz_attempts:attempts.data||[],active_goals:goals.data||[],resources:resources.data||[]};
+    const data=await window.callLearningEngine('plan','Evaluate my learning progress and suggest 3 specific, realistic improvements. Prioritize weak recall, overdue reviews and unfinished goals. Do not invent scores or claim progress that is not present in the data.',context);
+    const actions=data?.result?.actions||[];
+    if(!actions.length)throw new Error('The AI returned no actionable recommendations.');
+    summary.textContent='Recommendations based on your recorded learning activity, quiz attempts and active goals.';
+    list.innerHTML='';
+    actions.slice(0,4).forEach((action,index)=>{const card=document.createElement('div');card.className='ai-improvement-item';const heading=document.createElement('strong');heading.textContent=action.action_type||'Suggested next step';const reason=document.createElement('p');reason.className='muted small-text';reason.textContent=action.reason||'Based on your recent learning evidence.';const meta=document.createElement('span');meta.className='tag';meta.textContent=(Number(action.minutes)>0?action.minutes+' min':'Suggested')+(action.resource_hint?' · '+action.resource_hint:'');card.append(heading,reason,meta);list.appendChild(card);});
+  }catch(error){summary.textContent='Could not generate recommendations: '+error.message;list.innerHTML='<button class="secondary-button btn-sm" onclick="loadAIImprovementSuggestions()">Try again</button>';}
 };
 window.getLucidResourcePages = async function(resourceId,options={}){
   if(!lucidSession?.user||!resourceId)throw new Error('Sign in and choose a source PDF.');
@@ -404,7 +491,7 @@ window.renderLucidReaderPage = async function(){
       state.currentResourcePageCount=window.currentPdfDocument.numPages;if(pageTotal)pageTotal.textContent='/ '+window.currentPdfDocument.numPages;
     }
     const pdfPage=await window.currentPdfDocument.getPage(pageNumber),base=pdfPage.getViewport({scale:1});
-    const fitScale=Math.max(.35,(viewport.clientWidth-28)/base.width),scale=fitScale*(Number(state.pdfZoom)||1),pdfViewport=pdfPage.getViewport({scale}),dpr=Math.min(window.devicePixelRatio||1,2);
+    const fitWidth=Math.max(.2,(viewport.clientWidth-32)/base.width),fitHeight=Math.max(.2,(viewport.clientHeight-32)/base.height),fitScale=state.pdfFitMode==='width'?fitWidth:Math.min(fitWidth,fitHeight),scale=fitScale*(Number(state.pdfZoom)||1),pdfViewport=pdfPage.getViewport({scale}),dpr=Math.min(window.devicePixelRatio||1,2);
     canvas.width=Math.floor(pdfViewport.width*dpr);canvas.height=Math.floor(pdfViewport.height*dpr);canvas.style.width=pdfViewport.width+'px';canvas.style.height=pdfViewport.height+'px';
     stage.style.width=pdfViewport.width+'px';stage.style.height=pdfViewport.height+'px';textLayer.innerHTML='';textLayer.style.width=pdfViewport.width+'px';textLayer.style.height=pdfViewport.height+'px';
     const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);
@@ -424,8 +511,9 @@ window.goLucidPdfPage=function(value){
   const max=Number(state.currentResourcePageCount||state.resourcePages?.length||1);state.currentResourcePage=Math.max(1,Math.min(max,Number(value)||1));
   saveState();window.renderLucidReaderPage();if(typeof renderAnnotations==='function')renderAnnotations();
 };
-window.changeLucidPdfZoom=function(delta){state.pdfZoom=Math.max(.5,Math.min(3,(Number(state.pdfZoom)||1)+delta));window.renderLucidReaderPage();};
-window.resetLucidPdfZoom=function(){state.pdfZoom=1;window.renderLucidReaderPage();};
+window.changeLucidPdfZoom=function(delta){state.pdfFitMode='page';state.pdfZoom=Math.max(.5,Math.min(3,(Number(state.pdfZoom)||1)+delta));window.renderLucidReaderPage();};
+window.resetLucidPdfZoom=function(){state.pdfZoom=1;state.pdfFitMode='page';window.renderLucidReaderPage();};
+window.fitLucidPdfWidth=function(){state.pdfZoom=1;state.pdfFitMode='width';window.renderLucidReaderPage();};
 window.openLucidResource = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata').eq('id',id).eq('owner_id',lucidSession.user.id).single();
@@ -444,7 +532,7 @@ window.openLucidResource = async function(id){
   state.currentResourceTitle=resource.title;
   state.currentResourcePage=1;
   state.currentResourcePageCount=Number(resource.metadata?.page_count||pages?.length||0);
-  window.currentPdfUrl=signed.signedUrl;
+  window.currentPdfUrl=signed.signedUrl;window.currentPdfDocument=null;window.currentPdfDocumentUrl=null;state.pdfZoom=1;state.pdfFitMode='page';
   state.resourcePages=pages||[];
   try{
     const saved=await window.loadLucidAnnotations(id);

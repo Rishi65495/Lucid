@@ -1811,6 +1811,10 @@ const state = {
   currentResourceId: null,
   currentResourcePage: 1,
   currentResourceTitle: null,
+  practiceSourceType: null,
+  practiceSourceId: null,
+  currentVideo: null,
+  videoPlaylist: null,
   coachMode: 'Gentle',
   currentHL: 'yellow',
   sessionPagesCompleted: 4,
@@ -2162,39 +2166,43 @@ function loadYoutubeVideo() {
   closeModal('videoImportModal');
   loadYoutubeURL(url);
 }
-function loadYoutubeURL(url) {
-  let videoId = '';
-  try {
-    const u = new URL(url);
-    videoId = u.searchParams.get('v') || u.pathname.split('/').pop();
-  } catch { videoId = url.split('v=')[1]?.split('&')[0] || ''; }
-  if (!videoId) { showToast('Could not extract video ID from URL.', '⚠'); return; }
-  openPage('video');
-  const wrapper = document.getElementById('youtubePlayerWrapper');
-  const player = document.getElementById('youtubePlayer');
-  const frame = document.getElementById('ytFrame');
-  frame.src = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&enablejsapi=1`;
-  wrapper.style.display = 'none';
-  player.style.display = 'block';
-  showToast('Video loaded in Lucid classroom!', '▶');
+function loadYoutubeURL(url) { if(window.loadYoutubeURL) return window.loadYoutubeURL(url); showToast('Video import service is loading. Try again in a moment.','⚠'); }
+function videoSpeed(x) {
+  window.lucidVideoSpeed=Number(x)||1;
+  try{if(window.lucidYTPlayer?.setPlaybackRate)window.lucidYTPlayer.setPlaybackRate(window.lucidVideoSpeed);else showToast('Start the video before changing playback speed.','⚠');}catch(error){showToast('Playback speed is not available: '+error.message,'⚠');}
 }
-function videoSpeed(x) { showToast(`Playback speed set to ${x}×`, '⚡'); }
 function addTimestampNote() {
-  const input = document.getElementById('videoNoteInput');
-  const val = input.value.trim();
-  if (!val) { showToast('Write a note first.', '⚠'); return; }
-  const list = document.getElementById('videoNoteList');
-  const now = new Date();
-  const ts = `${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-  const d = document.createElement('div');
-  d.className = 'note yellow';
-  d.innerHTML = `🕐 <strong>${ts}</strong> — ${escapeHTML(val)} <button class="note-del" onclick="delNote(this)">×</button>`;
-  list.appendChild(d);
-  input.value = '';
-  const count = document.getElementById('videoNoteCount');
-  count.textContent = Number(count.textContent) + 1;
-  showToast(`Timestamped note saved at ${ts}.`);
+  const input=document.getElementById('videoNoteInput'),val=input.value.trim();
+  if(!val){showToast('Write a note first.','⚠');return;}
+  if(!state.currentVideo?.resourceId){showToast('Select an imported video first.','⚠');return;}
+  let timestamp=0;try{timestamp=Number(window.lucidYTPlayer?.getCurrentTime?.())||0;}catch(_){}
+  const note={timestamp,text:val,created_at:new Date().toISOString()};
+  window.saveLucidVideoNote(state.currentVideo.resourceId,note).then(()=>window.renderLucidVideoNotes()).then(()=>{input.value='';showToast('Note saved at '+window.formatLucidVideoTime(timestamp)+'.','✓');}).catch(error=>showToast('Could not save video note: '+error.message,'⚠'));
 }
+async function saveCurrentVideoTranscript(){
+  if(!state.currentVideo?.resourceId){showToast('Select a video first.','⚠');return;}
+  const transcript=document.getElementById('videoTranscriptInput').value.trim();
+  if(transcript.length<80){showToast('Add a fuller transcript or captions (at least 80 characters).','⚠');return;}
+  try{await window.saveLucidVideoTranscript(state.currentVideo.resourceId,transcript);const status=document.getElementById('videoTranscriptStatus');if(status)status.textContent='Saved';showToast('Transcript saved. Video AI can now use it.','✓');await refreshVideoProgress();}catch(error){showToast('Transcript save failed: '+error.message,'⚠');}
+}
+async function askVideoAI(prompt){
+  const card=document.getElementById('videoAiCard'),output=document.getElementById('videoAiResponse');
+  if(!state.currentVideo?.resourceId){showToast('Select a video first.','⚠');return;}
+  if(!state.currentVideo.transcript||state.currentVideo.transcript.trim().length<80){if(card)card.style.display='block';if(output)output.textContent='This video does not have a saved transcript yet. Paste its captions in the Transcript panel and save them first. Lucid will not invent video content.';return;}
+  if(card)card.style.display='block';if(output)output.textContent='Reading the selected video transcript…';
+  try{const response=await window.callAIGuide(prompt,'Direct');if(output)output.textContent=response;}catch(error){if(output)output.textContent='Video AI failed: '+error.message;}
+}
+function renderVideoPlaylist(){
+  const list=document.getElementById('videoPlaylistItems'),title=document.getElementById('videoPlaylistTitle'),count=document.getElementById('videoPlaylistCount');
+  if(!list)return;const playlist=state.videoPlaylist,items=playlist?.items||[];
+  if(title)title.textContent=playlist?.title||'Imported videos';if(count)count.textContent=String(items.length);
+  list.innerHTML='';if(!items.length){list.innerHTML='<p class="muted small-text">Import a playlist or video to populate this list.</p>';return;}
+  items.forEach((item,index)=>{const button=document.createElement('button');button.type='button';button.className='secondary-button';button.style.cssText='text-align:left;display:flex;gap:8px;align-items:center;width:100%;white-space:normal;';
+    button.textContent=(index+1)+'. '+item.title+(state.currentVideo?.resourceId===item.resourceId?' · Playing':'');
+    button.onclick=()=>window.selectLucidVideo(item.resourceId).catch(error=>showToast('Could not open video: '+error.message,'⚠'));list.appendChild(button);});
+}
+async function refreshVideoProgress(){if(window.refreshVideoProgress)await window.refreshVideoProgress();}
+
 
 // ─── Quiz ─────────────────────────────────────────
 const quizBank = [];
@@ -2290,6 +2298,50 @@ async function generateAIQuiz() {
     }catch(error){modal.querySelector('#quizBuildStatus').textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
   };
 }
+// ─── Resource-aware practice source ───────────────
+function setPracticeSource(value){
+  const [type,id]=String(value||'').split(':',2);state.practiceSourceType=type||null;state.practiceSourceId=id||null;
+  const status=document.getElementById('practiceSourceStatus'),description=document.getElementById('practiceSourceDescription');
+  const option=document.getElementById('practiceSourceSelect')?.selectedOptions?.[0];
+  if(status)status.textContent=id?'Source selected':'No source selected';
+  if(description)description.textContent=id?'Practice will use '+(option?.textContent||'the selected source')+'.':'Choose a source to enable practice activities.';
+  const label=document.getElementById('practiceQuizKicker');if(label)label.textContent=id?'Source: '+(option?.textContent||'selected'):'Source-based quiz';
+}
+function refreshPracticeSources(){
+  const select=document.getElementById('practiceSourceSelect');if(!select)return;
+  const previous=state.practiceSourceType&&state.practiceSourceId?state.practiceSourceType+':'+state.practiceSourceId:'';
+  select.innerHTML='<option value="">Choose a catalogue or resource…</option>';
+  const cats=state.catalogues||[],resources=(state.uploadedBooks||[]).filter(x=>['pdf','video','document'].includes(x.type));
+  if(cats.length){const group=document.createElement('optgroup');group.label='Catalogues';cats.forEach(cat=>group.add(new Option('▣ '+cat.title,'catalogue:'+cat.id)));select.appendChild(group);}
+  if(resources.length){const group=document.createElement('optgroup');group.label='Individual resources';resources.forEach(resource=>group.add(new Option((resource.type==='video'?'▶ ':'PDF · ')+(resource.name||'Untitled'), 'resource:'+(resource.resourceId||resource.id))));select.appendChild(group);}
+  if(previous&&Array.from(select.options).some(o=>o.value===previous))select.value=previous;else{state.practiceSourceType=null;state.practiceSourceId=null;select.value='';}
+  const videoCat=document.getElementById('videoImportCatalogue');if(videoCat){const selected=videoCat.value;videoCat.innerHTML='<option value="">No catalogue (keep in Library)</option>';cats.forEach(cat=>videoCat.add(new Option(cat.title,cat.id)));if(selected)videoCat.value=selected;}
+}
+async function getLucidPracticeContext(){
+  if(!state.practiceSourceType||!state.practiceSourceId)throw new Error('Choose a catalogue or resource in Practice Source first.');
+  const selectedResources=state.practiceSourceType==='resource'
+    ?(state.uploadedBooks||[]).filter(x=>(x.resourceId||x.id)===state.practiceSourceId)
+    :(state.uploadedBooks||[]).filter(x=>(x.catalogueIds||[x.catalogueId]).includes(state.practiceSourceId)&&['pdf','video','document'].includes(x.type));
+  if(!selectedResources.length)throw new Error('The selected source has no available resources. Refresh the source list.');
+  const chunks=[];
+  for(const resource of selectedResources){
+    const id=resource.resourceId||resource.id;
+    if(resource.type==='video'){
+      const video=await window.getLucidVideoContext(id);
+      if(video.transcript?.trim())chunks.push('VIDEO: '+resource.name+'\nTRANSCRIPT:\n'+video.transcript.slice(0,12000));
+    }else{
+      const pages=await window.getLucidResourcePages(id);
+      const stride=Math.max(1,Math.ceil(pages.length/20));
+      const text=pages.filter((_,i)=>i%stride===0).map(p=>'PAGE '+p.page_number+'\n'+(p.text_content||'')).join('\n\n');
+      if(text.trim())chunks.push('DOCUMENT: '+resource.name+'\n'+text.slice(0,14000));
+    }
+  }
+  const content=chunks.join('\n\n--- RESOURCE BREAK ---\n\n').slice(0,24000);
+  if(!content.trim())throw new Error('The selected source has no readable text. For videos, paste and save the transcript first. For scanned PDFs, run OCR first.');
+  const title=state.practiceSourceType==='catalogue'?(state.catalogues||[]).find(x=>x.id===state.practiceSourceId)?.title||'Selected catalogue':selectedResources[0].name;
+  return {title,sourceType:state.practiceSourceType,sourceId:state.practiceSourceId,resourceId:state.practiceSourceType==='resource'?state.practiceSourceId:null,resources:selectedResources,content};
+}
+async function refreshPracticeSourceList(){if(window.loadLucidCatalogues)await window.loadLucidCatalogues();refreshPracticeSources();}
 // ─── Flashcards ───────────────────────────────────
 function flipCard() { if(state.flashcards.length)document.getElementById('flashcard').classList.toggle('flipped'); }
 function rateCard(rating) {

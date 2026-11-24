@@ -714,10 +714,7 @@ textarea{min-height:75px;resize:vertical;}
               <strong style="font-size:13px;">Notifications</strong>
               <button class="ghost-button btn-xs" onclick="clearNotifs()">Clear all</button>
             </div>
-            <div id="notifList">
-              <div class="notif-item"><span class="notif-icon">📈</span><div><strong>Recall improved 9%</strong><br><span class="muted small-text">Your quiz accuracy is trending up.</span></div></div>
-              <div class="notif-item"><span class="notif-icon">📖</span><div><strong>Resume your session</strong><br><span class="muted small-text">You left DOM Manipulation at 72%.</span></div></div>
-            </div>
+            <div id="notifList"><div class="muted small-text">No new learning notifications.</div></div>
           </div>
         </div>
         <button class="top-icon" onclick="openPage('settings')">⚙</button><button class="secondary-button btn-sm" id="signOutButton" onclick="signOutLucid()">Sign out</button>
@@ -729,12 +726,12 @@ textarea{min-height:75px;resize:vertical;}
     <section class="page active" id="dashboard">
       <div class="page-heading">
         <div>
-          <div class="kicker" id="dashKicker">Thursday, September 25, 2026</div>
-          <h1 id="dashGreet">Good evening, Rishabh.</h1>
+          <div class="kicker" id="dashKicker">Your learning overview</div>
+          <h1 id="dashGreet">Welcome back.</h1>
         </div>
         <div style="display:flex;gap:9px;">
           <button class="secondary-button" onclick="openModal('uploadModal')">＋ Add resource</button>
-          <button class="primary-button" onclick="openPage('reader')">Continue studying →</button>
+          <button class="primary-button" onclick="continueLucidLearning()">Continue studying →</button>
         </div>
       </div>
 
@@ -742,30 +739,30 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid dashboard-hero-grid">
         <article class="hero-card card">
           <div class="kicker">AI recommendation</div>
-          <h2 id="heroTitle">You have 26 minutes. Finish the ML section and do a 5-question recall.</h2>
-          <p id="heroDesc">Based on your weak areas and available time. Your focus is strongest right now.</p>
+          <h2 id="heroTitle">Your next learning recommendation will appear here.</h2>
+          <p id="heroDesc">Recommendations will be based on your actual resources, goals and recorded learning evidence.</p>
           <button class="primary-button" onclick="openPage('reader')">Start session →</button>
         </article>
         <article class="stat-card card">
-          <div class="stat-top"><span>Weekly focus</span><span id="weeklyPercent">74%</span></div>
+          <div class="stat-top"><span>Weekly focus</span><span id="weeklyPercent">0%</span></div>
           <div>
-            <div class="stat-value"><span id="focusHours">6h 42m</span></div>
+            <div class="stat-value"><span id="focusHours">0m</span></div>
             <p class="muted small-text">active focus this week</p>
           </div>
           <div>
-            <div class="progress-track"><span class="progress-fill" id="weeklyProgress" style="width:74%"></span></div>
-            <div class="progress-label"><span>Goal: 9 hours</span><span id="focusLeft">2h 18m left</span></div>
+            <div class="progress-track"><span class="progress-fill" id="weeklyProgress" style="width:0%"></span></div>
+            <div class="progress-label"><span>Goal: <span id="focusGoalLabel">200 min</span></span><span id="focusLeft">No focus recorded</span></div>
           </div>
         </article>
         <article class="stat-card card">
-          <div class="stat-top"><span>Current streak</span><span>🔥 Active</span></div>
+          <div class="stat-top"><span>Current streak</span><span id="streakStatus">No streak</span></div>
           <div>
-            <div class="stat-value" id="streakValue">7</div>
+            <div class="stat-value" id="streakValue">0</div>
             <p class="muted small-text">days of showing up</p>
           </div>
           <div>
-            <div class="progress-track"><span class="progress-fill gold" style="width:58%"></span></div>
-            <div class="progress-label"><span>Best: 12 days</span><span>5 more to beat it</span></div>
+            <div class="progress-track"><span class="progress-fill gold" id="streakProgress" style="width:0%"></span></div>
+            <div class="progress-label"><span>Recorded active days</span><span id="streakLabel">0 days</span></div>
           </div>
         </article>
       </div>
@@ -774,22 +771,22 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid four-col" style="margin-top:17px;">
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Pages</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statPages">1,245</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statPages">0</div>
           <div class="muted small-text">this week</div>
         </div>
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Videos</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statVideos">17</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statVideos">0</div>
           <div class="muted small-text">lessons watched</div>
         </div>
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Questions</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statQuestions">327</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statQuestions">0</div>
           <div class="muted small-text">answered</div>
         </div>
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Recall</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statRecall">81%</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statRecall">—</div>
           <div class="muted small-text">average accuracy</div>
         </div>
       </div>
@@ -799,95 +796,7 @@ textarea{min-height:75px;resize:vertical;}
         <h2>Continue where you left off</h2>
         <button class="ghost-button" onclick="openPage('library')">View full library →</button>
       </div>
-      <div class="grid library-grid" id="dashboardBooks">
-        <article class="book-card card" data-title="Machine Learning Fundamentals">
-          <div class="book-main">
-            <div class="book-cover cover-blue">ML<br>Fund.</div>
-            <div>
-              <div class="book-title">Machine Learning Fundamentals</div>
-              <div class="book-author">MCA Semester 5</div>
-              <div class="book-author">Page 72 of 180 · DOM Manipulation</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>40% complete</span><span>Recall: 72%</span></div>
-            <div class="progress-track"><span class="progress-fill" style="width:40%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-        <article class="book-card card" data-title="Deep Work">
-          <div class="book-main">
-            <div class="book-cover cover-green">Deep<br>Work</div>
-            <div>
-              <div class="book-title">Deep Work</div>
-              <div class="book-author">Cal Newport</div>
-              <div class="book-author">Page 142 of 304</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>47% complete</span><span>18 min left</span></div>
-            <div class="progress-track"><span class="progress-fill orange" style="width:47%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-        <article class="book-card card" data-title="Atomic Habits">
-          <div class="book-main">
-            <div class="book-cover cover-orange">Atomic<br>Habits</div>
-            <div>
-              <div class="book-title">Atomic Habits</div>
-              <div class="book-author">James Clear</div>
-              <div class="book-author">Page 86 of 272</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>32% complete</span><span>24 min left</span></div>
-            <div class="progress-track"><span class="progress-fill" style="width:32%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag blue">Habit building</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-      </div>
-
-      <!-- Activity rhythm -->
-      <div class="section-row"><h2>Your learning rhythm</h2><span class="muted small-text">Last 30 days</span></div>
-      <div class="grid two-col">
-        <article class="rhythm-card card">
-          <div class="kicker">A pattern worth keeping</div>
-          <h3>Your focus is strongest around 8 PM.</h3>
-          <p class="muted small-text">Sessions between 20–30 min have your best recall. Tonight's plan is shaped around that.</p>
-          <div class="week-chart">
-            <div class="week-column"><span class="week-bar" style="height:38%"></span><span>Mon</span></div>
-            <div class="week-column"><span class="week-bar" style="height:60%"></span><span>Tue</span></div>
-            <div class="week-column"><span class="week-bar" style="height:72%"></span><span>Wed</span></div>
-            <div class="week-column"><span class="week-bar" style="height:48%"></span><span>Thu</span></div>
-            <div class="week-column"><span class="week-bar" style="height:80%"></span><span>Fri</span></div>
-            <div class="week-column"><span class="week-bar" style="height:92%"></span><span>Sat</span></div>
-            <div class="week-column"><span class="week-bar today" style="height:35%"></span><span>Today</span></div>
-          </div>
-        </article>
-        <article class="reward-card card">
-          <div class="kicker">Recent rewards</div>
-          <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">You are collecting momentum.</h3>
-          <div class="badge-row" id="dashBadges">
-            <div class="muted small-text">Sign in to see badges earned from your learning activity.</div>
-          </div>
-          <p class="muted small-text" style="margin-top:14px;"><span id="dashBadgeSummary">Your earned badges will appear here when your learning evidence meets a badge rule.</span></p>
-          <div class="streak-strip">
-            <div class="streak-number" id="streakSmall">7</div>
-            <div><strong style="font-size:12px;">day streak</strong><div class="muted small-text">Consistency beats intensity.</div></div>
-          </div>
-        </article>
-      </div>
-
-      <!-- Quick actions -->
-      <div class="section-row"><h2>Quick actions</h2></div>
-      <div class="quick-actions">
-        <button class="quick-action" onclick="openPage('reader')"><span class="qa-icon">◉</span><strong>Start focused reading</strong></button>
-        <button class="quick-action" onclick="openPage('video')"><span class="qa-icon">▶</span><strong>Watch a lecture</strong></button>
-        <button class="quick-action" onclick="openPage('aiGuide')"><span class="qa-icon">✦</span><strong>Ask AI guide</strong></button>
-        <button class="quick-action" onclick="openPage('practice')"><span class="qa-icon">?</span><strong>Practice recall</strong></button>
-        <button class="quick-action" onclick="openPage('catalogues')"><span class="qa-icon">◫</span><strong>My catalogues</strong></button>
-        <button class="quick-action" onclick="openPage('analytics')"><span class="qa-icon">↗</span><strong>View insights</strong></button>
-        <button class="quick-action" onclick="openModal('uploadModal')"><span class="qa-icon">＋</span><strong>Add resource</strong></button>
+      <div class="grid library-grid" id="dashboardBooks"><p class="muted small-text">Your uploaded resources will appear here after you sign in.</p>
       </div>
     </section>
 
@@ -1365,46 +1274,15 @@ textarea{min-height:75px;resize:vertical;}
 
       <!-- Weekly stat cards -->
       <div class="grid analytics-grid">
-        <article class="analytics-card card">
-          <div class="kicker">Focus time</div>
-          <div class="analytics-number">6h 42m</div>
-          <div class="muted small-text">This week ↑18%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill" style="width:74%"></span></div>
-        </article>
-        <article class="analytics-card card">
-          <div class="kicker">Pages read</div>
-          <div class="analytics-number" id="analyticsPages">1,245</div>
-          <div class="muted small-text">This week ↑14%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill orange" style="width:82%"></span></div>
-        </article>
-        <article class="analytics-card card">
-          <div class="kicker">Avg recall</div>
-          <div class="analytics-number">81%</div>
-          <div class="muted small-text">Across quizzes ↑9%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" style="width:81%"></span></div>
-        </article>
-        <article class="analytics-card card">
-          <div class="kicker">Questions</div>
-          <div class="analytics-number">327</div>
-          <div class="muted small-text">Quiz answers ↑7%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill rose" style="width:65%"></span></div>
-        </article>
+        <article class="analytics-card card"><div class="kicker">Focus time</div><div class="analytics-number" id="analyticsFocus">0m</div><div class="muted small-text">Recorded this week</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill" id="analyticsFocusBar" style="width:0%"></span></div></article>
+        <article class="analytics-card card"><div class="kicker">Pages read</div><div class="analytics-number" id="analyticsPages">0</div><div class="muted small-text">Recorded this week</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill orange" id="analyticsPagesBar" style="width:0%"></span></div></article>
+        <article class="analytics-card card"><div class="kicker">Average recall</div><div class="analytics-number" id="analyticsRecall">—</div><div class="muted small-text">Completed quiz attempts</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" id="analyticsRecallBar" style="width:0%"></span></div></article>
+        <article class="analytics-card card"><div class="kicker">Questions</div><div class="analytics-number" id="analyticsQuestions">0</div><div class="muted small-text">Answered this week</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill rose" id="analyticsQuestionsBar" style="width:0%"></span></div></article>
       </div>
-
       <!-- Chart & insight -->
       <div class="section-row"><h2>Weekly focus volume</h2><span class="muted small-text">Minutes per day</span></div>
       <div class="grid insight-grid">
-        <article class="chart-card card">
-          <div class="bar-chart">
-            <div class="chart-column"><span class="chart-bar" style="height:38%"></span><span>Mon</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:51%"></span><span>Tue</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:72%"></span><span>Wed</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:46%"></span><span>Thu</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:86%"></span><span>Fri</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:100%"></span><span>Sat</span></div>
-            <div class="chart-column"><span class="chart-bar highlighted" style="height:42%"></span><span>Today</span></div>
-          </div>
-        </article>
+        <article class="chart-card card"><div class="bar-chart" id="weeklyFocusChart"><p class="muted small-text">Daily focus data will appear after you record study sessions.</p></div></article>
         <article class="insight-card card">
           <div class="kicker">Lucid noticed</div>
           <div class="insight-quote">You retain more when you read for 20–30 minutes and write one annotation per chapter.</div>

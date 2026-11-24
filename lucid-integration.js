@@ -401,7 +401,7 @@ window.updateLucidVideoProgressUI=function(){
   const percent=document.getElementById('videoProgressPercent');if(percent)percent.textContent=pct+'%';const bar=document.getElementById('videoProgressBar');if(bar)bar.style.width=pct+'%';const label=document.getElementById('videoProgressLabel');if(label)label.textContent=completed+' of '+items.length+' completed';const watchedEl=document.getElementById('videoWatchedTime');if(watchedEl)watchedEl.textContent=window.formatLucidDuration(items.reduce((s,x)=>s+(Number(x.progress?.active)||0),0));
 };
 window.ensureLucidVideoTranscript=async function(videoId,resourceId){
-  const fetched=await window.invokeLucidFunction('youtube-transcript',{video_id:videoId});
+  const fetched=await window.invokeLucidFunction('youtube-transcript',{video_id:videoId,resource_id:resourceId});
   const transcript=String(fetched.transcript||'').trim();
   if(!transcript)throw new Error('No transcript text was returned.');
   const {error}=await lucidSupabase.from('resource_videos').update({transcript}).eq('resource_id',resourceId);

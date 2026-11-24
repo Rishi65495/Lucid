@@ -308,10 +308,39 @@ window.completeLucidGoal = async function(id){
 };
 window.loadLucidAchievements = async function(){
   if(!lucidSession?.user)return [];
-  const {data:earned,error}=await lucidSupabase.from('user_badges').select('badge_id,awarded_at,metadata').eq('user_id',lucidSession.user.id).order('awarded_at',{ascending:false});
-  if(error)throw error;
+  const uid=lucidSession.user.id;
   const {data:badges,error:badgeError}=await lucidSupabase.from('badges').select('id,slug,name,family,description,rule').order('family').order('name');
   if(badgeError)throw badgeError;
+  const [xp,sessions,resourceProgress,answerCount,messageCount]=await Promise.all([
+    lucidSupabase.from('user_xp').select('streak_days').eq('user_id',uid).maybeSingle(),
+    lucidSupabase.from('reading_sessions').select('id,active_seconds,pages_completed').eq('user_id',uid).limit(1000),
+    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(2000),
+    lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true}),
+    lucidSupabase.from('room_discussion_messages').select('id',{count:'exact',head:true}).eq('user_id',uid)
+  ]);
+  const sessionsRows=sessions.error?[]:(sessions.data||[]);
+  const resourcesRows=resourceProgress.error?[]:(resourceProgress.data||[]);
+  const evidence={
+    collaboration:messageCount.error?0:Number(messageCount.count||0),
+    completion:new Set(resourcesRows.map(x=>x.resource_id)).size,
+    consistency:Number(xp.data?.streak_days||0),
+    deep_work:sessionsRows.filter(x=>Number(x.active_seconds)>0).length,
+    practice:answerCount.error?0:Number(answerCount.count||0),
+    reading:sessionsRows.reduce((sum,x)=>sum+(Number(x.pages_completed)||0),0)
+  };
+  const {data:earnedBefore,error:earnedError}=await lucidSupabase.from('user_badges').select('badge_id,awarded_at,metadata').eq('user_id',uid).order('awarded_at',{ascending:false});
+  if(earnedError)throw earnedError;
+  const already=new Set((earnedBefore||[]).map(x=>x.badge_id));
+  const newAwards=(badges||[]).filter(b=>!already.has(b.id)).filter(b=>{
+    const rule=b.rule||{},entry=Object.entries(rule)[0];if(!entry)return false;
+    const threshold=Number(entry[1])||0;return threshold>0&&Number(evidence[b.family]||0)>=threshold;
+  }).map(b=>({user_id:uid,badge_id:b.id,metadata:{evidence:Number(evidence[b.family]||0),rule:b.rule||{},source:'learning_activity'}}));
+  if(newAwards.length){
+    const awardResult=await lucidSupabase.from('user_badges').upsert(newAwards,{onConflict:'user_id,badge_id',ignoreDuplicates:true});
+    if(awardResult.error)console.warn('Could not award achievement badges:',awardResult.error.message);
+  }
+  const {data:earned,error}=await lucidSupabase.from('user_badges').select('badge_id,awarded_at,metadata').eq('user_id',uid).order('awarded_at',{ascending:false});
+  if(error)throw error;
   const earnedMap=new Map((earned||[]).map(x=>[x.badge_id,x]));
   const icon={collaboration:'🤝',completion:'📚',consistency:'🔥',deep_work:'⚡',practice:'🧠',reading:'📖'};
   const grid=document.getElementById('rewardGrid'),dash=document.getElementById('dashBadges');
@@ -332,8 +361,9 @@ window.loadLucidAchievements = async function(){
     });
   };
   render(grid,false);render(dash,true);
-  const earnedCount=document.getElementById('earnedBadgeCount');if(earnedCount)earnedCount.textContent=(earned||[]).length+' earned · '+(badges||[]).length+' available';const dashSummary=document.getElementById('dashBadgeSummary');if(dashSummary)dashSummary.textContent=(earned||[]).length+' badges earned. Badges are awarded automatically from verified learning activity.';
-  return {earned:earned||[],badges:badges||[]};
+  const earnedCount=document.getElementById('earnedBadgeCount');if(earnedCount)earnedCount.textContent=(earned||[]).length+' earned · '+(badges||[]).length+' available';
+  const dashSummary=document.getElementById('dashBadgeSummary');if(dashSummary)dashSummary.textContent=(earned||[]).length+' badges earned. Badges unlock when your recorded learning activity meets their criteria.';
+  return {earned:earned||[],badges:badges||[],evidence};
 };
 window.saveLucidQuiz = async function(input){
   if(!lucidSession?.user)throw new Error('Sign in to save quiz history.');

@@ -913,9 +913,7 @@ textarea{min-height:75px;resize:vertical;}
       <div class="page-heading">
         <div><div class="kicker" id="readerKicker">No resource selected</div><h1>Reading room.</h1></div>
         <div style="display:flex;align-items:center;gap:9px;">
-          <button class="secondary-button btn-sm" id="toggleReaderSidebar" onclick="toggleReaderSidebar()" aria-expanded="true">Hide panel ◂</button>
           <span class="tag" id="pageTag">No page</span>
-          <button class="secondary-button btn-sm" onclick="openModal('focusModal')">⚡ Focus mode</button>
         </div>
       </div>
 
@@ -2341,14 +2339,6 @@ async function listenAI() {
 }
 
 // ─── Mobile drawer ────────────────────────────────
-function toggleReaderSidebar(){
-  const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
-  if(!layout||!button)return;
-  const hidden=layout.classList.toggle('sidebar-hidden');
-  button.textContent=hidden?'Show panel ▸':'Hide panel ◂';button.setAttribute('aria-expanded',String(!hidden));
-  try{localStorage.setItem('lucid-reader-sidebar-hidden',hidden?'1':'0');}catch(_){}
-}
-window.toggleReaderSidebar=toggleReaderSidebar;
 function toggleMobileDrawer() {
   document.getElementById('mobileDrawer').classList.toggle('open');
 }
@@ -2400,10 +2390,6 @@ document.addEventListener('click', e => {
 localStorage.removeItem('leafline-gemini-key');
 localStorage.removeItem('leafline-gemini-model');
 restoreState();
-if(localStorage.getItem('lucid-reader-sidebar-hidden')!=='0'){
-  const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
-  layout?.classList.add('sidebar-hidden');if(button){button.textContent='Show panel ▸';button.setAttribute('aria-expanded','false');}
-}
 initDashboard();
 renderAnnotations();
 renderUploadedBooks();

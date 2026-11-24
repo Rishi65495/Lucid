@@ -2407,6 +2407,33 @@ function renderUploadedBooks(){
     };
     move.append(label,select);el.appendChild(move);lib.appendChild(el);
   });
+  const dashboard=document.getElementById('dashboardBooks');
+  if(dashboard){
+    dashboard.innerHTML='';
+    const recent=books.filter(book=>(book.type||'pdf')==='pdf').slice(0,3);
+    if(!recent.length){
+      dashboard.innerHTML='<div class="card card-padding muted">No PDFs yet. Import a PDF from Library to start reading.</div>';
+    }else{
+      recent.forEach(book=>{
+        const resourceId=book.resourceId||book.id;
+        const card=document.createElement('article');card.className='book-card card';
+        const main=document.createElement('div');main.className='book-main';
+        const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent='PDF';
+        const info=document.createElement('div');
+        const title=document.createElement('div');title.className='book-title';title.textContent=book.name||'Untitled PDF';
+        const meta=document.createElement('div');meta.className='book-author';
+        meta.textContent=(book.pages||0)+' pages · '+(book.status||'saved');
+        info.append(title,meta);main.append(cover,info);
+        const footer=document.createElement('div');footer.className='book-footer';
+        const tag=document.createElement('span');tag.className='tag';tag.textContent=book.catalogueId?'In catalogue':'In library';
+        const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open PDF →';
+        open.disabled=!resourceId;
+        open.onclick=()=>window.openLucidResource(resourceId)
+          .catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
+        footer.append(tag,open);card.append(main,footer);dashboard.appendChild(card);
+      });
+    }
+  }
 }
 function sortBooks(order) {
   const lib = document.getElementById('libraryBooks');

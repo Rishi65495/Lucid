@@ -10,18 +10,17 @@ const CORS = {
 
 async function getLearnerOverview(sb: any, user: any) {
   const userId = user.id;
-  const [profile, resources, catalogues, catalogueLinks, journeys, mastery, attempts, xp, earnedBadges] = await Promise.all([
+  const [profile, resources, catalogues, journeys, mastery, attempts, xp, earnedBadges] = await Promise.all([
     sb.from("profiles").select("display_name,bio,level,xp,weekly_goal").eq("id", userId).maybeSingle(),
     sb.from("lucid_resources").select("id,title,type,processing_status,created_at", { count: "exact" }).eq("owner_id", userId).order("created_at", { ascending: false }).limit(500),
     sb.from("catalogues").select("id,title,description,created_at").eq("owner_id", userId).order("created_at", { ascending: false }).limit(200),
-    Promise.resolve({ data: [], error: null }),
     sb.from("learning_journeys").select("completion,exposure,understanding,recall,application,last_activity_at,resource_id,catalogue_id,lucid_resources(title,type)").eq("owner_id", userId).order("last_activity_at", { ascending: false }).limit(100),
     sb.from("concept_mastery").select("mastery,exposure,understanding,recall,application,updated_at,concepts(title,normalized_key)").eq("user_id", userId).order("mastery", { ascending: true }).limit(50),
     sb.from("quiz_attempts").select("score,max_score,completed_at,skipped,quizzes(title,quiz_type)").eq("user_id", userId).order("completed_at", { ascending: false }).limit(20),
     sb.from("user_xp").select("xp,level,streak_days").eq("user_id", userId).maybeSingle(),
     sb.from("user_badges").select("awarded_at,metadata,badges(name,description,family)").eq("user_id", userId).order("awarded_at", { ascending: false }).limit(100),
   ]);
-  for (const result of [profile, resources, catalogues, catalogueLinks, journeys, mastery, attempts, xp, earnedBadges]) if (result.error) throw result.error;
+  for (const result of [profile, resources, catalogues, journeys, mastery, attempts, xp, earnedBadges]) if (result.error) throw result.error;
   const resourceRows = resources.data || [];
   const catalogueIds = (catalogues.data || []).map((x: any) => x.id);
   const catalogueLinks = catalogueIds.length

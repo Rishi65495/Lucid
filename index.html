@@ -2384,11 +2384,16 @@ function rateCard(rating) {
   }, 300);
 }
 async function generateFlashcards() {
-  showToast('✦ AI generating flashcards from your annotations…', '✦');
-  const anns = state.annotations.slice(0,3).join('. ');
-  const prompt = `Based on these study notes: "${anns || 'Machine Learning fundamentals, overfitting, bias-variance tradeoff'}" — create 3 concise flashcard Q&A pairs. Format each as: Q: [question] | A: [answer]`;
-  const resp = await callGemini(prompt, 'You create educational flashcards for active recall.');
-  showToast('AI flashcards generated from your notes! ✦', '✦');
+  const notes=(state.annotations||[]).slice(0,8).map(x=>typeof x==='string'?x:(x.text||x.note||'')).filter(Boolean);
+  if(!notes.length&&!state.currentResourceId){showToast('Open a resource or save an annotation first.','⚠');return;}
+  try{
+    const data=await window.callLearningEngine('flashcards','Create concise active-recall cards from the supplied learning material.',{annotations:notes,resource_id:state.currentResourceId,current_page:state.currentResourcePage||1});
+    const cards=data.result?.cards||[];
+    if(!cards.length)throw new Error('No flashcards were returned.');
+    state.flashcards=cards.map(x=>({q:x.front,a:x.back}));state.flashcardIndex=0;
+    document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;
+    document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';showToast(cards.length+' flashcards generated.','✦');
+  }catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}
 }
 
 // ─── Oral recall ─────────────────────────────────
@@ -2399,26 +2404,25 @@ function newOralQuestion() {
   document.getElementById('oralResult').style.display = 'none';
 }
 async function evaluateOral() {
-  const q = document.getElementById('oralQuestion').textContent;
-  const a = document.getElementById('oralAnswer').value.trim();
-  if (!a) { showToast('Write your explanation first.', '⚠'); return; }
-  const resultEl = document.getElementById('oralResult');
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = '<div class="ai-msg bot thinking">✦ Evaluating your answer…</div>';
-  const prompt = `Student was asked: "${q}"\nStudent answered: "${a}"\n\nEvaluate the answer for: 1) Coverage (did they hit the main points?) 2) Accuracy (is it correct?) 3) Clarity (is it well-explained?). Be encouraging but honest. Give a brief score and specific improvement suggestion. Max 100 words.`;
-  const resp = await callGemini(prompt, 'You are a supportive AI tutor evaluating student oral recall responses. Be concise and constructive.');
-  resultEl.innerHTML = `<div class="note green"><strong>AI evaluation:</strong><br>${resp.replace(/\n/g,'<br>')}</div>`;
-  state.xp += 15; updateXP();
-  showToast('Oral recall evaluated! +15 XP', '🎙');
+  const q=document.getElementById('oralQuestion').textContent,a=document.getElementById('oralAnswer').value.trim();
+  if(!a){showToast('Write your explanation first.','⚠');return;}
+  const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer…';
+  try{
+    const data=await window.callLearningEngine('evaluate_recall','Evaluate the learner response for coverage, accuracy and clarity.',{question:q,answer:a});
+    resultEl.textContent=window.formatLearningResult(data.result);showToast('Oral recall evaluated.','🎙');
+  }catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Oral recall evaluation failed.','⚠');}
 }
 
 // ─── Weak areas practice ─────────────────────────
 async function practiceWeak(topic) {
-  openPage('practice');
-  showToast(`Loading practice session for "${topic}"…`, '📝');
-  const prompt = `Create 1 targeted quiz question about "${topic}" for a student who struggles with it. Return just the question and 4 options with the correct answer marked. Be clear and educational.`;
-  const resp = await callGemini(prompt, 'You create targeted remedial quiz questions.');
-  showToast(`AI practice question generated for ${topic}!`, '✦');
+  openPage('practice');showToast('Preparing source-grounded practice for '+topic+'…','📝');
+  try{
+    const profile=await window.loadLucidLearningProfile();
+    const data=await window.callLearningEngine('quiz','Create five targeted multiple-choice questions about '+topic+'. Use only the supplied learner evidence and source material.',{...profile,question_count:5,question_format:'mcq',topic,resource_id:state.currentResourceId});
+    const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+    if(!questions.length)throw new Error('No practice questions returned. Select a PDF source first.');
+    quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;loadQuiz(0);showToast(questions.length+' targeted questions ready.','✦');
+  }catch(error){showToast('Practice generation failed: '+error.message,'⚠');}
 }
 
 // ─── AI Guide ─────────────────────────────────────
@@ -2430,14 +2434,11 @@ const systemInstructions = {
 };
 
 async function askGuide() {
-  const q = document.getElementById('aiQuestion').value.trim();
-  const ansEl = document.getElementById('aiAnswer');
-  if (!q) { ansEl.style.display='block'; ansEl.textContent='Ask a question first.'; return; }
-  ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student annotations: ${state.annotations.slice(0,3).join('; ')}. Student weak areas: Overfitting (22%). Recall: 81%.`;
-  const prompt = `Context: ${context}\n\nStudent question: ${q}`;
-  const resp = await callGemini(prompt, systemInstructions[state.coachMode] || systemInstructions.Gentle);
-  ansEl.innerHTML = `<strong>Guide (${state.coachMode}):</strong><br>${resp.replace(/\n/g,'<br>')}`;
+  const q=document.getElementById('aiQuestion').value.trim(),ansEl=document.getElementById('aiAnswer');
+  if(!q){ansEl.style.display='block';ansEl.textContent='Ask a question first.';return;}
+  ansEl.style.display='block';ansEl.textContent='✦ Lucid is analysing your current learning context…';
+  const response=await window.callAIGuide(q,state.coachMode||'Gentle');
+  ansEl.textContent=response||'Lucid did not return an answer.';
 }
 
 async function quickAIModal(prompt) {

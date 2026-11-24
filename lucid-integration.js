@@ -250,6 +250,13 @@ window.uploadLucidPdf = async function(file,catalogueId){
     throw error;
   }
 };
+window.getLucidResourcePages = async function(resourceId,options={}){
+  if(!lucidSession?.user||!resourceId)throw new Error('Sign in and choose a source PDF.');
+  let query=lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',resourceId).order('page_number',{ascending:true});
+  if(options.page)query=query.eq('page_number',Number(options.page));
+  else query=query.range(0,19);
+  const {data,error}=await query;if(error)throw error;return data||[];
+};
 window.loadLucidAnnotations = async function(resourceId){
   if(!lucidSession?.user||!resourceId)return [];
   const {data,error}=await lucidSupabase.from('annotations').select('id,text,note,color,page,created_at').eq('user_id',lucidSession.user.id).eq('book_id',String(resourceId)).order('created_at',{ascending:true});

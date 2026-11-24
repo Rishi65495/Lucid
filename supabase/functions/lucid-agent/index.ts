@@ -73,13 +73,22 @@ async function toolExec(sb,userId,name,args){
   ]);
   let resource=null,pages=[];
   if(rid){
-   const rr=await sb.from("lucid_resources").select("id,type,title,author,source_url,metadata,processing_status").eq("id",rid).eq("owner_id",userId).maybeSingle();resource=rr.data||null;
-   if(page){const pg=await sb.from("resource_pages").select("page_number,text_content,metadata").eq("resource_id",rid).eq("page_number",page).maybeSingle();if(pg.data)pages=[pg.data]}
+   const rr=await sb.from("lucid_resources").select("id,type,title,author,source_url,metadata,processing_status").eq("id",rid).eq("owner_id",userId).maybeSingle();
+   resource=rr.data||null;
+   // Never read resource pages until ownership has been confirmed.
+   if(resource && page){
+    const pg=await sb.from("resource_pages").select("page_number,text_content,metadata").eq("resource_id",rid).eq("page_number",page).maybeSingle();
+    if(pg.data)pages=[pg.data];
+   }
   }
   return {profile:p.data||{},resource,catalogue_id:cid,page_number:page,nearby_sections:secs.data||[],selected_page:pages,mastery:m.data||[],goals:g.data||[],journeys:j.data||[],annotations:a.data||[],quiz_history:r.data||[],recent_events:e.data||[]};
  }
  if(name==="search_resource"){
   const needle=String(args.query||"").slice(0,120);
+  // Resource IDs are model-supplied tool arguments; enforce tenant ownership server-side.
+  const owned=await sb.from("lucid_resources").select("id").eq("id",args.resource_id).eq("owner_id",userId).maybeSingle();
+  if(owned.error)throw owned.error;
+  if(!owned.data)throw new Error("Resource not found or not owned by the learner.");
   const {data,error}=await sb.from("resource_pages").select("page_number,text_content").eq("resource_id",args.resource_id).ilike("text_content","%"+needle+"%").limit(15);
   if(error)throw error;return {query:needle,results:data||[]};
  }

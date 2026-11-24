@@ -1558,168 +1558,21 @@ textarea{min-height:75px;resize:vertical;}
 
     <!-- ══ ACHIEVEMENTS ══ -->
     <section class="page" id="rewards">
-      <div class="page-heading">
-        <div><div class="kicker">Small rewards, lasting rhythm</div><h1>Achievements.</h1></div>
-        <span class="tag gold">Level 16 · 390 XP · Scholar</span>
-      </div>
+<div class="page-heading"><div><div class="kicker">Recognition for completed learning milestones</div><h1>Achievements.</h1></div><span class="tag gold" id="achievementLevel">Level —</span></div>
+<div class="card hero-card" style="margin-bottom:17px;"><div class="kicker">Your learning level</div><h2 id="achievementXP">— XP</h2><p id="achievementNext">Loading your next level milestone…</p><div class="progress-track" style="max-width:440px;background:rgba(255,255,255,.23);"><span class="progress-fill" id="achievementProgress" style="width:0%;background:var(--lime);"></span></div></div>
+<div class="card card-padding" style="margin-bottom:17px;"><h3>What counts as an achievement?</h3><p class="muted small-text">Achievements are badges awarded for milestones you have actually completed. They are recognition of past progress; they are not tasks or targets.</p></div>
+<div class="section-row"><h2>Earned badges</h2></div><div class="grid library-grid" id="achievementShelf"><div class="empty-state"><p>Sign in to load your earned badges.</p></div></div>
+</section>
 
-      <!-- Level progression -->
-      <div class="card hero-card" style="margin-bottom:17px;">
-        <div class="kicker">Next milestone</div>
-        <h2>Reach Level 17 — Master</h2>
-        <p>110 XP to go. Keep completing sessions, quizzes, and study goals.</p>
-        <div class="progress-track" style="max-width:400px;background:rgba(255,255,255,.23);">
-          <span class="progress-fill" style="width:72%;background:var(--lime);"></span>
-        </div>
-      </div>
-
-      <!-- Level map -->
-      <div class="section-row"><h2>Level journey</h2></div>
-      <div class="grid four-col">
-        <div class="card card-padding" style="background:var(--sage-2);">
-          <div style="font-weight:800;font-size:11px;color:var(--forest);">Lv.1–5 ✓</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Curious → Focused</div>
-          <div class="muted small-text">Foundation complete</div>
-        </div>
-        <div class="card card-padding" style="background:var(--sage-2);">
-          <div style="font-weight:800;font-size:11px;color:var(--forest);">Lv.6–10 ✓ (partially)</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Consistent → Master</div>
-          <div class="muted small-text">Currently: Lv.16 Scholar</div>
-        </div>
-        <div class="card card-padding">
-          <div style="font-weight:800;font-size:11px;color:var(--muted);">Lv.17–20</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Master → Expert</div>
-          <div class="muted small-text">110 XP to next level</div>
-        </div>
-        <div class="card card-padding" style="opacity:.5;">
-          <div style="font-weight:800;font-size:11px;color:var(--muted);">Lv.21+</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Mentor</div>
-          <div class="muted small-text">Unlocked by helping others</div>
-        </div>
-      </div>
-
-      <!-- Badge shelf -->
-      <div class="section-row"><h2>Badge shelf</h2></div>
-      <div class="grid library-grid">
-        <div class="card card-padding" onclick="showToast('🌱 First Seed earned on Sept 1.')">
-          <div class="reward-badge">🌱</div>
-          <h3 style="margin-top:13px;">First Seed</h3>
-          <p class="muted small-text">Completed your first reading session.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge">🔥</div>
-          <h3 style="margin-top:13px;">Seven Strong</h3>
-          <p class="muted small-text">7-day learning streak.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge">📚</div>
-          <h3 style="margin-top:13px;">Book Builder</h3>
-          <p class="muted small-text">3 different resources in one week.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">✦</div>
-          <h3 style="margin-top:13px;">Page Turner</h3>
-          <p class="muted small-text">Read 200 pages in one week.</p>
-          <span class="tag muted" style="margin-top:8px;">64 pages left</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">🧠</div>
-          <h3 style="margin-top:13px;">Clear Recall</h3>
-          <p class="muted small-text">Score 90%+ on 5 quizzes.</p>
-          <span class="tag muted" style="margin-top:8px;">3 of 5 done</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">🏆</div>
-          <h3 style="margin-top:13px;">Library Builder</h3>
-          <p class="muted small-text">Complete 10 resources.</p>
-          <span class="tag muted" style="margin-top:8px;">4 of 10 done</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">⚡</div>
-          <h3 style="margin-top:13px;">Deep Worker</h3>
-          <p class="muted small-text">Complete 50 focused sessions.</p>
-          <span class="tag muted" style="margin-top:8px;">34 of 50</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══ GOALS ══ -->
+<!-- ══ GOALS ══ -->
     <section class="page" id="goals">
-      <div class="page-heading">
-        <div><div class="kicker">What you're working toward</div><h1>Goals.</h1></div>
-        <button class="primary-button" onclick="openModal('goalModal')">＋ Add goal</button>
-      </div>
+<div class="page-heading"><div><div class="kicker">Targets you choose and track</div><h1>Goals.</h1></div><button class="primary-button" onclick="openModal('goalModal')">＋ Add goal</button></div>
+<div class="card card-padding" style="margin-bottom:17px;"><h3>Goals vs achievements</h3><p class="muted small-text"><strong>Goals</strong> are future targets you set, such as completing a PDF by a deadline or improving a skill. <strong>Achievements</strong> are badges earned after you complete a milestone. A goal can contribute to an achievement, but they are not the same thing.</p></div>
+<div class="grid two-col"><div class="card card-padding"><div class="kicker">Your goals</div><div id="goalList" style="display:grid;gap:12px;margin-top:14px;"><div class="empty-state"><p>Sign in to load your goals.</p></div></div></div>
+<div class="card card-padding"><div class="kicker">How goal progress works</div><h3 style="margin-top:10px;">Set a target. Work toward it. Review it.</h3><ol class="muted small-text" style="padding-left:20px;line-height:1.8;"><li>Create a goal and optionally set a deadline.</li><li>Use your resources, reading sessions and practice activities to work toward it.</li><li>Mark it complete when you have genuinely achieved it.</li></ol><p class="muted small-text">Lucid will only show a numeric progress percentage when it has enough recorded evidence to calculate one.</p></div></div>
+</section>
 
-      <div class="grid two-col">
-        <div>
-          <div class="card card-padding" style="margin-bottom:17px;">
-            <div class="kicker">Active goals</div>
-            <div style="display:grid;gap:9px;margin-top:14px;" id="goalList">
-              <div class="goal-item">
-                <div class="goal-check checked" onclick="toggleGoal(this)">✓</div>
-                <div style="flex:1;">
-                  <strong>Complete MCA Semester 5 by December</strong>
-                  <div class="muted small-text">6 resources · 47% done</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill" style="width:47%"></span></div>
-                </div>
-                <span class="tag">Active</span>
-              </div>
-              <div class="goal-item">
-                <div class="goal-check" onclick="toggleGoal(this)"></div>
-                <div style="flex:1;">
-                  <strong>Read 1 book per month</strong>
-                  <div class="muted small-text">Currently: Atomic Habits (32%)</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill orange" style="width:32%"></span></div>
-                </div>
-                <span class="tag blue">Monthly</span>
-              </div>
-              <div class="goal-item">
-                <div class="goal-check" onclick="toggleGoal(this)"></div>
-                <div style="flex:1;">
-                  <strong>Improve ML recall to 85%</strong>
-                  <div class="muted small-text">Current: 72% · Target: 85%</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill gold" style="width:72%"></span></div>
-                </div>
-                <span class="tag gold">Mastery</span>
-              </div>
-              <div class="goal-item done">
-                <div class="goal-check checked" style="background:var(--muted);">✓</div>
-                <div style="flex:1;">
-                  <strong>Complete 7-day study streak</strong>
-                  <div class="muted small-text">Completed Sept 18</div>
-                </div>
-                <span class="tag">✓ Done</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="card card-padding">
-            <div class="kicker">AI goal recommendation</div>
-            <div class="insight-quote" style="font-size:18px;margin:14px 0;">Focus on Overfitting before your next ML quiz. 3 sessions should lift recall from 22% to 60%.</div>
-            <button class="primary-button btn-sm full-width" onclick="openModal('goalModal')">Add this goal</button>
-          </div>
-          <div class="card card-padding" style="margin-top:17px;">
-            <div class="kicker">Upcoming deadlines</div>
-            <div style="display:grid;gap:10px;margin-top:12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                <span>MCA Semester Exam</span>
-                <span class="tag rose">Dec 15</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                <span>Algorithm assignment</span>
-                <span class="tag gold">Oct 5</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ══ SETTINGS ══ -->
+<!-- ══ SETTINGS ══ -->
     <section class="page" id="settings">
       <div class="page-heading">
         <div><div class="kicker">Make the space yours</div><h1>Settings.</h1></div>

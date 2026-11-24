@@ -1731,7 +1731,7 @@ textarea{min-height:75px;resize:vertical;}
     <div class="form-stack">
       <label class="form-label">Goal description<input id="goalDesc" placeholder="e.g. Complete Cyber Security by November" /></label>
       <div class="form-row">
-        <label class="form-label">Type<select id="goalType"><option>Resource completion</option><option>Mastery target</option><option>Focus hours</option><option>Quiz accuracy</option></select></label>
+        <label class="form-label">Type<select id="goalType"><option value="resource_completion">Resource completion</option><option value="mastery">Mastery target</option><option value="focus_hours">Focus hours</option><option value="quiz_accuracy">Quiz accuracy</option></select></label>
         <label class="form-label">Deadline<input id="goalDeadline" type="date" /></label>
       </div>
       <button class="primary-button full-width" onclick="addGoal()">Add goal →</button>
@@ -2476,7 +2476,7 @@ async function addGoal() {
   const desc=document.getElementById('goalDesc').value.trim(),deadline=document.getElementById('goalDeadline').value;
   if(!desc){showToast('Enter a goal description.','⚠');return;}
   try{
-    await window.createLucidGoal(desc,deadline);
+    await window.createLucidGoal(desc,deadline,document.getElementById('goalType').value);
     document.getElementById('goalDesc').value='';document.getElementById('goalDeadline').value='';
     closeModal('goalModal');await window.loadLucidGoals();showToast('Goal saved to your learning profile.','◎');
   }catch(error){showToast('Could not save goal: '+error.message,'⚠');}

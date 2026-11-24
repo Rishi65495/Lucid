@@ -1,15 +1,22 @@
 import type { ContextIntent, IntentDecision } from "./types.ts";
 
 const RULES: Array<{ intent: ContextIntent; patterns: RegExp[] }> = [
-  { intent: "greeting", patterns: [/^(hi|hello|hey|hii|hola|नमस्ते|नमस्कार|हाय|हेलो)[!?.\s]*$/i] },
+  { intent: "greeting", patterns: [/^(hi|hello|hey|hii|hola|नमस्ते|नमस्कार|हाय|हेलो)[!?.\\s]*$/i] },
   { intent: "continue_lesson", patterns: [/(continue|resume|next topic|where did we stop|पिछला पाठ|आगे पढ़|अगला टॉपिक|जहाँ छोड़ा|वहीं से शुरू)/i] },
-  { intent: "resource_question", patterns: [/(pdf|document|uploaded file|my notes|this page|page\s*\d+|chapter|syllabus|मेरी पीडीएफ|इस पेज|पेज\s*\d+|नोट्स|दस्तावेज़|अध्याय)/i] },
-  { intent: "quiz_generation", patterns: [/(make|create|generate|take|start).{0,30}(quiz|test|mcq|questions)|\bquiz\b|\bmcq\b|क्विज़|टेस्ट बनाओ/i] },
+  // Task-specific intents must precede generic resource matching (e.g. "make a quiz from my PDF").
+  { intent: "quiz_generation", patterns: [/(make|create|generate|take|start).{0,40}(quiz|test|mcq|questions)|\\bquiz\\b|\\bmcq\\b|क्विज़|टेस्ट बनाओ/i] },
   { intent: "flashcard_generation", patterns: [/(flash ?cards?|कार्ड बनाओ|फ्लैशकार्ड)/i] },
   { intent: "progress_analysis", patterns: [/(my progress|performance|weak areas|mastery|quiz history|मेरी प्रगति|कमज़ोर टॉपिक|प्रदर्शन)/i] },
   { intent: "study_planning", patterns: [/(study plan|timetable|learning plan|schedule|roadmap|पढ़ाई का प्लान|स्टडी प्लान|समय सारणी)/i] },
-  { intent: "complex_agent_task", patterns: [/(analy[sz]e|compare|organize|plan|recommend|create|manage|update|save|complete|विश्लेषण|तुलना|योजना|सुझाव|मैनेज)/i] },
+  { intent: "resource_question", patterns: [/(pdf|document|uploaded file|my notes|this page|page\\s*\\d+|chapter|syllabus|मेरी पीडीएफ|इस पेज|पेज\\s*\\d+|नोट्स|दस्तावेज़|अध्याय)/i] },
+  { intent: "complex_agent_task", patterns: [/(analy[sz]e|compare|organize|plan|recommend|manage|update|save|complete|विश्लेषण|तुलना|योजना|सुझाव|मैनेज)/i] },
 ];
+
+const LEVELS: Record<ContextIntent, IntentDecision["level"]> = {
+  greeting: 0, general_chat: 0, general_learning: 1, continue_lesson: 2,
+  resource_question: 3, quiz_generation: 3, flashcard_generation: 3,
+  progress_analysis: 4, study_planning: 5, complex_agent_task: 5,
+};
 
 const RETRIEVAL: Record<ContextIntent, IntentDecision["retrieve"]> = {
   greeting: { conversation: false, learnerProfile: false, currentLesson: false, resource: false, mastery: false, goals: false, quizHistory: false, agentTools: false },
@@ -33,20 +40,16 @@ export function routeIntent(message: string): IntentDecision {
   for (const rule of RULES) {
     if (rule.patterns.some((pattern) => pattern.test(normalized))) {
       const intent = rule.intent;
-      const levels: Record<ContextIntent, IntentDecision["level"]> = {
-        greeting: 0, general_chat: 0, general_learning: 1, continue_lesson: 2,
-        resource_question: 3, quiz_generation: 3, flashcard_generation: 3,
-        progress_analysis: 4, study_planning: 5, complex_agent_task: 5,
-      };
-      return { intent, level: levels[intent], confidence: "high", retrieve: RETRIEVAL[intent] };
+      return { intent, level: LEVELS[intent], confidence: "high", retrieve: RETRIEVAL[intent] };
     }
   }
 
-  const looksLikeQuestion = /\?|^(what|why|how|when|where|who|explain|define|difference|क्यों|कैसे|क्या|समझाओ)\b/i.test(normalized);
+  // Handles natural phrasing such as "Hey, can you explain Python?"
+  const looksLikeQuestion = /\\?|\\b(what|why|how|when|where|who|explain|define|difference)\\b|क्यों|कैसे|क्या|समझाओ/i.test(normalized);
   const intent: ContextIntent = looksLikeQuestion ? "general_learning" : "general_chat";
   return {
     intent,
-    level: looksLikeQuestion ? 1 : 0,
+    level: LEVELS[intent],
     confidence: "medium",
     retrieve: RETRIEVAL[intent],
   };

@@ -87,24 +87,47 @@ window.sendAIChatWithPrompt = async function(prompt){const chat=document.getElem
 window.loadYoutubeURL = async function(url){if(!url){showToast('Paste a YouTube URL first.','⚠');return;}showToast('Importing YouTube content securely…','▶');try{const imported=await window.invokeLucidFunction('youtube-import',{url});openPage('video');const wrapper=document.getElementById('youtubePlayerWrapper'),player=document.getElementById('youtubePlayer'),frame=document.getElementById('ytFrame');if(imported.type==='playlist'&&imported.playlist_id){frame.src='https://www.youtube.com/embed/videoseries?list='+encodeURIComponent(imported.playlist_id);showToast('Playlist imported: '+(imported.playlist?.title||'YouTube playlist'),'▶');}else if(imported.type==='video'&&imported.item?.video_id){frame.src='https://www.youtube.com/embed/'+encodeURIComponent(imported.item.video_id)+'?rel=0&modestbranding=1&enablejsapi=1';showToast('Loaded: '+(imported.item.title||'YouTube video'),'▶');}else{throw new Error('Unsupported YouTube import response.');}if(wrapper)wrapper.style.display='none';if(player)player.style.display='block';}catch(error){showToast('YouTube import failed: '+error.message,'⚠');}};
 
 window.recordLucidQuizAnswer = async function(answer){
-  if(!lucidSession?.user||typeof lucidSupabase==='undefined')return false;
-  const payload={
-    question:String(answer.question||'').slice(0,2000),
-    selected_option:String(answer.selectedOption||'').slice(0,1000),
-    correct_option:String(answer.correctOption||'').slice(0,1000),
-    is_correct:Boolean(answer.correct),
-    quiz_index:Number(answer.quizIndex)||0,
-    source:'practice_center'
-  };
-  const {error}=await lucidSupabase.rpc('track_learning_event',{
-    p_event_type:'quiz_answered',
-    p_catalogue_id:state.selectedCatalogueId||null,
-    p_resource_id:state.quizSourceId||state.currentResourceId||null,
-    p_session_id:null,
-    p_payload:payload
-  });
+  if(!lucidSession?.user||typeof lucidSupabase==='undefined')return {xpAwarded:0};
+  const payload={question:String(answer.question||'').slice(0,2000),selected_option:String(answer.selectedOption||'').slice(0,1000),correct_option:String(answer.correctOption||'').slice(0,1000),is_correct:Boolean(answer.correct),quiz_index:Number(answer.quizIndex)||0,source:'practice_center'};
+  const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:state.quizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
   if(error)throw error;
-  return true;
+  if(answer.correct){
+    const source=(state.activeQuizId||state.quizSourceId||'quiz')+':question-'+(Number(answer.quizIndex)||0);
+    const result=await window.awardLucidXP('recall_passed',source);
+    return {xpAwarded:Number(result?.xp_awarded)||0};
+  }
+  return {xpAwarded:0};
+};
+window.awardLucidXP = async function(eventType,sourceId,improvement=0){
+  if(!lucidSession?.user)throw new Error('Sign in to record learning progress.');
+  const {data,error}=await lucidSupabase.rpc('apply_xp_event',{p_event_type:eventType,p_source_id:String(sourceId||crypto.randomUUID()),p_improvement:Number(improvement)||0});
+  if(error)throw error;
+  const total=Number(data?.total_xp)||0,level=Number(data?.level)||1;
+  state.xp=total;state.level=level;
+  await lucidSupabase.from('profiles').update({xp:total,level}).eq('id',lucidSession.user.id);
+  if(typeof updateXP==='function')updateXP();
+  if(document.getElementById('achievementShelf'))await window.loadLucidAchievements();
+  if(document.getElementById('lbList'))await window.loadLucidLeaderboard();
+  return data||{};
+};
+window.recordLucidPageCompleted = async function(resourceId,page,totalPages){
+  if(!lucidSession?.user||!resourceId)return;
+  const payload={page:Number(page)||1,total_pages:Number(totalPages)||1};
+  const tracked=await lucidSupabase.rpc('track_learning_event',{p_event_type:'page_completed',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:resourceId,p_session_id:null,p_payload:payload});
+  if(tracked.error)throw tracked.error;
+  const {data:journey}=await lucidSupabase.from('learning_journeys').select('id,completion').eq('owner_id',lucidSession.user.id).eq('resource_id',resourceId).order('updated_at',{ascending:false}).limit(1).maybeSingle();
+  if(journey){
+    const completion=Math.max(Number(journey.completion)||0,Math.min(100,Math.round((payload.page/payload.total_pages)*100)));
+    await lucidSupabase.from('learning_journeys').update({completion,position:{page:payload.page},last_activity_at:new Date().toISOString()}).eq('id',journey.id);
+    if(completion>=100)await window.awardLucidXP('resource_completed',resourceId);
+  }
+  if(document.getElementById('achievementShelf'))await window.loadLucidAchievements();
+};
+window.recordLucidFocusCompleted = async function(sourceId){
+  if(!lucidSession?.user)return;
+  const tracked=await lucidSupabase.rpc('track_learning_event',{p_event_type:'focus_completed',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:state.currentResourceId||null,p_session_id:null,p_payload:{source:'reading_room'}});
+  if(tracked.error)throw tracked.error;
+  return await window.awardLucidXP('focus_completed',String(sourceId||crypto.randomUUID()));
 };
 
 window.loadLucidLeaderboard = async function(){
@@ -297,10 +320,35 @@ window.createLucidGoal = async function(title,deadline,targetType){
 window.completeLucidGoal = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {error}=await lucidSupabase.from('learning_goals').update({status:'completed',completed_at:new Date().toISOString()}).eq('id',id).eq('owner_id',lucidSession.user.id);if(error)throw error;
+  await window.awardLucidXP('goal_completed',id);
+};
+window.evaluateLucidBadges = async function(){
+  if(!lucidSession?.user)return;
+  const userId=lucidSession.user.id;
+  const [defs,earned,xp,questions,pages,sessions,resources,contributions]=await Promise.all([
+    lucidSupabase.from('badges').select('id,slug,rule'),
+    lucidSupabase.from('user_badges').select('badge_id').eq('user_id',userId),
+    lucidSupabase.from('user_xp').select('streak_days').eq('user_id',userId).maybeSingle(),
+    lucidSupabase.from('learning_events').select('id',{count:'exact',head:true}).eq('user_id',userId).eq('event_type','quiz_answered'),
+    lucidSupabase.from('learning_events').select('id',{count:'exact',head:true}).eq('user_id',userId).eq('event_type','page_completed'),
+    lucidSupabase.from('learning_events').select('id',{count:'exact',head:true}).eq('user_id',userId).eq('event_type','focus_completed'),
+    lucidSupabase.from('learning_journeys').select('id',{count:'exact',head:true}).eq('owner_id',userId).gte('completion',100),
+    lucidSupabase.from('learning_events').select('id',{count:'exact',head:true}).eq('user_id',userId).eq('event_type','room_member_helped')
+  ]);
+  for(const result of [defs,earned,xp,questions,pages,sessions,resources,contributions])if(result.error)throw result.error;
+  const counts={questions:questions.count||0,pages:pages.count||0,sessions:sessions.count||0,resources:resources.count||0,contributions:contributions.count||0,days:Number(xp.data?.streak_days)||0};
+  const owned=new Set((earned.data||[]).map(row=>row.badge_id));
+  const toAward=(defs.data||[]).filter(badge=>{
+    if(owned.has(badge.id))return false;
+    const rule=badge.rule||{};
+    return Object.entries(rule).some(([key,value])=>Number(counts[key]||0)>=Number(value));
+  }).map(badge=>({user_id:userId,badge_id:badge.id,metadata:{awarded_by:'milestone_evaluator',evaluated_at:new Date().toISOString()}}));
+  if(toAward.length){const inserted=await lucidSupabase.from('user_badges').upsert(toAward,{onConflict:'user_id,badge_id',ignoreDuplicates:true});if(inserted.error)throw inserted.error;}
 };
 window.loadLucidAchievements = async function(){
   const shelf=document.getElementById('achievementShelf');if(!shelf||!lucidSession?.user)return;
   shelf.innerHTML='<p class="muted small-text">Loading earned achievements…</p>';
+  try{await window.evaluateLucidBadges();}catch(error){console.warn('Badge evaluation skipped:',error.message);}
   const [profile,badges,xp]=await Promise.all([
     lucidSupabase.from('profiles').select('level,xp').eq('id',lucidSession.user.id).maybeSingle(),
     lucidSupabase.from('user_badges').select('awarded_at,metadata,badges(name,description,family)').eq('user_id',lucidSession.user.id).order('awarded_at',{ascending:false}),

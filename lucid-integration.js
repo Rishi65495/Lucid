@@ -11,7 +11,7 @@ window.updateLucidAuthUI = async function(session){
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
@@ -166,7 +166,7 @@ window.loadLucidAdminStats = async function(){
   Object.keys(pairs).forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=Number(data[pairs[id]]||0).toLocaleString();});
   if(status)status.textContent='Server-verified administrator access.';
 };
-window.uploadLucidPdf = async function(file){
+window.uploadLucidPdf = async function(file,catalogueId){
   if(!lucidSession||!lucidSession.user)throw new Error('Please sign in before uploading.');
   if(!file||file.type!=='application/pdf')throw new Error('Only PDF files are supported.');
   if(file.size>25*1024*1024)throw new Error('PDF must be 25 MB or smaller.');
@@ -194,11 +194,12 @@ window.uploadLucidPdf = async function(file){
     if(up.error)throw up.error;uploaded=true;
     const fileRow=await lucidSupabase.from('resource_files').insert({resource_id:resourceId,storage_bucket:'learning-assets',storage_path:path,byte_size:file.size,original_name:file.name,mime_type:'application/pdf'});
     if(fileRow.error)throw fileRow.error;
+    if(catalogueId){const linked=await lucidSupabase.from('catalogue_resources').insert({catalogue_id:catalogueId,resource_id:resourceId,order_index:0,status:'active'});if(linked.error)throw linked.error;}
     for(let i=0;i<pages.length;i+=40){
       const batch=pages.slice(i,i+40).map(row=>Object.assign({resource_id:resourceId},row));
       const inserted=await lucidSupabase.from('resource_pages').insert(batch);if(inserted.error)throw inserted.error;
     }
-    const journey=await lucidSupabase.from('learning_journeys').insert({owner_id:user.id,resource_id:resourceId,position:{page:1},last_activity_at:new Date().toISOString()});
+    const journey=await lucidSupabase.from('learning_journeys').insert({owner_id:user.id,catalogue_id:catalogueId||null,resource_id:resourceId,position:{page:1},last_activity_at:new Date().toISOString()});
     if(journey.error)console.warn('Resource saved, but learning journey initialization failed:',journey.error.message);
     return {resource:{id:resourceId,title:title},pageCount:totalChars?pdf.numPages:0,extractedChars:totalChars};
   }catch(error){
@@ -210,6 +211,97 @@ window.uploadLucidPdf = async function(file){
     if(uploaded)await lucidSupabase.storage.from('learning-assets').remove([path]);
     throw error;
   }
+};
+window.createLucidCatalogue = async function(input){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  const {data,error}=await lucidSupabase.from('catalogues').insert({owner_id:lucidSession.user.id,title:input.title,description:input.description||null,icon:input.icon||'📁'}).select('id,title,description,icon').single();
+  if(error)throw error;return data;
+};
+window.loadLucidCatalogues = async function(){
+  if(!lucidSession?.user)return [];
+  const {data,error}=await lucidSupabase.from('catalogues').select('id,title,description,icon,created_at').order('created_at',{ascending:false});
+  if(error)throw error;
+  const cats=data||[];
+  const grid=document.getElementById('catalogueGrid');
+  if(grid){
+    grid.innerHTML='';
+    if(!cats.length){grid.innerHTML='<div class="card card-padding muted">No catalogues yet. Create a folder to organize your resources.</div>';}
+    cats.forEach(cat=>{
+      const card=document.createElement('article');card.className='catalogue-card card';
+      const icon=document.createElement('div');icon.className='cat-icon';icon.textContent=cat.icon||'📁';
+      const title=document.createElement('h3');title.style.cssText="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;";title.textContent=cat.title;
+      const desc=document.createElement('p');desc.className='muted small-text';desc.style.marginTop='6px';desc.textContent=cat.description||'A folder for your study resources.';
+      const actions=document.createElement('div');actions.style.cssText='display:flex;gap:7px;margin-top:14px;';
+      const open=document.createElement('button');open.className='secondary-button btn-sm';open.textContent='View resources';open.onclick=()=>window.openLucidCatalogue(cat.id);
+      const add=document.createElement('button');add.className='ghost-button btn-sm';add.textContent='＋ Add PDF';add.onclick=()=>{const sel=document.getElementById('uploadCatalogue');if(sel)sel.value=cat.id;openModal('uploadModal');};
+      actions.append(open,add);card.append(icon,title,desc,actions);grid.appendChild(card);
+    });
+  }
+  const select=document.getElementById('uploadCatalogue');
+  if(select){
+    const chosen=state.selectedCatalogueId||select.value;
+    select.innerHTML='';
+    if(!cats.length){select.add(new Option('Create a catalogue first',''));select.disabled=true;}
+    else{select.disabled=false;cats.forEach(cat=>select.add(new Option(cat.title,cat.id)));if(cats.some(c=>c.id===chosen))select.value=chosen;else select.value=cats[0].id;}
+  }
+  return cats;
+};
+window.openLucidCatalogue = async function(id){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  const {data:cat,error:catError}=await lucidSupabase.from('catalogues').select('id,title,description').eq('id',id).single();
+  if(catError)throw catError;
+  state.selectedCatalogueId=id;saveState();
+  const panel=document.getElementById('catalogueResourcesPanel'),heading=document.getElementById('catalogueResourcesTitle'),list=document.getElementById('catalogueResourcesList'),empty=document.getElementById('catalogueResourcesEmpty');
+  if(panel)panel.style.display='block';if(heading)heading.textContent=cat.title;if(list)list.innerHTML='<div class="muted small-text">Loading resources…</div>';
+  const {data,error}=await lucidSupabase.from('catalogue_resources').select('resource_id,order_index,status,lucid_resources(id,title,type,processing_status,metadata)').eq('catalogue_id',id).eq('status','active').order('order_index',{ascending:true});
+  if(error)throw error;
+  if(list)list.innerHTML='';
+  const rows=(data||[]).filter(row=>row.lucid_resources);
+  if(empty)empty.style.display=rows.length?'none':'block';
+  rows.forEach(row=>{
+    const resource=row.lucid_resources;
+    const card=document.createElement('article');card.className='book-card card';
+    const main=document.createElement('div');main.className='book-main';
+    const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent=resource.type==='pdf'?'PDF':String(resource.type||'FILE').toUpperCase();
+    const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=resource.title||'Untitled resource';
+    const status=document.createElement('div');status.className='book-author';status.textContent=(resource.metadata?.page_count?resource.metadata.page_count+' pages · ':'')+(resource.processing_status||'saved');
+    info.append(title,status);main.append(cover,info);
+    const footer=document.createElement('div');footer.className='book-footer';const tag=document.createElement('span');tag.className='tag';tag.textContent=resource.type||'resource';
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(resource.id);
+    footer.append(tag,open);card.append(main,footer);list?.appendChild(card);
+  });
+  if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+  return rows.length;
+};
+window.renderLucidReaderPage = function(){
+  const pages=state.resourcePages||[],index=Math.max(0,Math.min(pages.length-1,(state.currentResourcePage||1)-1)),row=pages[index];
+  const title=state.currentResourceTitle||'Selected resource';
+  const meta=document.getElementById('docMeta'),heading=document.getElementById('docTitle'),content=document.getElementById('readerPageContent'),empty=document.getElementById('readerEmptyState'),footer=document.getElementById('readerDocumentFooter'),tag=document.getElementById('pageTag'),kicker=document.getElementById('readerKicker'),status=document.getElementById('readerPageStatus');
+  if(!row){if(content)content.innerHTML='';if(empty)empty.style.display='block';if(footer)footer.style.display='none';if(heading)heading.textContent='No readable text found';return;}
+  if(meta)meta.textContent=title+' · Page '+row.page_number;
+  if(heading)heading.textContent=title;
+  if(kicker)kicker.textContent=title;
+  if(tag)tag.textContent='Page '+row.page_number+' of '+pages.length;
+  if(status)status.textContent='Page '+row.page_number+' of '+pages.length;
+  if(empty)empty.style.display='none';if(footer)footer.style.display='flex';
+  if(content){content.innerHTML='';const p=document.createElement('p');p.textContent=row.text_content||'No extractable text on this page. This may be a scanned page and need OCR.';content.appendChild(p);}
+};
+window.openLucidResource = async function(id){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata').eq('id',id).single();
+  if(error)throw error;
+  if(resource.type!=='pdf')throw new Error('This reader currently opens PDF resources. Use the matching classroom for videos.');
+  const {data:pages,error:pageError}=await lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',id).order('page_number',{ascending:true});
+  if(pageError)throw pageError;
+  state.currentResourceId=id;state.currentResourceTitle=resource.title;state.currentResourcePage=1;state.resourcePages=pages||[];saveState();
+  openPage('reader');window.renderLucidReaderPage();
+  if(!pages?.length)showToast('This PDF has no extracted text yet; OCR may be needed.','⚠');
+  else showToast('Opened '+resource.title+' in Reading Room.','📖');
+};
+window.changeLucidReaderPage = function(delta){
+  const pages=state.resourcePages||[];if(!pages.length)return;
+  state.currentResourcePage=Math.max(1,Math.min(pages.length,(state.currentResourcePage||1)+delta));
+  saveState();window.renderLucidReaderPage();
 };
 window.selectLucidResource = function(id){
   state.currentResourceId=id;

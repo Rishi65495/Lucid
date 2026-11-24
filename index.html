@@ -1669,14 +1669,14 @@ textarea{min-height:75px;resize:vertical;}
     <div class="tab-content" id="uploadTab-youtube">
       <div class="form-stack">
         <label class="form-label">YouTube video URL<input id="youtubeURL" placeholder="https://youtube.com/watch?v=…" /></label>
-        <label class="form-label">Catalogue<select><option>MCA Semester 5</option><option>Better Work</option></select></label>
+        <label class="form-label">Add to catalogue<select id="youtubeImportCatalogue"><option value="">No catalogue (Library)</option></select></label>
         <button class="primary-button full-width" onclick="loadYoutube()">Load video →</button>
       </div>
     </div>
     <div class="tab-content" id="uploadTab-playlist">
       <div class="form-stack">
         <label class="form-label">YouTube playlist URL<input id="playlistURL" placeholder="https://youtube.com/playlist?list=…" /></label>
-        <label class="form-label">Playlist name<input placeholder="e.g. MCA Algorithm Lectures" /></label>
+        <label class="form-label">Add to catalogue<select id="playlistImportCatalogue"><option value="">No catalogue (Library)</option></select></label>
         <button class="primary-button full-width" onclick="loadPlaylist()">Import playlist →</button>
       </div>
     </div>
@@ -2149,14 +2149,15 @@ function searchLibrary(q) {
 
 // ─── YouTube ──────────────────────────────────────
 function loadYoutube() {
-  const url = document.getElementById('youtubeURL').value.trim();
-  if (!url) return;
-  closeModal('uploadModal');
-  loadYoutubeURL(url);
+  const url=document.getElementById('youtubeURL').value.trim(),catalogue=document.getElementById('youtubeImportCatalogue')?.value||'';
+  if(!url){showToast('Paste a YouTube video URL first.','⚠');return;}
+  const target=document.getElementById('videoImportCatalogue');if(target)target.value=catalogue;
+  closeModal('uploadModal');loadYoutubeURL(url);
 }
 function loadPlaylist() {
-  const url=document.getElementById('playlistURL').value.trim();
+  const url=document.getElementById('playlistURL').value.trim(),catalogue=document.getElementById('playlistImportCatalogue')?.value||'';
   if(!url){showToast('Paste a YouTube playlist URL first.','⚠');return;}
+  const target=document.getElementById('videoImportCatalogue');if(target)target.value=catalogue;
   closeModal('uploadModal');loadYoutubeURL(url);
 }
 function loadYoutubeVideo() {

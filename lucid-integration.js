@@ -85,23 +85,23 @@ window.loadYoutubeURL = async function(url){if(!url){showToast('Paste a YouTube 
 
 window.recordLucidQuizAnswer = async function(answer){
   if(!lucidSession?.user||typeof lucidSupabase==='undefined')return false;
-  const payload={
-    question:String(answer.question||'').slice(0,2000),
-    selected_option:String(answer.selectedOption||'').slice(0,1000),
-    correct_option:String(answer.correctOption||'').slice(0,1000),
-    is_correct:Boolean(answer.correct),
-    quiz_index:Number(answer.quizIndex)||0,
-    source:'practice_center'
-  };
-  const {error}=await lucidSupabase.rpc('track_learning_event',{
-    p_event_type:'quiz_answered',
-    p_catalogue_id:state.selectedCatalogueId||null,
-    p_resource_id:state.currentResourceId||null,
-    p_session_id:null,
-    p_payload:payload
-  });
-  if(error)throw error;
-  return true;
+  const payload={question:String(answer.question||'').slice(0,2000),selected_option:String(answer.selectedOption||'').slice(0,1000),correct_option:String(answer.correctOption||'').slice(0,1000),is_correct:Boolean(answer.correct),quiz_index:Number(answer.quizIndex)||0,source:'practice_center'};
+  if(answer.quizId){
+    if(!window.currentQuizAttemptId){
+      const {data,error}=await lucidSupabase.from('quiz_attempts').insert({quiz_id:answer.quizId,user_id:lucidSession.user.id,score:0,max_score:Number(answer.totalQuestions)||1,result:{source:'practice_center'}}).select('id').single();
+      if(error)throw error;window.currentQuizAttemptId=data.id;
+    }
+    const questionId=window.currentGeneratedQuestionIds?.[Number(answer.quizIndex)];
+    if(questionId){
+      const {error}=await lucidSupabase.from('quiz_answers').insert({attempt_id:window.currentQuizAttemptId,question_id:questionId,answer:{selected_option:payload.selected_option},is_correct:payload.is_correct,feedback:String(answer.explanation||'')});
+      if(error)throw error;
+    }
+    const completed=Number(answer.quizIndex)+1>=Number(answer.totalQuestions);
+    const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(state.quizCorrect)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
+    if(updateError)throw updateError;
+  }
+  const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:window.currentQuizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
+  if(error)throw error;return true;
 };
 
 window.loadLucidLeaderboard = async function(){
@@ -333,8 +333,9 @@ window.saveLucidQuiz = async function(input){
   }).select('id').single();
   if(error)throw error;
   const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.prompt||q.q,options:q.options||q.opts||[],answer:{answer_index:Number(q.answer_index??q.ans)||0},explanation:q.explanation||'',difficulty:input.difficulty||'Balanced',order_index:index}));
-  const saved=await lucidSupabase.from('questions').insert(rows);
+  const saved=await lucidSupabase.from('questions').insert(rows).select('id,order_index');
   if(saved.error){await lucidSupabase.from('quizzes').delete().eq('id',quiz.id).eq('owner_id',lucidSession.user.id);throw saved.error;}
+  window.currentGeneratedQuestionIds=(saved.data||[]).sort((a,b)=>a.order_index-b.order_index).map(x=>x.id);
   return quiz.id;
 };
 window.loadLucidLearningProfile = async function(){

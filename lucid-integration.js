@@ -143,6 +143,7 @@ window.persistLucidVideoPosition=async function(){
   let position=0,duration=Number(state.currentVideo.durationSeconds)||0;
   try{position=Number(window.lucidYTPlayer.getCurrentTime())||0;duration=Number(window.lucidYTPlayer.getDuration())||duration;}catch(_){}
   const resourceId=state.currentVideo.resourceId;
+  if(duration>0){state.currentVideo.durationSeconds=duration;const durationUpdate=await lucidSupabase.from('resource_videos').update({duration_seconds:Math.floor(duration)}).eq('resource_id',resourceId);if(durationUpdate.error)console.warn('Could not save video duration:',durationUpdate.error.message);}
   if(lucidSession?.user&&resourceId){
     const payload={resource_id:resourceId,user_id:lucidSession.user.id,item_key:'youtube:'+state.currentVideo.videoId,position,speed:window.lucidVideoSpeed||1,completed:duration>0&&position/duration>=0.95,metadata:{video_id:state.currentVideo.videoId,duration_seconds:duration}};
     const {error}=await lucidSupabase.from('resource_item_progress').upsert(payload,{onConflict:'resource_id,user_id,item_key'});
@@ -203,7 +204,7 @@ window.loadYoutubeURL = async function(url){
     if(playlistResourceId&&catalogueId){
       const link=await lucidSupabase.from('catalogue_resources').upsert({catalogue_id:catalogueId,resource_id:playlistResourceId,order_index:0,status:'active'},{onConflict:'catalogue_id,resource_id'});if(link.error)throw link.error;
     }
-    state.videoPlaylist={title:imported.playlist?.title||items[0]?.title||'Imported videos',playlistId:imported.playlist_id||null,playlistResourceId,items:savedItems};
+    state.videoPlaylist={title:imported.playlist?.title||items[0]?.title||'Imported videos',playlistId:imported.playlist_id||null,playlistResourceId,catalogueId,items:savedItems};
     state.uploadedBooks=state.uploadedBooks||[];
     if(playlistResourceId)state.uploadedBooks.unshift({id:playlistResourceId,resourceId:playlistResourceId,name:state.videoPlaylist.title,type:'playlist',catalogueId});
     savedItems.forEach(item=>state.uploadedBooks.unshift({id:item.resourceId,resourceId:item.resourceId,name:item.title,type:'video',catalogueId}));
@@ -267,7 +268,7 @@ window.refreshVideoProgress=async function(){
     lucidSupabase.from('resource_item_progress').select('resource_id,completed').eq('user_id',uid).in('resource_id',ids),
     lucidSupabase.from('video_sessions').select('active_seconds').eq('user_id',uid).in('resource_id',ids).limit(1000),
     lucidSupabase.from('resource_videos').select('resource_id,transcript').in('resource_id',ids),
-    lucidSupabase.from('quizzes').select('id,resource_id').in('resource_id',ids)
+    lucidSupabase.from('quizzes').select('id,resource_id,catalogue_id').or('resource_id.in.('+ids.join(',')+'),catalogue_id.eq.'+(state.videoPlaylist?.catalogueId||'00000000-0000-0000-0000-000000000000'))
   ]);
   const completed=new Set((progress.data||[]).filter(x=>x.completed).map(x=>x.resource_id)).size,pct=Math.round(completed/items.length*100);
   const watch=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
@@ -295,7 +296,7 @@ window.loadLucidVideoPlaylist=async function(catalogueId=null){
   const resourceIds=(resources||[]).map(x=>x.id);let videos=[];
   if(resourceIds.length){const result=await lucidSupabase.from('resource_videos').select('resource_id,youtube_video_id,duration_seconds,transcript,metadata').in('resource_id',resourceIds);if(result.error)throw result.error;videos=result.data||[];}
   const byId=new Map(videos.map(x=>[x.resource_id,x]));
-  state.videoPlaylist={title,items:(resources||[]).map((r,index)=>{const v=byId.get(r.id)||{};return {resourceId:r.id,videoId:v.youtube_video_id,title:r.title,durationSeconds:Number(v.duration_seconds)||0,transcript:v.transcript||'',catalogueId:catalogueId||null,thumbnail:v.metadata?.thumbnail||r.metadata?.thumbnail||null,playlistIndex:index};}).filter(x=>x.videoId)};
+  state.videoPlaylist={title,catalogueId:catalogueId||null,items:(resources||[]).map((r,index)=>{const v=byId.get(r.id)||{};return {resourceId:r.id,videoId:v.youtube_video_id,title:r.title,durationSeconds:Number(v.duration_seconds)||0,transcript:v.transcript||'',catalogueId:catalogueId||null,thumbnail:v.metadata?.thumbnail||r.metadata?.thumbnail||null,playlistIndex:index};}).filter(x=>x.videoId)};
   if(window.renderVideoPlaylist)window.renderVideoPlaylist();
   return state.videoPlaylist.items;
 };
@@ -635,7 +636,7 @@ window.loadLucidAchievements = async function(){
 window.saveLucidQuiz = async function(input){
   if(!lucidSession?.user)throw new Error('Sign in to save quiz history.');
   const {data:quiz,error}=await lucidSupabase.from('quizzes').insert({
-    owner_id:lucidSession.user.id,resource_id:input.resourceId||null,quiz_type:input.format||'mcq',
+    owner_id:lucidSession.user.id,resource_id:input.resourceId||null,catalogue_id:input.catalogueId||null,quiz_type:input.format||'mcq',
     title:input.title||'Practice quiz',difficulty:input.difficulty||'Balanced',
     source_context:{coverage:input.coverage||'whole',instructions:input.instructions||'',source_title:input.sourceTitle||'',question_count:(input.questions||[]).length}
   }).select('id').single();

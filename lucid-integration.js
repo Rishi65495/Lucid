@@ -169,6 +169,7 @@ window.loadLucidProfile = async function(){
     state.xp=Math.max(Number(state.xp)||0,Number(profile.xp)||0);
     state.level=Math.max(Number(state.level)||1,Number(profile.level)||1);
     if(typeof updateXP==='function')updateXP();
+    if(window.syncLucidXP)await window.syncLucidXP(state.xp,state.level);
   }
   const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   setText('profileDisplayHeading',name);setText('profileEmail',user.email||'');setText('sideProfileName',name);

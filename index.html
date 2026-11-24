@@ -1450,12 +1450,8 @@ textarea{min-height:75px;resize:vertical;}
   <div class="modal">
     <div class="modal-header"><h2>Quick recall</h2><button class="close-button" onclick="closeModal('quizModal')">×</button></div>
     <p class="muted small-text">Retrieval practice turns reading into something you can use.</p>
-    <div class="quiz-question" id="modalQuizQ">According to the current chapter, what does meaningful work require?</div>
-    <div id="modalQuizOpts">
-      <button class="quiz-option" onclick="answerQuiz(false,this)">More notifications and faster switching</button>
-      <button class="quiz-option" onclick="answerQuiz(true,this)">Sustained attention and deliberate focus</button>
-      <button class="quiz-option" onclick="answerQuiz(false,this)">Reading as quickly as possible</button>
-    </div>
+    <div class="quiz-question" id="modalQuizQ">No quick-recall question is loaded. Generate a quiz from one of your saved resources to practise what you studied.</div>
+    <div id="modalQuizOpts"><p class="muted small-text">Select a PDF or catalogue in Practice Centre to create source-grounded questions.</p></div>
     <div class="quiz-result" id="modalQuizResult"></div>
     <div style="margin-top:14px;display:flex;gap:8px;">
       <button class="secondary-button btn-sm" onclick="closeModal('quizModal')">Skip for now</button>

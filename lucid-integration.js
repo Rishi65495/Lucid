@@ -113,11 +113,16 @@ window.awardLucidXP = async function(eventType,sourceId,improvement=0){
 window.recordLucidPageCompleted = async function(resourceId,page,totalPages){
   if(!lucidSession?.user||!resourceId)return;
   const payload={page:Number(page)||1,total_pages:Number(totalPages)||1};
-  const tracked=await lucidSupabase.rpc('track_learning_event',{p_event_type:'page_completed',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:resourceId,p_session_id:null,p_payload:payload});
-  if(tracked.error)throw tracked.error;
+  const {data:prior}=await lucidSupabase.from('learning_events').select('id').eq('user_id',lucidSession.user.id).eq('resource_id',resourceId).eq('event_type','page_completed').contains('payload',{page:payload.page}).limit(1);
+  if(!prior?.length){
+    const tracked=await lucidSupabase.rpc('track_learning_event',{p_event_type:'page_completed',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:resourceId,p_session_id:null,p_payload:payload});
+    if(tracked.error)throw tracked.error;
+  }
   const {data:journey}=await lucidSupabase.from('learning_journeys').select('id,completion').eq('owner_id',lucidSession.user.id).eq('resource_id',resourceId).order('updated_at',{ascending:false}).limit(1).maybeSingle();
   if(journey){
-    const completion=Math.max(Number(journey.completion)||0,Math.min(100,Math.round((payload.page/payload.total_pages)*100)));
+    const {data:pageEvents}=await lucidSupabase.from('learning_events').select('payload').eq('user_id',lucidSession.user.id).eq('resource_id',resourceId).eq('event_type','page_completed').range(0,999);
+    const uniquePages=new Set((pageEvents||[]).map(row=>Number(row.payload?.page)).filter(n=>n>0));
+    const completion=Math.min(100,Math.round((uniquePages.size/Math.max(1,payload.total_pages))*100));
     await lucidSupabase.from('learning_journeys').update({completion,position:{page:payload.page},last_activity_at:new Date().toISOString()}).eq('id',journey.id);
     if(completion>=100)await window.awardLucidXP('resource_completed',resourceId);
   }
@@ -207,6 +212,9 @@ window.loadLucidProfile = async function(){
   setText('sideProfileRole',isAdmin?'Administrator · Lucid':'Learner · Lucid');
   const panel=document.getElementById('adminConsole');if(panel)panel.style.display=isAdmin?'block':'none';
   if(isAdmin)await window.loadLucidAdminStats();
+  const xpState=await lucidSupabase.from('user_xp').select('xp,level,streak_days').eq('user_id',user.id).maybeSingle();
+  state.xp=Number(xpState.data?.xp??profile.xp??0);state.level=Number(xpState.data?.level??profile.level??1);
+  if(typeof updateXP==='function')updateXP();
   await window.loadLucidLeaderboard();
 };
 window.saveLearnerProfile = async function(){

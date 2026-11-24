@@ -1199,20 +1199,8 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid two-col">
         <div>
           <div class="card card-padding">
-            <div class="tab-row">
-              <button class="tab-btn active" onclick="switchTab('lbTab','xp',this)">XP &amp; Level</button>
-              <button class="tab-btn" onclick="switchTab('lbTab','focus',this)">Focus time</button>
-              <button class="tab-btn" onclick="switchTab('lbTab','improvement',this)">Most improved</button>
-            </div>
-            <div class="tab-content active" id="lbTab-xp">
-              <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
-            </div>
-            <div class="tab-content" id="lbTab-focus">
-              <div class="card card-padding"><h3>Your focus evidence</h3><p class="muted small-text" id="lbFocusSummary">Your recorded focus time appears here as a personal metric.</p></div>
-            </div>
-            <div class="tab-content" id="lbTab-improvement">
-              <div class="card card-padding"><h3>Improvement rankings</h3><p class="muted small-text">This view compares measured improvement between learners. No comparison is shown until sufficient verified learner data is available.</p></div>
-            </div>
+            <div class="kicker">Ranked by recorded XP</div>
+            <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
           </div>
         </div>
 
@@ -1220,7 +1208,7 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <div class="kicker">What the leaderboard measures</div>
             <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Comparative performance.</h3>
-            <p class="muted small-text">The XP &amp; Level ranking compares learner profiles. XP is updated from recorded learning activity. Focus time and improvement are personal metrics until a shared group comparison is available.</p>
+            <p class="muted small-text">Learners are ranked by the XP value stored on their profile. XP is updated when the platform records completed learning activities. Focus time is a personal metric and does not change leaderboard rank.</p>
           </div>
           <div class="card card-padding">
             <div class="kicker">How achievements differ</div>

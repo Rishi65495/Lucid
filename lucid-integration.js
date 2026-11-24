@@ -81,7 +81,178 @@ window.practiceWeak = async function(topic){openPage('practice');showToast('Prep
 window.askGuide = async function(){const q=document.getElementById('aiQuestion').value.trim();const el=document.getElementById('aiAnswer');if(!q){el.style.display='block';el.textContent='Ask a question first.';return;}el.style.display='block';el.textContent='Thinking…';const selected=(state.selectedText||'').trim();const context='Current resource: '+(state.currentResourceTitle||'Reading Room document')+'. '+(selected?'SELECTED PASSAGE (answer specifically about this text):\n'+selected:'No passage is currently selected. Use the current resource and notes only.')+'\nSaved annotations: '+state.annotations.slice(-5).join('; ');const answer=await window.callAIGuide('Learning context:\n'+context+'\n\nStudent question: '+q,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide ('+escapeHTML(state.coachMode)+'):</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
 window.quickAIModal = async function(prompt){const el=document.getElementById('aiAnswer');document.getElementById('aiQuestion').value=prompt;el.style.display='block';el.textContent='Thinking…';const selected=(state.selectedText||'').trim();const context=selected?'Selected passage (use this exact text as the subject):\n'+selected+'\n\n':'Current resource and saved annotations: '+(state.currentResourceTitle||'Reading Room document')+'; '+state.annotations.slice(-5).join('; ')+'\n\n';const answer=await window.callAIGuide(context+'Student request: '+prompt,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide:</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
 window.sendAIChatWithPrompt = async function(prompt){const chat=document.getElementById('aiChat');const empty=document.getElementById('aiChatEmpty');if(empty)empty.style.display='none';state.chatMessages.push({role:'user',text:prompt});const userEl=document.createElement('div');userEl.className='ai-msg user';userEl.textContent=prompt;chat.appendChild(userEl);const thinking=document.createElement('div');thinking.className='ai-msg bot thinking';thinking.textContent='✦ Thinking…';chat.appendChild(thinking);chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;const selected=(state.selectedText||'').trim();const context='Learner: '+state.preferences.name+'. Current study: '+(state.currentResourceTitle||'Reading Room document')+'. '+(selected?'SELECTED PASSAGE — answer the request specifically about this exact text:\\n'+selected:'No passage is selected.')+'\\nRecent annotations: '+state.annotations.slice(-5).join('; ')+'. Coach mode: '+state.coachMode+'.';let answer;try{answer=await window.callLucidAgent('Learning context:\\n'+context+'\\n\\nCoaching style: '+(systemInstructions[state.coachMode]||systemInstructions.Gentle)+'\\n\\nStudent: '+prompt);}catch(error){answer='Lucid Agent error: '+error.message;}thinking.className='ai-msg bot';thinking.style.whiteSpace='pre-wrap';thinking.textContent=answer;state.chatMessages.push({role:'bot',text:answer});chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;saveState();};
-window.loadYoutubeURL = async function(url){if(!url){showToast('Paste a YouTube URL first.','⚠');return;}showToast('Importing YouTube content securely…','▶');try{const imported=await window.invokeLucidFunction('youtube-import',{url});openPage('video');const wrapper=document.getElementById('youtubePlayerWrapper'),player=document.getElementById('youtubePlayer'),frame=document.getElementById('ytFrame');if(imported.type==='playlist'&&imported.playlist_id){frame.src='https://www.youtube.com/embed/videoseries?list='+encodeURIComponent(imported.playlist_id);showToast('Playlist imported: '+(imported.playlist?.title||'YouTube playlist'),'▶');}else if(imported.type==='video'&&imported.item?.video_id){frame.src='https://www.youtube.com/embed/'+encodeURIComponent(imported.item.video_id)+'?rel=0&modestbranding=1&enablejsapi=1';showToast('Loaded: '+(imported.item.title||'YouTube video'),'▶');}else{throw new Error('Unsupported YouTube import response.');}if(wrapper)wrapper.style.display='none';if(player)player.style.display='block';}catch(error){showToast('YouTube import failed: '+error.message,'⚠');}};
+window.lucidYTPlayer=null;
+window.lucidVideoTimer=null;
+window.lucidVideoSessionId=null;
+window.lucidVideoSessionStartedAt=null;
+window.lucidVideoActiveSeconds=0;
+window.lucidVideoSpeed=1;
+window.lucidVideoApiReady=false;
+window.lucidPendingVideoId=null;
+window.onYouTubeIframeAPIReady=function(){
+  window.lucidVideoApiReady=true;
+  if(window.lucidPendingVideoId)window.mountLucidYoutubePlayer(window.lucidPendingVideoId);
+};
+window.mountLucidYoutubePlayer=function(videoId){
+  if(!videoId)return;
+  window.lucidPendingVideoId=videoId;
+  const wrapper=document.getElementById('youtubePlayerWrapper'),player=document.getElementById('youtubePlayer');
+  if(wrapper)wrapper.style.display='none';if(player)player.style.display='block';
+  if(!window.YT?.Player)return;
+  if(window.lucidYTPlayer?.destroy){try{window.lucidYTPlayer.destroy();}catch(_){}}
+  window.lucidYTPlayer=new YT.Player('ytFrame',{width:'100%',height:'100%',videoId,playerVars:{rel:0,modestbranding:1,enablejsapi:1,origin:window.location.origin},events:{
+    onReady:()=>{try{window.lucidYTPlayer.setPlaybackRate(window.lucidVideoSpeed||1);}catch(_){}},
+    onStateChange:event=>window.handleLucidVideoState(event.data),
+    onError:event=>showToast('YouTube player error: '+event.data,'⚠')
+  }});
+};
+window.handleLucidVideoState=async function(playerState){
+  if(playerState===YT.PlayerState.PLAYING){await window.startLucidVideoSession();if(!window.lucidVideoTimer)window.lucidVideoTimer=setInterval(window.persistLucidVideoPosition,15000);}
+  if(playerState===YT.PlayerState.PAUSED||playerState===YT.PlayerState.ENDED){await window.persistLucidVideoPosition();if(window.lucidVideoTimer){clearInterval(window.lucidVideoTimer);window.lucidVideoTimer=null;}if(playerState===YT.PlayerState.ENDED)await window.finishLucidVideoSession(true);}
+};
+window.startLucidVideoSession=async function(){
+  if(!lucidSession?.user||!state.currentVideo||window.lucidVideoSessionId)return;
+  const {data,error}=await lucidSupabase.from('video_sessions').insert({user_id:lucidSession.user.id,resource_id:state.currentVideo.resourceId,catalogue_id:state.currentVideo.catalogueId||null,active_seconds:0,last_timestamp_seconds:0,playback_speed:window.lucidVideoSpeed||1}).select('id').single();
+  if(error)throw error;window.lucidVideoSessionId=data.id;window.lucidVideoSessionStartedAt=Date.now();window.lucidVideoActiveSeconds=0;
+};
+window.persistLucidVideoPosition=async function(){
+  if(!window.lucidYTPlayer||!state.currentVideo)return;
+  let position=0,duration=Number(state.currentVideo.durationSeconds)||0;
+  try{position=Number(window.lucidYTPlayer.getCurrentTime())||0;duration=Number(window.lucidYTPlayer.getDuration())||duration;}catch(_){}
+  const resourceId=state.currentVideo.resourceId;
+  if(lucidSession?.user&&resourceId){
+    const payload={resource_id:resourceId,user_id:lucidSession.user.id,item_key:'youtube:'+state.currentVideo.videoId,position,speed:window.lucidVideoSpeed||1,completed:duration>0&&position/duration>=0.95,metadata:{video_id:state.currentVideo.videoId,duration_seconds:duration}};
+    const {error}=await lucidSupabase.from('resource_item_progress').upsert(payload,{onConflict:'resource_id,user_id,item_key'});
+    if(error)console.warn('Video progress sync failed:',error.message);
+    if(window.lucidVideoSessionId){
+      const active=Math.max(0,Math.floor((Date.now()-(window.lucidVideoSessionStartedAt||Date.now()))/1000));
+      window.lucidVideoActiveSeconds+=active;window.lucidVideoSessionStartedAt=Date.now();
+      const result=await lucidSupabase.from('video_sessions').update({active_seconds:window.lucidVideoActiveSeconds,last_timestamp_seconds:position,playback_speed:window.lucidVideoSpeed||1}).eq('id',window.lucidVideoSessionId).eq('user_id',lucidSession.user.id);
+      if(result.error)console.warn('Video session sync failed:',result.error.message);
+    }
+  }
+  const time=document.getElementById('videoCurrentTime');if(time)time.textContent=window.formatLucidVideoTime(position)+' / '+window.formatLucidVideoTime(duration);
+  if(window.refreshVideoProgress)await window.refreshVideoProgress();
+};
+window.finishLucidVideoSession=async function(completed){
+  if(window.lucidVideoSessionId&&lucidSession?.user){
+    await window.persistLucidVideoPosition();
+    const id=window.lucidVideoSessionId;
+    const {error}=await lucidSupabase.from('video_sessions').update({ended_at:new Date().toISOString(),completed:Boolean(completed),active_seconds:window.lucidVideoActiveSeconds}).eq('id',id).eq('user_id',lucidSession.user.id);
+    if(error)console.warn('Could not finish video session:',error.message);
+  }
+  window.lucidVideoSessionId=null;window.lucidVideoSessionStartedAt=null;window.lucidVideoActiveSeconds=0;
+};
+window.formatLucidVideoTime=function(seconds){const n=Math.max(0,Math.floor(Number(seconds)||0));return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');};
+window.loadYoutubeURL = async function(url){
+  if(!url){showToast('Paste a YouTube URL first.','⚠');return;}
+  if(!lucidSession?.user){showToast('Sign in before importing videos.','⚠');return;}
+  showToast('Importing your YouTube resource…','▶');
+  try{
+    const imported=await window.invokeLucidFunction('youtube-import',{url});
+    const catalogueId=document.getElementById('videoImportCatalogue')?.value||state.selectedCatalogueId||null;
+    const items=imported.type==='playlist'?(imported.items||[]):(imported.item?[imported.item]:[]);
+    if(!items.length)throw new Error(imported.type==='playlist'?'The playlist returned no importable videos. Check that the YouTube API key is configured and the playlist is public.':'No video was returned by YouTube.');
+    let playlistResourceId=null;
+    if(imported.type==='playlist'){
+      const {data:parent,error:parentError}=await lucidSupabase.from('lucid_resources').insert({owner_id:lucidSession.user.id,type:'playlist',title:imported.playlist?.title||imported.title||'YouTube playlist',source_url:url,metadata:{youtube_playlist_id:imported.playlist_id,item_count:items.length,channel_title:imported.playlist?.channel_title||null}}).select('id').single();
+      if(parentError)throw parentError;playlistResourceId=parent.id;
+    }
+    const savedItems=[];
+    for(const item of items){
+      const videoId=String(item.video_id||'');if(!videoId)continue;
+      const videoUrl='https://www.youtube.com/watch?v='+encodeURIComponent(videoId);
+      let existing=await lucidSupabase.from('lucid_resources').select('id,title,metadata').eq('owner_id',lucidSession.user.id).eq('source_url',videoUrl).maybeSingle();
+      let resourceId=existing.data?.id;
+      if(existing.error)throw existing.error;
+      if(!resourceId){
+        const {data:resource,error}=await lucidSupabase.from('lucid_resources').insert({owner_id:lucidSession.user.id,type:'video',title:item.title||'YouTube video',source_url:videoUrl,metadata:{youtube_video_id:videoId,playlist_id:imported.playlist_id||null,channel_title:item.channel_title||null,thumbnail:item.thumbnail||null}}).select('id').single();
+        if(error)throw error;resourceId=resource.id;
+        const {error:videoError}=await lucidSupabase.from('resource_videos').insert({resource_id:resourceId,youtube_video_id:videoId,youtube_playlist_id:imported.playlist_id||null,duration_seconds:item.duration_seconds||null,transcript:null,metadata:{title:item.title||'YouTube video',channel_title:item.channel_title||null,thumbnail:item.thumbnail||null}});if(videoError)throw videoError;
+      }
+      if(catalogueId){
+        const link=await lucidSupabase.from('catalogue_resources').upsert({catalogue_id:catalogueId,resource_id:resourceId,order_index:Number(item.playlist_index)||savedItems.length,status:'active'},{onConflict:'catalogue_id,resource_id'});
+        if(link.error)throw link.error;
+      }
+      savedItems.push({resourceId,videoId,title:item.title||'YouTube video',durationSeconds:Number(item.duration_seconds)||0,channelTitle:item.channel_title||'',thumbnail:item.thumbnail||null,catalogueId,playlistIndex:Number(item.playlist_index)||savedItems.length});
+    }
+    if(!savedItems.length)throw new Error('No valid video entries were saved.');
+    if(playlistResourceId&&catalogueId){
+      const link=await lucidSupabase.from('catalogue_resources').upsert({catalogue_id:catalogueId,resource_id:playlistResourceId,order_index:0,status:'active'},{onConflict:'catalogue_id,resource_id'});if(link.error)throw link.error;
+    }
+    state.videoPlaylist={title:imported.playlist?.title||items[0]?.title||'Imported videos',playlistId:imported.playlist_id||null,playlistResourceId,items:savedItems};
+    state.uploadedBooks=state.uploadedBooks||[];
+    if(playlistResourceId)state.uploadedBooks.unshift({id:playlistResourceId,resourceId:playlistResourceId,name:state.videoPlaylist.title,type:'playlist',catalogueId});
+    savedItems.forEach(item=>state.uploadedBooks.unshift({id:item.resourceId,resourceId:item.resourceId,name:item.title,type:'video',catalogueId}));
+    if(window.renderVideoPlaylist)window.renderVideoPlaylist();
+    if(window.loadLucidCatalogues)await window.loadLucidCatalogues();
+    openPage('video');await window.selectLucidVideo(savedItems[0].resourceId);
+    closeModal('videoImportModal');showToast('Imported '+savedItems.length+' video(s) into your Library.','▶');
+  }catch(error){showToast('YouTube import failed: '+error.message,'⚠');}
+};
+window.selectLucidVideo=async function(resourceId){
+  const item=(state.videoPlaylist?.items||[]).find(x=>x.resourceId===resourceId)||((state.uploadedBooks||[]).find(x=>(x.resourceId||x.id)===resourceId));
+  if(!item)throw new Error('Video resource not found.');
+  if(window.lucidVideoTimer){clearInterval(window.lucidVideoTimer);window.lucidVideoTimer=null;}
+  await window.finishLucidVideoSession(false);
+  const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,source_url,metadata').eq('id',resourceId).eq('owner_id',lucidSession.user.id).single();
+  if(error)throw error;
+  const {data:video,error:videoError}=await lucidSupabase.from('resource_videos').select('youtube_video_id,duration_seconds,transcript,metadata').eq('resource_id',resourceId).single();
+  if(videoError)throw videoError;
+  state.currentVideo={resourceId,videoId:video.youtube_video_id,title:resource.title,durationSeconds:Number(video.duration_seconds)||0,transcript:video.transcript||'',metadata:video.metadata||{},catalogueId:item.catalogueId||state.selectedCatalogueId||null};
+  const heading=document.getElementById('videoHeading');if(heading)heading.textContent=resource.title;
+  const kicker=document.getElementById('videoKicker');if(kicker)kicker.textContent='Selected video';
+  const subtitle=document.getElementById('videoSubtitle');if(subtitle)subtitle.textContent='Current source: '+resource.title+' · AI uses only the saved transcript.';
+  const transcript=document.getElementById('videoTranscriptInput');if(transcript)transcript.value=state.currentVideo.transcript;
+  if(window.renderLucidVideoNotes)await window.renderLucidVideoNotes();
+  window.mountLucidYoutubePlayer(state.currentVideo.videoId);
+  if(window.renderVideoPlaylist)window.renderVideoPlaylist();
+  if(window.refreshVideoProgress)await window.refreshVideoProgress();
+};
+window.getLucidVideoContext=async function(resourceId){
+  if(!lucidSession?.user||!resourceId)throw new Error('Choose a video source and sign in.');
+  const {data,error}=await lucidSupabase.from('resource_videos').select('transcript,metadata,youtube_video_id,duration_seconds').eq('resource_id',resourceId).single();
+  if(error)throw error;return data;
+};
+window.saveLucidVideoTranscript=async function(resourceId,transcript){
+  if(!lucidSession?.user||!resourceId)throw new Error('Select a video first.');
+  const {error}=await lucidSupabase.from('resource_videos').update({transcript:String(transcript||'').trim()}).eq('resource_id',resourceId);
+  if(error)throw error;
+  if(state.currentVideo?.resourceId===resourceId)state.currentVideo.transcript=String(transcript||'').trim();
+  return true;
+};
+window.saveLucidVideoNote=async function(resourceId,note){
+  if(!lucidSession?.user||!resourceId)throw new Error('Select a video first.');
+  const {data,error}=await lucidSupabase.from('resource_videos').select('metadata').eq('resource_id',resourceId).single();if(error)throw error;
+  const metadata=data.metadata||{},notes=Array.isArray(metadata.notes)?metadata.notes:[];
+  notes.push(note);const saved=await lucidSupabase.from('resource_videos').update({metadata:{...metadata,notes}}).eq('resource_id',resourceId);
+  if(saved.error)throw saved.error;return notes;
+};
+window.renderLucidVideoNotes=async function(){
+  const list=document.getElementById('videoNoteList'),count=document.getElementById('videoNoteCount');if(!list||!state.currentVideo)return;
+  const {data,error}=await lucidSupabase.from('resource_videos').select('metadata').eq('resource_id',state.currentVideo.resourceId).single();if(error)throw error;
+  const notes=Array.isArray(data.metadata?.notes)?data.metadata.notes:[];
+  list.innerHTML='';if(!notes.length)list.innerHTML='<p class="muted small-text">No notes for this video yet.</p>';
+  notes.forEach((note,index)=>{const row=document.createElement('div');row.className='note yellow';const stamp=document.createElement('strong');stamp.textContent=window.formatLucidVideoTime(note.timestamp);const content=document.createElement('span');content.textContent=' — '+note.text;row.append('🕐 ',stamp,content);list.appendChild(row);});
+  count.textContent=String(notes.length);
+};
+window.refreshVideoProgress=async function(){
+  const items=state.videoPlaylist?.items||[];if(!items.length)return;
+  const ids=items.map(x=>x.resourceId),uid=lucidSession?.user?.id;if(!uid)return;
+  const [progress,sessions]=await Promise.all([
+    lucidSupabase.from('resource_item_progress').select('resource_id,completed').eq('user_id',uid).in('resource_id',ids),
+    lucidSupabase.from('video_sessions').select('active_seconds').eq('user_id',uid).in('resource_id',ids).limit(1000)
+  ]);
+  const completed=new Set((progress.data||[]).filter(x=>x.completed).map(x=>x.resource_id)).size;
+  const pct=Math.round(completed/items.length*100),watch=(sessions.data||[]).reduce((s,x)=>s+(Number(x.active_seconds)||0),0);
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  const bar=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=value+'%';};
+  set('videoPlaylistCount',items.length);set('videoWatchedTime',watch>=3600?Math.floor(watch/3600)+'h '+Math.floor(watch%3600/60)+'m':Math.floor(watch/60)+'m');
+  set('videoCompletedPct',pct+'%');bar('videoCompletedBar',pct);
+  const transcriptPct=Math.round(items.filter(x=>Boolean(x.transcript)).length/items.length*100);set('videoTranscriptPct',transcriptPct+'%');bar('videoTranscriptBar',transcriptPct);
+  set('videoQuizPct','0%');bar('videoQuizBar',0);
+};
+
 
 window.recordLucidQuizAnswer = async function(answer){
   if(!lucidSession?.user||typeof lucidSupabase==='undefined')return false;
@@ -496,6 +667,8 @@ window.loadLucidCatalogues = async function(){
   if(!lucidSession?.user)return [];
   const {data:cats,error:catError}=await lucidSupabase.from('catalogues').select('id,title,description,icon,created_at').order('created_at',{ascending:false});
   if(catError)throw catError;
+  state.catalogues=cats||[];
+  const videoCatalogueSelect=document.getElementById('videoImportCatalogue');if(videoCatalogueSelect){const selected=videoCatalogueSelect.value;videoCatalogueSelect.innerHTML='<option value="">No catalogue (keep in Library)</option>';(cats||[]).forEach(cat=>videoCatalogueSelect.add(new Option(cat.title,cat.id)));if(selected&&cats.some(cat=>cat.id===selected))videoCatalogueSelect.value=selected;else if(state.selectedCatalogueId&&cats.some(cat=>cat.id===state.selectedCatalogueId))videoCatalogueSelect.value=state.selectedCatalogueId;}
   const {data:resources,error:resourceError}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata,created_at').eq('owner_id',lucidSession.user.id).order('created_at',{ascending:false});
   if(resourceError)throw resourceError;
   const {data:links,error:linkError}=await lucidSupabase.from('catalogue_resources').select('catalogue_id,resource_id,status').eq('status','active');

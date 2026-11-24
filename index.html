@@ -1454,6 +1454,20 @@ function renderUploadedBooks(){
     select.onchange=async()=>{select.disabled=true;try{await window.moveLucidResourceToCatalogue(b.resourceId||b.id,select.value);showToast('Resource folder updated.','✓');}catch(error){showToast('Could not update folder: '+error.message,'⚠');select.value=b.catalogueId||'';}finally{select.disabled=false;}};
     move.append(label,select);el.appendChild(move);lib.appendChild(el);
   });
+  const dashboard=document.getElementById('dashboardBooks');
+  if(dashboard){
+    dashboard.innerHTML='';
+    if(!books.length)dashboard.innerHTML='<div class="card card-padding muted">No recent resources yet. Import a PDF or YouTube video to begin.</div>';
+    books.slice(0,4).forEach(b=>{
+      const card=document.createElement('article');card.className='book-card card';card.dataset.title=b.name||'';card.dataset.type=b.type||'pdf';
+      const main=document.createElement('div');main.className='book-main';const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent=b.type==='video'?'▶':String(b.type||'PDF').toUpperCase();
+      const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
+      const detail=document.createElement('div');detail.className='book-author';detail.textContent=b.type==='video'?'YouTube video':(Number(b.pages)||0)+' pages';
+      info.append(title,detail);main.append(cover,info);const footer=document.createElement('div');footer.className='book-footer';const type=document.createElement('span');type.className='tag';type.textContent=b.catalogueId?'In catalogue':(b.type||'resource');const open=document.createElement('button');open.className='ghost-button';open.textContent='Open →';
+      open.onclick=()=>{if(b.type==='video'){openPage('video');window.selectLucidVideo(b.resourceId||b.id).catch(error=>showToast(error.message,'⚠'));}else if(b.type==='playlist'){openPage('video');window.loadLucidVideoPlaylist().catch(error=>showToast(error.message,'⚠'));}else window.openLucidResource(b.resourceId||b.id).catch(error=>showToast(error.message,'⚠'));};
+      footer.append(type,open);card.append(main,footer);dashboard.appendChild(card);
+    });
+  }
 }
 function sortBooks(order) {
   const lib = document.getElementById('libraryBooks');

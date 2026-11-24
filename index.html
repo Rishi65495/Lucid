@@ -2448,23 +2448,42 @@ function renderUploadedBooks(){
   lib.innerHTML='';
   if(!books.length){lib.innerHTML='<div class="card card-padding muted">No uploaded resources yet. Import a PDF to get started.</div>';return;}
   books.forEach(b=>{
+    const resourceId=b.resourceId||b.id;
     const el=document.createElement('article');el.className='book-card card';
+    el.dataset.title=String(b.name||'Untitled resource').toLowerCase();
+    el.dataset.type=String(b.type||'pdf').toLowerCase();
+    el.dataset.progress=String(Number(b.progress||0));
     const main=document.createElement('div');main.className='book-main';
     const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent=(b.type||'PDF').toUpperCase();
-    const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
-    const sub=document.createElement('div');sub.className='book-author';sub.textContent=(b.pages||0)+' pages · '+(b.status||'saved');
+    const info=document.createElement('div');
+    const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
+    const sub=document.createElement('div');sub.className='book-author';
+    sub.textContent=(b.pages||0)+' pages · '+(b.status||'saved');
     info.append(title,sub);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';
     const tag=document.createElement('span');tag.className='tag';tag.textContent=b.catalogueId?'In catalogue':'Not in a catalogue';
-    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open PDF →';
+    open.disabled=!resourceId;
+    open.onclick=()=>window.openLucidResource(resourceId)
+      .catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
     footer.append(tag,open);el.append(main,footer);
     const move=document.createElement('div');move.style.cssText='display:flex;gap:8px;align-items:center;margin-top:10px;';
     const label=document.createElement('span');label.className='muted small-text';label.textContent='Folder:';
-    const select=document.createElement('select');select.style.flex='1';select.add(new Option('Not in a catalogue',''));
-    const catalogueOptions=Array.from(document.querySelectorAll('#uploadCatalogue option')).filter(o=>o.value);
-    catalogueOptions.forEach(o=>select.add(new Option(o.textContent,o.value)));
+    const select=document.createElement('select');select.style.flex='1';
+    select.add(new Option('Not in a catalogue',''));
+    const catalogueOptions=Array.from(document.querySelectorAll('#uploadCatalogue option')).filter(option=>option.value);
+    catalogueOptions.forEach(option=>select.add(new Option(option.textContent,option.value)));
     select.value=b.catalogueId||'';
-    select.onchange=async()=>{select.disabled=true;try{await window.moveLucidResourceToCatalogue(b.resourceId||b.id,select.value);showToast('Resource folder updated.','✓');}catch(error){showToast('Could not update folder: '+error.message,'⚠');select.value=b.catalogueId||'';}finally{select.disabled=false;}};
+    select.onchange=async()=>{
+      select.disabled=true;
+      try{
+        await window.moveLucidResourceToCatalogue(resourceId,select.value);
+        showToast('Resource folder updated.','✓');
+      }catch(error){
+        showToast('Could not update folder: '+error.message,'⚠');
+        select.value=b.catalogueId||'';
+      }finally{select.disabled=false;}
+    };
     move.append(label,select);el.appendChild(move);lib.appendChild(el);
   });
 }

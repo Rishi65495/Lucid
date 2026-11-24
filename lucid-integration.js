@@ -219,32 +219,58 @@ window.createLucidCatalogue = async function(input){
 };
 window.loadLucidCatalogues = async function(){
   if(!lucidSession?.user)return [];
-  const {data,error}=await lucidSupabase.from('catalogues').select('id,title,description,icon,created_at').order('created_at',{ascending:false});
-  if(error)throw error;
-  const cats=data||[];
+  const {data:cats,error:catError}=await lucidSupabase.from('catalogues').select('id,title,description,icon,created_at').order('created_at',{ascending:false});
+  if(catError)throw catError;
+  const {data:resources,error:resourceError}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata,created_at').eq('owner_id',lucidSession.user.id).order('created_at',{ascending:false});
+  if(resourceError)throw resourceError;
+  const {data:links,error:linkError}=await lucidSupabase.from('catalogue_resources').select('catalogue_id,resource_id,status').eq('status','active');
+  if(linkError)throw linkError;
+  const linkByResource=new Map((links||[]).map(x=>[x.resource_id,x.catalogue_id]));
+  state.uploadedBooks=(resources||[]).map(r=>({
+    id:r.id,resourceId:r.id,name:r.title,type:r.type,pages:Number(r.metadata?.page_count||0),
+    status:r.processing_status,catalogueId:linkByResource.get(r.id)||null
+  }));
+  if(typeof renderUploadedBooks==='function')renderUploadedBooks();
+  const countByCatalogue=new Map();
+  (links||[]).forEach(x=>countByCatalogue.set(x.catalogue_id,(countByCatalogue.get(x.catalogue_id)||0)+1));
   const grid=document.getElementById('catalogueGrid');
   if(grid){
     grid.innerHTML='';
-    if(!cats.length){grid.innerHTML='<div class="card card-padding muted">No catalogues yet. Create a folder to organize your resources.</div>';}
-    cats.forEach(cat=>{
+    if(!(cats||[]).length){grid.innerHTML='<div class="card card-padding muted">No catalogues yet. Create a folder to organize your resources.</div>';}
+    (cats||[]).forEach(cat=>{
       const card=document.createElement('article');card.className='catalogue-card card';
       const icon=document.createElement('div');icon.className='cat-icon';icon.textContent=cat.icon||'📁';
       const title=document.createElement('h3');title.style.cssText="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;";title.textContent=cat.title;
       const desc=document.createElement('p');desc.className='muted small-text';desc.style.marginTop='6px';desc.textContent=cat.description||'A folder for your study resources.';
+      const count=document.createElement('p');count.className='cat-meta';count.textContent=(countByCatalogue.get(cat.id)||0)+' resources';
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:7px;margin-top:14px;';
       const open=document.createElement('button');open.className='secondary-button btn-sm';open.textContent='View resources';open.onclick=()=>window.openLucidCatalogue(cat.id);
       const add=document.createElement('button');add.className='ghost-button btn-sm';add.textContent='＋ Add PDF';add.onclick=()=>{const sel=document.getElementById('uploadCatalogue');if(sel)sel.value=cat.id;openModal('uploadModal');};
-      actions.append(open,add);card.append(icon,title,desc,actions);grid.appendChild(card);
+      actions.append(open,add);card.append(icon,title,desc,count,actions);grid.appendChild(card);
     });
   }
   const select=document.getElementById('uploadCatalogue');
   if(select){
     const chosen=state.selectedCatalogueId||select.value;
     select.innerHTML='';
-    if(!cats.length){select.add(new Option('Create a catalogue first',''));select.disabled=true;}
-    else{select.disabled=false;cats.forEach(cat=>select.add(new Option(cat.title,cat.id)));if(cats.some(c=>c.id===chosen))select.value=chosen;else select.value=cats[0].id;}
+    if(!(cats||[]).length){select.add(new Option('Create a catalogue first',''));select.disabled=true;}
+    else{select.disabled=false;(cats||[]).forEach(cat=>select.add(new Option(cat.title,cat.id)));if(cats.some(c=>c.id===chosen))select.value=chosen;else select.value=cats[0].id;}
   }
-  return cats;
+  return cats||[];
+};
+window.moveLucidResourceToCatalogue = async function(resourceId,catalogueId){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  if(!resourceId)throw new Error('Missing resource ID.');
+  const {data:resource,error:resourceError}=await lucidSupabase.from('lucid_resources').select('id').eq('id',resourceId).eq('owner_id',lucidSession.user.id).single();
+  if(resourceError)throw resourceError;
+  const removed=await lucidSupabase.from('catalogue_resources').delete().eq('resource_id',resourceId);
+  if(removed.error)throw removed.error;
+  if(catalogueId){
+    const inserted=await lucidSupabase.from('catalogue_resources').insert({catalogue_id:catalogueId,resource_id:resourceId,order_index:0,status:'active'});
+    if(inserted.error)throw inserted.error;
+  }
+  await window.loadLucidCatalogues();
+  return true;
 };
 window.openLucidCatalogue = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');

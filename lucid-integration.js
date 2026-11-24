@@ -619,6 +619,11 @@ window.loadLucidProfile = async function(){
     if(window.syncLucidXP)await window.syncLucidXP(state.xp,state.level);
   }
   const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  const hour=new Date().getHours(),greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+  if(typeof state!=='undefined'){state.preferences.name=name;}
+  setText('dashGreet',greeting+', '+name+'.');
+  setText('dashKicker',new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}));
+  const prefName=document.getElementById('prefName');if(prefName)prefName.value=name;
   setText('profileDisplayHeading',name);setText('profileEmail',user.email||'');setText('sideProfileName',name);
   const ni=document.getElementById('profileNameInput');if(ni)ni.value=name;
   const bi=document.getElementById('profileBioInput');if(bi)bi.value=profile.bio||'';
@@ -865,9 +870,41 @@ window.loadLucidLearningProfile = async function(){
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
   const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  window.currentLucidLearningProfile=profile;
+  const analyticsMastery=document.getElementById('analyticsMastery');
+  if(analyticsMastery){
+    analyticsMastery.innerHTML='';
+    if(!weak.length)analyticsMastery.innerHTML='<p class="muted small-text">No concept mastery evidence has been recorded yet. Complete a source-based quiz or oral recall check.</p>';
+    weak.forEach(item=>{
+      const row=document.createElement('div');row.className='mastery-bar-row';
+      const label=document.createElement('span');label.className='label';label.textContent=item.name;
+      const track=document.createElement('div');track.className='progress-track';
+      const fill=document.createElement('span');fill.className='progress-fill';fill.style.width=item.mastery+'%';track.appendChild(fill);
+      const value=document.createElement('span');value.className='mastery-pct';value.textContent=Math.round(item.mastery)+'%';
+      row.append(label,track,value);analyticsMastery.appendChild(row);
+    });
+  }
+  const learningProfile=document.getElementById('analyticsLearningProfile');
+  if(learningProfile){
+    learningProfile.innerHTML='';
+    const cards=[
+      {label:'Quiz accuracy',value:avgAccuracy===null?'—':avgAccuracy+'%',detail:'From '+completedAttempts.length+' completed quiz attempts'},
+      {label:'Completed quizzes',value:String(completedAttempts.length),detail:'Saved, completed attempts'},
+      {label:'Recorded focus',value:Math.round(totalFocusSeconds/60)+'m',detail:'Across '+(sessions.data||[]).length+' recent reading sessions'}
+    ];
+    cards.forEach(item=>{const card=document.createElement('div');card.className='card card-padding';const kicker=document.createElement('div');kicker.className='kicker';kicker.textContent=item.label;const value=document.createElement('h3');value.style.cssText="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;";value.textContent=item.value;const detail=document.createElement('p');detail.className='muted small-text';detail.textContent=item.detail;card.append(kicker,value,detail);learningProfile.appendChild(card);});
+  }
+  const recommendation=document.getElementById('analyticsRecommendation');
+  if(recommendation){
+    recommendation.innerHTML='';
+    const text=document.createElement('p');text.className='muted small-text';
+    text.textContent=weak.length?'Your lowest measured concept is '+weak[0].name+' at '+Math.round(weak[0].mastery)+'%. Select a related PDF in Practice Centre to generate remedial questions.':'Lucid has not recorded enough concept mastery evidence to make a personalized recommendation yet.';
+    recommendation.appendChild(text);
+    if(weak.length){const button=document.createElement('button');button.className='primary-button btn-sm';button.textContent='Practise '+weak[0].name;button.onclick=()=>window.practiceWeak(weak[0].name);recommendation.appendChild(button);}
+  }
   const focusSummary=document.getElementById('lbFocusSummary');if(focusSummary)focusSummary.textContent='You recorded '+Math.round(totalFocusSeconds/60)+' minutes across your last '+(sessions.data||[]).length+' reading sessions. This is your personal focus record, not a group ranking.';
-  const resourceTag=document.getElementById('aiCurrentResource');if(resourceTag)resourceTag.textContent=state.currentResourceTitle||'No resource selected';
-  const pageTag=document.getElementById('aiCurrentPage');if(pageTag)pageTag.textContent=state.currentResourceId?'PDF page '+(state.currentResourcePage||1):'No page context';
+  const resourceTag=document.getElementById('aiCurrentResource');if(resourceTag)resourceTag.textContent=state.currentVideoContext?.title||state.currentResourceTitle||'No resource selected';
+  const pageTag=document.getElementById('aiCurrentPage');if(pageTag)pageTag.textContent=state.currentVideoContext?'Video transcript context':(state.currentResourceId?'PDF page '+(state.currentResourcePage||1):'No page context');
   const recallTag=document.getElementById('aiRecallEvidence');if(recallTag)recallTag.textContent=weak.length?'Avg recall: '+Math.round(weak.reduce((sum,x)=>sum+x.recall,0)/weak.length)+'%':'Recall: not measured';
   const weakTag=document.getElementById('aiWeakArea');if(weakTag)weakTag.textContent=weak[0]?'Weak: '+weak[0].name:'Weak area: not measured';
   const panel=document.getElementById('aiImprovementPanel');

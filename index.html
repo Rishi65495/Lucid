@@ -2125,15 +2125,17 @@ function setHL(color, el) {
   document.querySelectorAll('.hl-swatch').forEach(s => s.classList.remove('active'));
   el.classList.add('active');
 }
-function highlightSelection(color) {
+async function highlightSelection(color) {
   const selection = window.getSelection();
   const sel = selection?.toString().trim();
-  if (!sel) { showToast('Select text in the document first.', '⚠'); return; }
+  if (!sel) { showToast('Select text in the PDF first.', '⚠'); return; }
+  if(!state.currentResourceId){showToast('Open a PDF before highlighting text.','⚠');return;}
   const chosenColor = color || state.currentHL || 'yellow';
   state.selectedText = sel;
-  state.highlights.push({ id: String(Date.now()) + '-' + String(state.highlights.length), text: sel, color: chosenColor, page: Number(state.currentResourcePage)||1, resourceId: state.currentResourceId||null, createdAt: new Date().toISOString() });
-  // Keep the passage in the legacy notes array until all existing study tools use highlight records.
-  if (!state.annotations.includes(sel)) state.annotations.push(sel);
+  const highlight={id:String(Date.now())+'-'+String(state.highlights.length),text:sel,color:chosenColor,page:Number(state.currentResourcePage)||1,resourceId:state.currentResourceId,createdAt:new Date().toISOString()};
+  try{if(window.saveLucidAnnotation){const saved=await window.saveLucidAnnotation(highlight);highlight.id=saved.id;}}catch(error){showToast('Highlight could not be saved: '+error.message,'⚠');return;}
+  state.highlights.push(highlight);
+  // Highlights remain page-scoped records; do not duplicate them as unreferenced notes.
   document.getElementById('annotationInput').value = sel;
   // Apply the color to the selected passage when it belongs to the reader document.
   const article = document.getElementById('documentText');

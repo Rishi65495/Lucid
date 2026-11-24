@@ -96,19 +96,19 @@ window.callLucidAgent = async function(prompt){
 };
 // Source-first practice: every generated activity must start with an explicit learner-selected source.
 window.openLucidPracticeSourcePicker = function(){
-  const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf'&&r.status!=='processing'&&r.status!=='failed');
+  const resources=(state.uploadedBooks||[]).filter(r=>['pdf','video'].includes(String(r.type||'').toLowerCase())&&r.status!=='processing'&&r.status!=='failed');
   if(!resources.length){showToast('Add a text-readable PDF to your Library before generating practice.','⚠');return Promise.resolve(null);}
   const catalogues=state.catalogues||[];
   return new Promise(resolve=>{
     const modal=document.createElement('div');modal.id='lucidPracticeSourcePicker';modal.className='modal-backdrop open';
-    modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Choose learning sources</h2><button class="close-button" type="button" id="practiceSourceClose">×</button></div><div class="form-stack"><p class="muted small-text">Select one or more PDFs, or choose a catalogue to include all its PDFs. AI will use only the selected source text.</p><label class="form-label">Use an entire catalogue<select id="practiceCatalogue"><option value="">Choose catalogue (optional)</option></select></label><div class="kicker">PDF resources</div><div id="practiceSourceList" style="display:grid;gap:8px;max-height:260px;overflow:auto;"></div><div style="display:flex;gap:8px;"><button class="secondary-button full-width" type="button" id="practiceSourceCancel">Cancel</button><button class="primary-button full-width" type="button" id="practiceSourceContinue">Use selected sources →</button></div><p class="muted small-text" id="practiceSourceStatus" aria-live="polite"></p></div></div>';
+    modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Choose learning sources</h2><button class="close-button" type="button" id="practiceSourceClose">×</button></div><div class="form-stack"><p class="muted small-text">Select one or more processed resources, or choose a catalogue. AI will use only text extracted from the selected resources.</p><label class="form-label">Use an entire catalogue<select id="practiceCatalogue"><option value="">Choose catalogue (optional)</option></select></label><div class="kicker">PDF resources</div><div id="practiceSourceList" style="display:grid;gap:8px;max-height:260px;overflow:auto;"></div><div style="display:flex;gap:8px;"><button class="secondary-button full-width" type="button" id="practiceSourceCancel">Cancel</button><button class="primary-button full-width" type="button" id="practiceSourceContinue">Use selected sources →</button></div><p class="muted small-text" id="practiceSourceStatus" aria-live="polite"></p></div></div>';
     document.body.appendChild(modal);
     const select=modal.querySelector('#practiceCatalogue'),list=modal.querySelector('#practiceSourceList');
     catalogues.forEach(cat=>select.add(new Option(cat.title,cat.id)));
     resources.forEach(resource=>{
       const label=document.createElement('label');label.style.cssText='display:flex;gap:10px;align-items:flex-start;padding:9px;border:1px solid var(--line);border-radius:10px;cursor:pointer;';
       const check=document.createElement('input');check.type='checkbox';check.value=resource.resourceId||resource.id;check.className='practice-source-check';check.style.marginTop='3px';
-      const text=document.createElement('span');text.textContent=resource.name+' · '+(Number(resource.pages)||'—')+' pages';
+      const text=document.createElement('span');text.textContent=resource.name+' · '+(resource.type==='video'?'video transcript':((Number(resource.pages)||'—')+' pages'));
       label.append(check,text);list.appendChild(label);
     });
     select.addEventListener('change',()=>{
@@ -138,11 +138,13 @@ window.collectLucidPracticeContext = async function(selection){
     if(!resource)continue;
     const pages=await window.getLucidResourcePages(id,{});
     if(!pages.length)continue;
-    const stride=Math.max(1,Math.ceil(pages.length/12));
-    const sampled=pages.filter((_,i)=>i%stride===0).slice(0,12);
-    sources.push({id,title:resource.name,pages:sampled.map(p=>({page_number:p.page_number,text_content:String(p.text_content||'').slice(0,2200)}))});
+    // Keep practice prompts compact: evenly cover the source without sending entire books.
+    const maxPagesPerSource=8;
+    const stride=Math.max(1,Math.ceil(pages.length/maxPagesPerSource));
+    const sampled=pages.filter((_,i)=>i%stride===0).slice(0,maxPagesPerSource);
+    sources.push({id,title:resource.name,pages:sampled.map(p=>({page_number:p.page_number,text_content:String(p.text_content||'').slice(0,1800)}))});
   }
-  const pageContent=sources.map(source=>'SOURCE: '+source.title+'\n'+source.pages.map(page=>'PAGE '+page.page_number+':\n'+page.text_content).join('\n\n')).join('\n\n---\n\n').slice(0,50000);
+  const pageContent=sources.map(source=>'SOURCE: '+source.title+'\n'+source.pages.map(page=>'PAGE '+page.page_number+':\n'+page.text_content).join('\n\n')).join('\n\n---\n\n').slice(0,30000);
   if(!pageContent.trim())throw new Error('The selected PDFs have no extracted text. Reprocess the PDFs or run OCR before generating practice.');
   return {source_resource_ids:sources.map(x=>x.id),source_titles:sources.map(x=>x.title),catalogue_id:selection.catalogueId||null,page_content:pageContent,sources};
 };

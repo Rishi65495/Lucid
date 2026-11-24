@@ -1791,6 +1791,8 @@ window.deleteLucidResource = async function(resourceId){
   if(owned.error)throw owned.error;if(!owned.data)throw new Error('Resource not found in your library.');
   const fileRows=await lucidSupabase.from('resource_files').select('storage_bucket,storage_path').eq('resource_id',resourceId);
   if(fileRows.error)throw fileRows.error;
+  const unlinked=await lucidSupabase.from('catalogue_resources').delete().eq('resource_id',resourceId);
+  if(unlinked.error)throw unlinked.error;
   const deleted=await lucidSupabase.from('lucid_resources').delete().eq('id',resourceId).eq('owner_id',lucidSession.user.id).select('id').maybeSingle();
   if(deleted.error)throw deleted.error;if(!deleted.data)throw new Error('Resource was not deleted. Check ownership and database permissions.');
   let storageWarning='';

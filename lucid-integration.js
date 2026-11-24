@@ -92,7 +92,7 @@ window.recordLucidQuizAnswer = async function(answer){
   const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:state.quizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
   if(error)throw error;
   if(answer.correct){
-    const source=(state.activeQuizId||state.quizSourceId||'quiz')+':question-'+(Number(answer.quizIndex)||0);
+    const source=(state.activeQuizId||state.quizAttemptNonce||state.quizSourceId||'quiz')+':question-'+(Number(answer.quizIndex)||0);
     const result=await window.awardLucidXP('recall_passed',source);
     return {xpAwarded:Number(result?.xp_awarded)||0};
   }

@@ -11,7 +11,7 @@ window.updateLucidAuthUI = async function(session){
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load learning goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}if(state.activePage==='aiGuide'&&window.loadAIImprovementSuggestions)window.loadAIImprovementSuggestions();}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
@@ -288,9 +288,9 @@ window.loadLucidGoals = async function(){
   });
   return data;
 };
-window.createLucidGoal = async function(title,deadline){
+window.createLucidGoal = async function(title,deadline,targetType){
   if(!lucidSession?.user)throw new Error('Sign in to create a goal.');
-  const row={owner_id:lucidSession.user.id,title:String(title||'').trim(),description:null,target_type:'milestone',target_value:null,deadline:deadline?new Date(deadline+'T23:59:59').toISOString():null,status:'active'};
+  const row={owner_id:lucidSession.user.id,title:String(title||'').trim(),description:null,target_type:targetType||'milestone',target_value:null,deadline:deadline?new Date(deadline+'T23:59:59').toISOString():null,status:'active'};
   if(!row.title)throw new Error('Enter a goal title.');
   const {data,error}=await lucidSupabase.from('learning_goals').insert(row).select('id,title,status,deadline').single();if(error)throw error;return data;
 };
@@ -323,7 +323,7 @@ window.updateLucidAIContext = async function(){
   set('aiContextRecall','Recall: not enough data');
   set('aiContextWeak','Weak areas: not evaluated');
   if(!lucidSession?.user||!state.currentResourceId)return;
-  const {data,error}=await lucidSupabase.from('learning_journeys').select('recall,understanding,application').eq('owner_id',lucidSession.user.id).eq('resource_id',state.currentResourceId).maybeSingle();
+  const {data,error}=await lucidSupabase.from('learning_journeys').select('recall,understanding,application').eq('owner_id',lucidSession.user.id).eq('resource_id',state.currentResourceId).order('updated_at',{ascending:false}).limit(1).maybeSingle();
   if(error){console.warn('AI context summary unavailable:',error.message);return;}
   if(data){
     const values=[data.recall,data.understanding,data.application].map(Number).filter(v=>Number.isFinite(v)&&v>0);

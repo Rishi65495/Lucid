@@ -11,7 +11,7 @@ window.updateLucidAuthUI = async function(session){
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidVideoLibrary();}catch(error){console.warn('Could not load video library:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
@@ -55,7 +55,8 @@ window.callAIGuide = async function(prompt,style){
       question:prompt,
       style:style||'',
       history,
-      resource_id:typeof state!=='undefined'?state.currentResourceId:null,
+      resource_id:typeof state!=='undefined'&&state.currentVideoContext?null:(typeof state!=='undefined'?state.currentResourceId:null),
+      video_context:typeof state!=='undefined'&&state.currentVideoContext?{title:state.currentVideoContext.title,transcript:state.currentVideoContext.transcript}:null,
       current_page:typeof state!=='undefined'?Number(state.currentResourcePage)||1:1,
       context:typeof state!=='undefined'?[
         'Current resource: '+(state.currentResourceTitle||''),
@@ -74,14 +75,416 @@ window.callLucidAgent = async function(prompt){
   const data=await window.invokeLucidFunction('lucid-agent',{action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null});
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
-// The source-aware quiz builder is defined in index.html. Do not override it here.
-window.generateFlashcards = async function(){showToast('Generating flashcards from your notes…','✦');const notes=state.annotations.slice(0,3).map(x=>typeof x==='string'?x:(x.text||x.note||''));const prompt='Create three concise flashcards from these notes: '+(notes.join('. ')||'Machine Learning fundamentals, overfitting, bias-variance tradeoff');try{const data=await window.callLearningEngine('flashcards',prompt,{annotations:notes});const cards=data.result?.cards||[];if(cards.length){state.flashcards=cards.map(c=>({q:c.front,a:c.back}));state.flashcardIndex=0;document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';}console.log('Lucid flashcards:',data.result);showToast(cards.length?cards.length+' flashcards generated.':'No flashcards returned.','✦');}catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}};
-window.evaluateOral = async function(){const q=document.getElementById('oralQuestion').textContent;const a=document.getElementById('oralAnswer').value.trim();if(!a){showToast('Write your explanation first.','⚠');return;}const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer…';try{const data=await window.callLearningEngine('evaluate_recall','Evaluate coverage, accuracy and clarity. Question: '+q+' Student answer: '+a,{question:q,answer:a});const text=window.formatLearningResult(data.result);resultEl.innerHTML='<div class="note green"><strong>AI evaluation:</strong><br>'+escapeHTML(text).replace(/\n/g,'<br>')+'</div>';state.xp+=15;updateXP();showToast('Oral recall evaluated! +15 XP','🎙');}catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Evaluation failed.','⚠');}};
-window.practiceWeak = async function(topic){openPage('practice');showToast('Preparing targeted practice for '+topic+'…','📝');try{const data=await window.callLearningEngine('quiz','Create one remedial MCQ about '+topic+' with four options, answer and explanation.',{weak_topic:topic,practice_mode:'remedial'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);showToast('Targeted AI practice ready for '+topic+'.','✦');}else{showToast('AI returned no valid practice question.','⚠');}}catch(error){showToast('Practice generation failed: '+error.message,'⚠');}};
+// Source-first practice: every generated activity must start with an explicit learner-selected source.
+window.openLucidPracticeSourcePicker = function(){
+  const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf'&&r.status!=='processing'&&r.status!=='failed');
+  if(!resources.length){showToast('Add a text-readable PDF to your Library before generating practice.','⚠');return Promise.resolve(null);}
+  const catalogues=state.catalogues||[];
+  return new Promise(resolve=>{
+    const modal=document.createElement('div');modal.id='lucidPracticeSourcePicker';modal.className='modal-backdrop open';
+    modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Choose learning sources</h2><button class="close-button" type="button" id="practiceSourceClose">×</button></div><div class="form-stack"><p class="muted small-text">Select one or more PDFs, or choose a catalogue to include all its PDFs. AI will use only the selected source text.</p><label class="form-label">Use an entire catalogue<select id="practiceCatalogue"><option value="">Choose catalogue (optional)</option></select></label><div class="kicker">PDF resources</div><div id="practiceSourceList" style="display:grid;gap:8px;max-height:260px;overflow:auto;"></div><div style="display:flex;gap:8px;"><button class="secondary-button full-width" type="button" id="practiceSourceCancel">Cancel</button><button class="primary-button full-width" type="button" id="practiceSourceContinue">Use selected sources →</button></div><p class="muted small-text" id="practiceSourceStatus" aria-live="polite"></p></div></div>';
+    document.body.appendChild(modal);
+    const select=modal.querySelector('#practiceCatalogue'),list=modal.querySelector('#practiceSourceList');
+    catalogues.forEach(cat=>select.add(new Option(cat.title,cat.id)));
+    resources.forEach(resource=>{
+      const label=document.createElement('label');label.style.cssText='display:flex;gap:10px;align-items:flex-start;padding:9px;border:1px solid var(--line);border-radius:10px;cursor:pointer;';
+      const check=document.createElement('input');check.type='checkbox';check.value=resource.resourceId||resource.id;check.className='practice-source-check';check.style.marginTop='3px';
+      const text=document.createElement('span');text.textContent=resource.name+' · '+(Number(resource.pages)||'—')+' pages';
+      label.append(check,text);list.appendChild(label);
+    });
+    select.addEventListener('change',()=>{
+      const catId=select.value;
+      list.querySelectorAll('.practice-source-check').forEach(check=>{
+        const resource=resources.find(r=>(r.resourceId||r.id)===check.value);
+        check.checked=!!catId&&(resource.catalogueIds||[]).includes(catId);
+      });
+    });
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;modal.remove();resolve(value);};
+    modal.querySelector('#practiceSourceClose').onclick=()=>finish(null);
+    modal.querySelector('#practiceSourceCancel').onclick=()=>finish(null);
+    modal.addEventListener('click',e=>{if(e.target===modal)finish(null);});
+    modal.querySelector('#practiceSourceContinue').onclick=()=>{
+      const ids=Array.from(list.querySelectorAll('.practice-source-check:checked')).map(x=>x.value);
+      if(!ids.length){modal.querySelector('#practiceSourceStatus').textContent='Select at least one PDF or choose a catalogue containing PDFs.';return;}
+      finish({resourceIds:ids,catalogueId:select.value||null,resources:resources.filter(r=>ids.includes(r.resourceId||r.id))});
+    };
+  });
+};
+window.collectLucidPracticeContext = async function(selection){
+  if(!selection?.resourceIds?.length)throw new Error('Choose at least one source.');
+  const sources=[];
+  for(const id of selection.resourceIds){
+    const resource=(state.uploadedBooks||[]).find(r=>(r.resourceId||r.id)===id);
+    if(!resource)continue;
+    const pages=await window.getLucidResourcePages(id,{});
+    if(!pages.length)continue;
+    const stride=Math.max(1,Math.ceil(pages.length/12));
+    const sampled=pages.filter((_,i)=>i%stride===0).slice(0,12);
+    sources.push({id,title:resource.name,pages:sampled.map(p=>({page_number:p.page_number,text_content:String(p.text_content||'').slice(0,2200)}))});
+  }
+  const pageContent=sources.map(source=>'SOURCE: '+source.title+'\n'+source.pages.map(page=>'PAGE '+page.page_number+':\n'+page.text_content).join('\n\n')).join('\n\n---\n\n').slice(0,50000);
+  if(!pageContent.trim())throw new Error('The selected PDFs have no extracted text. Reprocess the PDFs or run OCR before generating practice.');
+  return {source_resource_ids:sources.map(x=>x.id),source_titles:sources.map(x=>x.title),catalogue_id:selection.catalogueId||null,page_content:pageContent,sources};
+};
+window.generateAIQuiz = async function(){
+  const selection=await window.openLucidPracticeSourcePicker();if(!selection)return;
+  const modal=document.createElement('div');modal.id='lucidQuizSettings';modal.className='modal-backdrop open';
+  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Configure your source-based quiz</h2><button class="close-button" type="button" id="quizSettingsClose">×</button></div><div class="form-stack"><p class="muted small-text" id="quizSelectedSources"></p><div class="form-row"><label class="form-label">Question count<select id="lucidQuizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Difficulty<select id="lucidQuizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div><label class="form-label">Focus instructions<textarea id="lucidQuizInstructions" placeholder="e.g. Focus on definitions, comparisons, applications or exam-style problems"></textarea></label><button class="primary-button full-width" id="lucidBuildQuiz">Generate from selected sources →</button><p class="muted small-text" id="lucidQuizStatus" aria-live="polite"></p></div></div>';
+  document.body.appendChild(modal);
+  modal.querySelector('#quizSelectedSources').textContent='Sources: '+selection.resources.map(x=>x.name).join(', ');
+  const close=()=>modal.remove();modal.querySelector('#quizSettingsClose').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
+  modal.querySelector('#lucidBuildQuiz').onclick=async()=>{
+    const btn=modal.querySelector('#lucidBuildQuiz'),status=modal.querySelector('#lucidQuizStatus');
+    btn.disabled=true;btn.textContent='Preparing source material…';
+    try{
+      const context=await window.collectLucidPracticeContext(selection);
+      status.textContent='Generating questions from '+context.source_titles.length+' selected source(s)…';
+      const count=Number(modal.querySelector('#lucidQuizCount').value)||10,difficulty=modal.querySelector('#lucidQuizDifficulty').value,instructions=modal.querySelector('#lucidQuizInstructions').value.trim();
+      const request='Create '+count+' multiple-choice questions using only the supplied source material. Difficulty: '+difficulty+'. Focus: '+(instructions||'Test conceptual understanding, comparison and application. Avoid repeated questions.');
+      const data=await window.callLearningEngine('quiz',request,{...context,question_count:count,difficulty,question_format:'mcq'});
+      const questions=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||'mcq'}));
+      if(!questions.length)throw new Error('The AI did not return valid questions. Try a smaller question count or a more text-readable source.');
+      let quizId=null;
+      try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}
+      catch(saveError){console.warn('Quiz generated but could not be saved:',saveError.message);}
+      quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
+      window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;
+      const label=document.getElementById('quizSourceLabel');if(label)label.textContent='Sources: '+context.source_titles.join(', ');
+      const diff=document.getElementById('quizDifficultyTag');if(diff)diff.textContent='Difficulty: '+difficulty;
+      loadQuiz(0);close();openPage('practice');showToast(questions.length+' questions generated from your selected sources.','✦');
+    }catch(error){status.textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
+  };
+};
+window.generateFlashcards = async function(){
+  const selection=await window.openLucidPracticeSourcePicker();if(!selection)return;
+  showToast('Preparing flashcards from selected PDFs…','✦');
+  try{
+    const context=await window.collectLucidPracticeContext(selection);
+    const data=await window.callLearningEngine('flashcards','Create concise active-recall flashcards from the supplied sources only. Avoid duplicate cards. Return clear fronts and accurate backs.',{...context,card_count:15});
+    const cards=(data.result?.cards||[]).filter(x=>x.front&&x.back);
+    if(!cards.length)throw new Error('No valid flashcards were returned.');
+    const now=new Date().toISOString();
+    const rows=cards.map(x=>({user_id:lucidSession.user.id,resource_id:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,catalogue_id:context.catalogue_id,front:String(x.front).slice(0,2000),back:String(x.back).slice(0,5000),concept_key:x.concept_key|| (context.source_resource_ids.length>1?'source_set:'+context.source_resource_ids.join(','):null),due_at:now,stability:1,repetitions:0,updated_at:now}));
+    const saved=await lucidSupabase.from('practice_cards').insert(rows).select('id,front,back,resource_id,catalogue_id,due_at,stability,repetitions');
+    if(saved.error)throw saved.error;
+    state.flashcardRecords=saved.data||[];state.flashcards=state.flashcardRecords.map(x=>({id:x.id,q:x.front,a:x.back,repetitions:x.repetitions,stability:x.stability}));state.flashcardIndex=0;
+    document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;document.getElementById('cardProgress').textContent='Card 1 of '+state.flashcards.length+' · Click to flip';
+    document.getElementById('flashcard').classList.remove('flipped');showToast(state.flashcards.length+' flashcards generated and saved.','✦');
+  }catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}
+};
+window.rateCard = async function(rating){
+  const card=state.flashcards?.[state.flashcardIndex];if(!card){showToast('Generate flashcards from a source first.','⚠');return;}
+  try{
+    const days=rating==='hard'?0.25:rating==='okay'?1:4,repetitions=(Number(card.repetitions)||0)+(rating==='hard'?0:1),stability=Math.max(1,Number(card.stability)||1)*(rating==='hard'?1.1:rating==='okay'?1.6:2.4),dueAt=new Date(Date.now()+days*86400000).toISOString();
+    const {error}=await lucidSupabase.from('practice_cards').update({repetitions,stability,due_at:dueAt,updated_at:new Date().toISOString()}).eq('id',card.id).eq('user_id',lucidSession.user.id);
+    if(error)throw error;
+    if(rating==='easy'){state.xp+=5;updateXP();}
+    showToast('Card scheduled for review in '+(days<1?'6 hours':days+' days')+'.','✓');
+    state.flashcardIndex=(state.flashcardIndex+1)%state.flashcards.length;
+    document.getElementById('flashcard').classList.remove('flipped');
+    const next=state.flashcards[state.flashcardIndex];document.getElementById('flashFront').textContent=next.q;document.getElementById('flashBack').textContent=next.a;document.getElementById('cardProgress').textContent='Card '+(state.flashcardIndex+1)+' of '+state.flashcards.length+' · Click to flip';
+  }catch(error){showToast('Could not save card rating: '+error.message,'⚠');}
+};
+window.newOralQuestion = async function(){
+  const selection=await window.openLucidPracticeSourcePicker();if(!selection)return;
+  const el=document.getElementById('oralQuestion');el.textContent='Generating a question from your sources…';
+  try{
+    const context=await window.collectLucidPracticeContext(selection);
+    const data=await window.callLearningEngine('teach','Generate one challenging but fair open-ended oral-recall question from the supplied source material. Put the question in checkpoints[0].question. Do not use outside facts.',context);
+    const question=data.result?.checkpoints?.[0]?.question;
+    if(!question)throw new Error('No source-grounded question was returned.');
+    state.currentOralContext=context;state.currentOralQuestion=question;el.textContent=question;document.getElementById('oralAnswer').value='';document.getElementById('oralResult').style.display='none';
+  }catch(error){el.textContent='Could not generate a question: '+error.message;}
+};
+window.evaluateOral = async function(){
+  const question=state.currentOralQuestion||document.getElementById('oralQuestion').textContent,answer=document.getElementById('oralAnswer').value.trim(),resultEl=document.getElementById('oralResult');
+  if(!state.currentOralContext){showToast('Generate a question from selected sources first.','⚠');return;}
+  if(!answer){showToast('Write your explanation first.','⚠');return;}
+  resultEl.style.display='block';resultEl.textContent='Evaluating your answer against the selected source…';
+  try{
+    const data=await window.callLearningEngine('evaluate_recall','Evaluate the learner response strictly against the supplied source. Identify missing concepts and unsupported claims. Question: '+question+' Learner response: '+answer,{...state.currentOralContext,question,answer});
+    const result=data.result||{};resultEl.textContent=window.formatLearningResult(result);
+    await lucidSupabase.rpc('track_learning_event',{p_event_type:'oral_recall_evaluated',p_catalogue_id:state.currentOralContext.catalogue_id||null,p_resource_id:state.currentOralContext.source_resource_ids?.[0]||null,p_session_id:null,p_payload:{question,answer,score:result.score,coverage:result.coverage,accuracy:result.accuracy,clarity:result.clarity,missing:result.missing||[]}});
+    showToast('Oral recall evaluated and recorded.','🎙');
+    try{await window.loadLucidLearningProfile();}catch(_){}
+  }catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Oral recall evaluation failed: '+error.message,'⚠');}
+};
+window.practiceWeak = async function(topic){
+  const selection=await window.openLucidPracticeSourcePicker();if(!selection)return;
+  try{
+    const context=await window.collectLucidPracticeContext(selection),profile=await window.loadLucidLearningProfile();
+    const data=await window.callLearningEngine('quiz','Create five remedial multiple-choice questions about the learner weak area "'+topic+'". Use only the selected source material and explain each answer.',{...context,learner_evidence:profile,topic,question_count:5,question_format:'mcq'});
+    const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+    if(!questions.length)throw new Error('No source-grounded remedial questions were returned.');
+    quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentGeneratedQuizId=null;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;loadQuiz(0);openPage('practice');showToast('Remedial practice generated for '+topic+'.','✦');
+  }catch(error){showToast('Weak-area practice failed: '+error.message,'⚠');}
+};
+window.renderLucidWeakAreas = function(profile){
+  const list=document.getElementById('weakAreaList');if(!list)return;
+  const items=(profile?.weakConcepts||[]).filter(x=>Number.isFinite(Number(x.mastery))).sort((a,b)=>a.mastery-b.mastery);
+  list.innerHTML='';
+  if(!items.length){list.innerHTML='<p class="muted small-text">No measured concept mastery is available yet. Complete a source-based quiz or oral recall to build this list.</p>';return;}
+  items.slice(0,10).forEach(item=>{
+    const row=document.createElement('div');row.className='goal-item';
+    const body=document.createElement('div');body.style.flex='1';
+    const title=document.createElement('strong');title.textContent=item.name;
+    const meta=document.createElement('div');meta.className='muted small-text';meta.textContent='Recorded mastery: '+Math.round(item.mastery)+'% · Recall '+Math.round(item.recall||0)+'% · Application '+Math.round(item.application||0)+'%';
+    const track=document.createElement('div');track.className='progress-track';track.style.marginTop='6px';
+    const fill=document.createElement('span');fill.className='progress-fill rose';fill.style.width=Math.max(0,Math.min(100,item.mastery))+'%';track.appendChild(fill);body.append(title,meta,track);
+    const button=document.createElement('button');button.className='secondary-button btn-sm';button.textContent='Practice';button.onclick=()=>window.practiceWeak(item.name);
+    row.append(body,button);list.appendChild(row);
+  });
+};
+
 window.askGuide = async function(){const q=document.getElementById('aiQuestion').value.trim();const el=document.getElementById('aiAnswer');if(!q){el.style.display='block';el.textContent='Ask a question first.';return;}el.style.display='block';el.textContent='Thinking…';const selected=(state.selectedText||'').trim();const context='Current resource: '+(state.currentResourceTitle||'Reading Room document')+'. '+(selected?'SELECTED PASSAGE (answer specifically about this text):\n'+selected:'No passage is currently selected. Use the current resource and notes only.')+'\nSaved annotations: '+state.annotations.slice(-5).join('; ');const answer=await window.callAIGuide('Learning context:\n'+context+'\n\nStudent question: '+q,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide ('+escapeHTML(state.coachMode)+'):</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
 window.quickAIModal = async function(prompt){const el=document.getElementById('aiAnswer');document.getElementById('aiQuestion').value=prompt;el.style.display='block';el.textContent='Thinking…';const selected=(state.selectedText||'').trim();const context=selected?'Selected passage (use this exact text as the subject):\n'+selected+'\n\n':'Current resource and saved annotations: '+(state.currentResourceTitle||'Reading Room document')+'; '+state.annotations.slice(-5).join('; ')+'\n\n';const answer=await window.callAIGuide(context+'Student request: '+prompt,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide:</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
 window.sendAIChatWithPrompt = async function(prompt){const chat=document.getElementById('aiChat');const empty=document.getElementById('aiChatEmpty');if(empty)empty.style.display='none';state.chatMessages.push({role:'user',text:prompt});const userEl=document.createElement('div');userEl.className='ai-msg user';userEl.textContent=prompt;chat.appendChild(userEl);const thinking=document.createElement('div');thinking.className='ai-msg bot thinking';thinking.textContent='✦ Thinking…';chat.appendChild(thinking);chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;const selected=(state.selectedText||'').trim();const context='Learner: '+state.preferences.name+'. Current study: '+(state.currentResourceTitle||'Reading Room document')+'. '+(selected?'SELECTED PASSAGE — answer the request specifically about this exact text:\\n'+selected:'No passage is selected.')+'\\nRecent annotations: '+state.annotations.slice(-5).join('; ')+'. Coach mode: '+state.coachMode+'.';let answer;try{answer=await window.callLucidAgent('Learning context:\\n'+context+'\\n\\nCoaching style: '+(systemInstructions[state.coachMode]||systemInstructions.Gentle)+'\\n\\nStudent: '+prompt);}catch(error){answer='Lucid Agent error: '+error.message;}thinking.className='ai-msg bot';thinking.style.whiteSpace='pre-wrap';thinking.textContent=answer;state.chatMessages.push({role:'bot',text:answer});chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;saveState();};
-window.loadYoutubeURL = async function(url){if(!url){showToast('Paste a YouTube URL first.','⚠');return;}showToast('Importing YouTube content securely…','▶');try{const imported=await window.invokeLucidFunction('youtube-import',{url});openPage('video');const wrapper=document.getElementById('youtubePlayerWrapper'),player=document.getElementById('youtubePlayer'),frame=document.getElementById('ytFrame');if(imported.type==='playlist'&&imported.playlist_id){frame.src='https://www.youtube.com/embed/videoseries?list='+encodeURIComponent(imported.playlist_id);showToast('Playlist imported: '+(imported.playlist?.title||'YouTube playlist'),'▶');}else if(imported.type==='video'&&imported.item?.video_id){frame.src='https://www.youtube.com/embed/'+encodeURIComponent(imported.item.video_id)+'?rel=0&modestbranding=1&enablejsapi=1';showToast('Loaded: '+(imported.item.title||'YouTube video'),'▶');}else{throw new Error('Unsupported YouTube import response.');}if(wrapper)wrapper.style.display='none';if(player)player.style.display='block';}catch(error){showToast('YouTube import failed: '+error.message,'⚠');}};
+// Video classroom: persist imports, select the exact video, save transcript context and record playback per resource.
+window.currentLucidPlaylistResourceId=null;
+window.currentLucidVideoResourceId=null;
+window.currentLucidVideoSessionId=null;
+window.currentLucidVideoContext=null;
+window.currentLucidVideoMetadata={};
+window.currentLucidVideoNotes=[];
+window.lucidVideoPlayer=null;
+window.lucidVideoPersistTimer=null;
+window.lucidVideoLastTick=null;
+window.lucidVideoActiveSeconds=0;
+window.lucidVideoDuration=0;
+window.lucidVideoPlaylistItems=[];
+window.lucidYTApiPromise=null;
+window.formatLucidDuration=function(seconds){
+  const s=Math.max(0,Math.floor(Number(seconds)||0)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;
+  return h?h+'h '+m+'m':m+'m '+r+'s';
+};
+window.loadLucidYouTubeApi=function(){
+  if(window.YT&&window.YT.Player)return Promise.resolve();
+  if(window.lucidYTApiPromise)return window.lucidYTApiPromise;
+  window.lucidYTApiPromise=new Promise(resolve=>{
+    const previous=window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady=function(){if(typeof previous==='function')previous();resolve();};
+    if(!document.querySelector('script[data-lucid-youtube-api]')){
+      const script=document.createElement('script');script.src='https://www.youtube.com/iframe_api';script.async=true;script.dataset.lucidYoutubeApi='true';document.head.appendChild(script);
+    }
+  });
+  return window.lucidYTApiPromise;
+};
+window.persistLucidYouTubeImport=async function(imported,url){
+  if(!lucidSession?.user)throw new Error('Sign in before importing videos.');
+  if(imported.type==='playlist'&&!imported.api_key_configured)throw new Error('Playlist import needs a configured YouTube Data API key. No placeholder playlist was saved.');
+  const owner=lucidSession.user.id,catalogueId=state.selectedCatalogueId||document.getElementById('uploadCatalogue')?.value||null;
+  const saveResource=async(row)=>{
+    const existing=await lucidSupabase.from('lucid_resources').select('id').eq('owner_id',owner).eq('source_url',row.source_url).maybeSingle();
+    if(existing.error&&existing.error.code!=='PGRST116')throw existing.error;
+    if(existing.data?.id){
+      const updated=await lucidSupabase.from('lucid_resources').update({...row,updated_at:new Date().toISOString()}).eq('id',existing.data.id).eq('owner_id',owner).select('id').single();
+      if(updated.error)throw updated.error;return updated.data.id;
+    }
+    const inserted=await lucidSupabase.from('lucid_resources').insert(row).select('id').single();
+    if(inserted.error)throw inserted.error;return inserted.data.id;
+  };
+  let playlistId=null,items=[];
+  if(imported.type==='playlist'){
+    const playlist=imported.playlist||{},playlistUrl=url;
+    playlistId=await saveResource({owner_id:owner,type:'playlist',title:playlist.title||'YouTube Playlist',source_url:playlistUrl,mime_type:'text/html',metadata:{youtube_playlist_id:imported.playlist_id,channel_title:playlist.channel_title||null,thumbnail:playlist.thumbnail||null,item_count:Number(playlist.item_count||imported.items?.length||0),items:[]}});
+    for(const item of imported.items||[]){
+      const videoUrl='https://www.youtube.com/watch?v='+encodeURIComponent(item.video_id);
+      const resourceId=await saveResource({owner_id:owner,type:'video',title:item.title||'YouTube video',source_url:videoUrl,mime_type:'text/html',metadata:{youtube_video_id:item.video_id,youtube_playlist_id:imported.playlist_id,channel_title:item.channel_title||null,thumbnail:item.thumbnail||null,duration_seconds:Number(item.duration_seconds)||0,playlist_index:Number(item.playlist_index)||0}});
+      const videoRow=await lucidSupabase.from('resource_videos').upsert({resource_id:resourceId,youtube_video_id:item.video_id,youtube_playlist_id:imported.playlist_id,duration_seconds:Number(item.duration_seconds)||0,transcript:'',metadata:{source_url:videoUrl,playlist_resource_id:playlistId,thumbnail:item.thumbnail||null,channel_title:item.channel_title||null,playlist_index:Number(item.playlist_index)||0}},{onConflict:'resource_id'});
+      if(videoRow.error)throw videoRow.error;
+      items.push({...item,resource_id:resourceId});
+    }
+    const parentUpdate=await lucidSupabase.from('lucid_resources').update({metadata:{youtube_playlist_id:imported.playlist_id,channel_title:playlist.channel_title||null,thumbnail:playlist.thumbnail||null,item_count:Number(playlist.item_count||items.length),items}}).eq('id',playlistId).eq('owner_id',owner);
+    if(parentUpdate.error)throw parentUpdate.error;
+    if(catalogueId){
+      const ids=[playlistId,...items.map(x=>x.resource_id)];
+      const existing=await lucidSupabase.from('catalogue_resources').select('resource_id').eq('catalogue_id',catalogueId).in('resource_id',ids);
+      if(existing.error)throw existing.error;
+      const have=new Set((existing.data||[]).map(x=>x.resource_id));
+      const missing=ids.filter(id=>!have.has(id));
+      if(missing.length){const linked=await lucidSupabase.from('catalogue_resources').insert(missing.map((id,index)=>({catalogue_id:catalogueId,resource_id:id,order_index:index,status:'active'})));if(linked.error)throw linked.error;}
+    }
+  }else if(imported.type==='video'&&imported.item?.video_id){
+    const item=imported.item,videoUrl='https://www.youtube.com/watch?v='+encodeURIComponent(item.video_id);
+    const resourceId=await saveResource({owner_id:owner,type:'video',title:item.title||'YouTube video',source_url:videoUrl,mime_type:'text/html',metadata:{youtube_video_id:item.video_id,channel_title:item.channel_title||null,thumbnail:item.thumbnail||null,duration_seconds:Number(item.duration_seconds)||0}});
+    const videoRow=await lucidSupabase.from('resource_videos').upsert({resource_id:resourceId,youtube_video_id:item.video_id,youtube_playlist_id:null,duration_seconds:Number(item.duration_seconds)||0,transcript:'',metadata:{source_url:videoUrl,thumbnail:item.thumbnail||null,channel_title:item.channel_title||null}},{onConflict:'resource_id'});
+    if(videoRow.error)throw videoRow.error;
+    if(catalogueId){
+      const existing=await lucidSupabase.from('catalogue_resources').select('resource_id').eq('catalogue_id',catalogueId).eq('resource_id',resourceId).maybeSingle();
+      if(!existing.data){const linked=await lucidSupabase.from('catalogue_resources').insert({catalogue_id:catalogueId,resource_id:resourceId,order_index:0,status:'active'});if(linked.error)throw linked.error;}
+    }
+    items=[{...item,resource_id:resourceId}];
+  }else throw new Error('The YouTube import did not return a supported video or playlist.');
+  await window.loadLucidCatalogues();
+  return {playlistResourceId:playlistId,items};
+};
+window.loadLucidVideoLibrary=async function(preferredPlaylistId){
+  if(!lucidSession?.user)return [];
+  const owner=lucidSession.user.id;
+  const {data:resources,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,source_url,metadata,created_at').eq('owner_id',owner).in('type',['video','playlist']).order('created_at',{ascending:false});
+  if(error)throw error;
+  const videos=(resources||[]).filter(x=>x.type==='video'),playlists=(resources||[]).filter(x=>x.type==='playlist'),videoIds=videos.map(x=>x.id);
+  let videoRows=[],sessions=[];
+  if(videoIds.length){
+    const vr=await lucidSupabase.from('resource_videos').select('resource_id,youtube_video_id,youtube_playlist_id,duration_seconds,transcript,metadata').in('resource_id',videoIds);
+    if(vr.error)throw vr.error;videoRows=vr.data||[];
+    const sr=await lucidSupabase.from('video_sessions').select('id,resource_id,active_seconds,last_timestamp_seconds,completed,started_at').eq('user_id',owner).in('resource_id',videoIds);
+    if(sr.error)throw sr.error;sessions=sr.data||[];
+  }
+  const videoById=new Map(videos.map(x=>[x.id,x])),videoMeta=new Map(videoRows.map(x=>[x.resource_id,x]));
+  const sessionById=new Map();
+  sessions.forEach(s=>{const item=sessionById.get(s.resource_id)||{active:0,completed:false,last:0};item.active+=Number(s.active_seconds)||0;item.completed=item.completed||!!s.completed;item.last=Math.max(item.last,Number(s.last_timestamp_seconds)||0);sessionById.set(s.resource_id,item);});
+  const chosen=playlists.find(x=>x.id===preferredPlaylistId)||playlists[0]||null;
+  let items=[];
+  if(chosen){
+    items=(chosen.metadata?.items||[]).map(item=>({...item,resource:videoById.get(item.resource_id),video:videoMeta.get(item.resource_id),progress:sessionById.get(item.resource_id)||{active:0,completed:false,last:0}})).filter(item=>item.resource);
+  }else{
+    items=videos.map(resource=>({resource_id:resource.id,title:resource.title,video_id:videoMeta.get(resource.id)?.youtube_video_id||resource.metadata?.youtube_video_id,duration_seconds:videoMeta.get(resource.id)?.duration_seconds||resource.metadata?.duration_seconds||0,resource,video:videoMeta.get(resource.id),progress:sessionById.get(resource.id)||{active:0,completed:false,last:0}}));
+  }
+  window.currentLucidPlaylistResourceId=chosen?.id||null;window.lucidVideoPlaylistItems=items;
+  const title=document.getElementById('videoPlaylistTitle');if(title)title.textContent=chosen?chosen.title:'Your imported videos';
+  const count=document.getElementById('videoPlaylistCount');if(count)count.textContent=items.length;
+  const list=document.getElementById('videoPlaylistList');
+  if(list){
+    list.innerHTML='';
+    if(!items.length)list.innerHTML='<p class="muted small-text">No videos found. Import a video or playlist above.</p>';
+    items.forEach((item,index)=>{
+      const button=document.createElement('button');button.type='button';button.className='secondary-button btn-sm';button.style.cssText='text-align:left;display:flex;justify-content:space-between;gap:8px;align-items:center;';
+      const titleText=document.createElement('span');titleText.textContent=(index+1)+'. '+(item.title||item.resource?.title||'Video');
+      const meta=document.createElement('span');meta.className='muted';meta.textContent=item.progress.completed?'✓':window.formatLucidDuration(item.progress.active);
+      button.append(titleText,meta);button.onclick=()=>window.selectLucidVideo(item.resource_id);list.appendChild(button);
+    });
+  }
+  const completed=items.filter(x=>x.progress.completed).length,watched=items.reduce((s,x)=>s+(Number(x.progress.active)||0),0),pct=items.length?Math.round(completed/items.length*100):0;
+  const watchedEl=document.getElementById('videoWatchedTime');if(watchedEl)watchedEl.textContent=window.formatLucidDuration(watched);
+  const label=document.getElementById('videoProgressLabel');if(label)label.textContent=completed+' of '+items.length+' completed';
+  const percent=document.getElementById('videoProgressPercent');if(percent)percent.textContent=pct+'%';
+  const bar=document.getElementById('videoProgressBar');if(bar)bar.style.width=pct+'%';
+  return items;
+};
+window.selectLucidVideo=async function(resourceId){
+  if(!lucidSession?.user||!resourceId)throw new Error('Choose a saved video first.');
+  await window.persistLucidVideoProgress(true);
+  const [resourceResult,videoResult]=await Promise.all([
+    lucidSupabase.from('lucid_resources').select('id,title,source_url,metadata').eq('id',resourceId).eq('owner_id',lucidSession.user.id).single(),
+    lucidSupabase.from('resource_videos').select('youtube_video_id,youtube_playlist_id,duration_seconds,transcript,metadata').eq('resource_id',resourceId).single()
+  ]);
+  if(resourceResult.error)throw resourceResult.error;if(videoResult.error)throw videoResult.error;
+  const resource=resourceResult.data,video=videoResult.data;
+  window.currentLucidVideoResourceId=resourceId;state.currentVideoResourceId=resourceId;
+  window.currentLucidVideoMetadata=video.metadata||{};window.currentLucidVideoNotes=Array.isArray(video.metadata?.notes)?video.metadata.notes:[];
+  state.currentVideoContext={resource_id:resourceId,title:resource.title,transcript:video.transcript||''};
+  const title=document.getElementById('videoCurrentTitle');if(title)title.textContent=resource.title;
+  const meta=document.getElementById('videoCurrentMeta');if(meta)meta.textContent=(resource.metadata?.channel_title||video.metadata?.channel_title||'YouTube')+' · '+window.formatLucidDuration(video.duration_seconds||0);
+  const transcript=document.getElementById('videoTranscriptInput');if(transcript)transcript.value=video.transcript||'';
+  const status=document.getElementById('videoTranscriptStatus');if(status)status.textContent=video.transcript?'Transcript saved':'Transcript unavailable';
+  const saveStatus=document.getElementById('videoTranscriptSaveStatus');if(saveStatus)saveStatus.textContent=video.transcript?'Saved transcript · '+video.transcript.length.toLocaleString()+' characters':'No transcript saved for this video.';
+  window.renderLucidVideoNotes();
+  const videoId=video.youtube_video_id||resource.metadata?.youtube_video_id;
+  if(!videoId)throw new Error('This saved resource has no YouTube video ID.');
+  await window.startLucidVideoPlayer(videoId);
+  const response=document.getElementById('videoAiResponse');if(response){response.style.display='block';response.textContent=video.transcript?'This AI assistant is grounded in the selected video transcript.':'No transcript is saved for this video. Paste its captions below before asking video-specific questions.';}
+  return resource;
+};
+window.startLucidVideoPlayer=async function(videoId){
+  await window.loadLucidYouTubeApi();
+  const wrapper=document.getElementById('youtubePlayerWrapper'),host=document.getElementById('videoPlayerHost'),mount=document.getElementById('ytPlayerMount');
+  if(wrapper)wrapper.style.display='none';if(host)host.style.display='block';
+  if(window.lucidVideoPlayer){try{window.lucidVideoPlayer.destroy();}catch(_){}window.lucidVideoPlayer=null;}
+  if(mount)mount.innerHTML='';
+  const parent=document.getElementById('videoPlayerHost');if(parent)parent.innerHTML='<div id="ytPlayerMount" style="width:100%;height:100%;"></div>';
+  window.lucidVideoPlayer=new YT.Player('ytPlayerMount',{height:'100%',width:'100%',videoId,playerVars:{rel:0,modestbranding:1,playsinline:1},events:{
+    onReady:event=>{window.lucidVideoDuration=event.target.getDuration()||0;},
+    onStateChange:event=>{
+      if(event.data===YT.PlayerState.PLAYING){window.startLucidVideoSession();if(window.lucidVideoPersistTimer)clearInterval(window.lucidVideoPersistTimer);window.lucidVideoPersistTimer=setInterval(()=>window.persistLucidVideoProgress(false),15000);}
+      else if(event.data===YT.PlayerState.PAUSED||event.data===YT.PlayerState.ENDED){if(window.lucidVideoPersistTimer)clearInterval(window.lucidVideoPersistTimer);window.lucidVideoPersistTimer=null;window.persistLucidVideoProgress(event.data===YT.PlayerState.ENDED);}
+    }
+  }});
+};
+window.startLucidVideoSession=async function(){
+  if(!lucidSession?.user||!window.currentLucidVideoResourceId||window.currentLucidVideoSessionId)return;
+  const current=window.lucidVideoPlayer?.getCurrentTime?.()||0;
+  const {data,error}=await lucidSupabase.from('video_sessions').insert({user_id:lucidSession.user.id,resource_id:window.currentLucidVideoResourceId,catalogue_id:state.selectedCatalogueId||null,active_seconds:0,last_timestamp_seconds:current,playback_speed:window.lucidVideoPlayer?.getPlaybackRate?.()||1,completed:false,result:{source:'youtube_iframe_player'}}).select('id').single();
+  if(error){console.warn('Could not start video session:',error.message);return;}
+  window.currentLucidVideoSessionId=data.id;window.lucidVideoActiveSeconds=0;window.lucidVideoLastTick=Date.now();
+};
+window.persistLucidVideoProgress=async function(endSession){
+  if(!lucidSession?.user||!window.currentLucidVideoSessionId||!window.lucidVideoPlayer)return;
+  const now=Date.now(),current=Number(window.lucidVideoPlayer.getCurrentTime?.()||0),duration=Number(window.lucidVideoPlayer.getDuration?.()||window.lucidVideoDuration||0),playing=window.lucidVideoPlayer.getPlayerState?.()===1;
+  const elapsed=playing&&window.lucidVideoLastTick?Math.max(0,Math.min(20,Math.round((now-window.lucidVideoLastTick)/1000))):0;
+  window.lucidVideoActiveSeconds+=elapsed;window.lucidVideoLastTick=now;
+  const completed=duration>0&&current>=duration*.9;
+  const patch={active_seconds:window.lucidVideoActiveSeconds,last_timestamp_seconds:current,playback_speed:window.lucidVideoPlayer.getPlaybackRate?.()||1,completed,ended_at:endSession||completed?new Date().toISOString():null};
+  const {error}=await lucidSupabase.from('video_sessions').update(patch).eq('id',window.currentLucidVideoSessionId).eq('user_id',lucidSession.user.id);
+  if(error)console.warn('Could not persist video progress:',error.message);
+  if(endSession||completed){window.currentLucidVideoSessionId=null;window.lucidVideoLastTick=null;try{await window.loadLucidVideoLibrary(window.currentLucidPlaylistResourceId);}catch(_){}}
+};
+window.saveCurrentVideoTranscript=async function(){
+  const transcript=document.getElementById('videoTranscriptInput').value.trim();
+  if(!window.currentLucidVideoResourceId){showToast('Select a saved video first.','⚠');return;}
+  if(!transcript){showToast('Paste the transcript before saving.','⚠');return;}
+  const {error}=await lucidSupabase.from('resource_videos').update({transcript}).eq('resource_id',window.currentLucidVideoResourceId);
+  if(error){showToast('Transcript save failed: '+error.message,'⚠');return;}
+  state.currentVideoContext={...state.currentVideoContext,transcript};
+  document.getElementById('videoTranscriptStatus').textContent='Transcript saved';
+  document.getElementById('videoTranscriptSaveStatus').textContent='Saved transcript · '+transcript.length.toLocaleString()+' characters';
+  showToast('Transcript saved to this video.','✓');
+};
+window.askAboutCurrentVideo=async function(prompt){
+  const output=document.getElementById('videoAiResponse');if(output){output.style.display='block';output.textContent='Preparing video-specific answer…';}
+  if(!state.currentVideoContext?.resource_id){if(output)output.textContent='Select a video first.';return;}
+  if(!String(state.currentVideoContext.transcript||'').trim()){if(output)output.textContent='This video has no saved transcript. Paste its captions in the Transcript panel and save them first. Lucid will not invent what the video says.';return;}
+  try{
+    const answer=await window.callAIGuide(prompt,state.coachMode||'Gentle');
+    if(output)output.textContent=answer;
+  }catch(error){if(output)output.textContent='Video AI failed: '+error.message;}
+};
+window.generateVideoQuiz=async function(){
+  if(!state.currentVideoContext?.resource_id){showToast('Select a video first.','⚠');return;}
+  if(!String(state.currentVideoContext.transcript||'').trim()){showToast('Save the selected video transcript before generating a quiz.','⚠');return;}
+  try{
+    const data=await window.callLearningEngine('quiz','Create five multiple-choice questions using only this video transcript. Include explanations.',{video_title:state.currentVideoContext.title,video_transcript:state.currentVideoContext.transcript,question_count:5,question_format:'mcq'});
+    const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+    if(!qs.length)throw new Error('No valid questions were returned from the transcript.');
+    let quizId=null;try{quizId=await window.saveLucidQuiz({resourceId:state.currentVideoContext.resource_id,sourceTitle:state.currentVideoContext.title,format:'mcq',difficulty:'Balanced',coverage:'video_transcript',questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(e){console.warn('Video quiz history save failed:',e.message);}
+    quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=state.currentVideoContext.resource_id;window.currentQuizCatalogueId=null;loadQuiz(0);openPage('practice');showToast('Quiz generated from the selected video transcript.','✦');
+  }catch(error){showToast('Video quiz failed: '+error.message,'⚠');}
+};
+window.renderLucidVideoNotes=function(){
+  const list=document.getElementById('videoNoteList'),count=document.getElementById('videoNoteCount');if(!list)return;
+  list.innerHTML='';if(count)count.textContent=window.currentLucidVideoNotes.length;
+  if(!window.currentLucidVideoNotes.length){list.innerHTML='<p class="muted small-text">No notes saved for this video yet.</p>';return;}
+  window.currentLucidVideoNotes.forEach(note=>{const row=document.createElement('div');row.className='note blue';const time=document.createElement('strong');time.textContent=window.formatLucidDuration(note.timestamp);const text=document.createElement('span');text.textContent=' — '+note.text;row.append(time,text);list.appendChild(row);});
+};
+window.addTimestampNote=async function(){
+  if(!window.currentLucidVideoResourceId||!window.lucidVideoPlayer){showToast('Select a video before adding a timestamp note.','⚠');return;}
+  const input=document.getElementById('videoNoteInput'),text=input.value.trim();if(!text){showToast('Enter a note first.','⚠');return;}
+  const note={timestamp:Math.floor(window.lucidVideoPlayer.getCurrentTime?.()||0),text,created_at:new Date().toISOString()};
+  window.currentLucidVideoNotes.push(note);
+  const metadata={...(window.currentLucidVideoMetadata||{}),notes:window.currentLucidVideoNotes};
+  const {error}=await lucidSupabase.from('resource_videos').update({metadata}).eq('resource_id',window.currentLucidVideoResourceId);
+  if(error){window.currentLucidVideoNotes.pop();showToast('Could not save timestamp note: '+error.message,'⚠');return;}
+  window.currentLucidVideoMetadata=metadata;input.value='';window.renderLucidVideoNotes();showToast('Timestamp note saved.','✓');
+};
+window.videoSpeed=function(rate){if(!window.lucidVideoPlayer){showToast('Load a video first.','⚠');return;}window.lucidVideoPlayer.setPlaybackRate(Number(rate)||1);showToast('Playback speed set to '+rate+'×.','⚡');};
+window.loadYoutubeURL=async function(url){
+  const input=String(url||'').trim();if(!input){showToast('Paste a YouTube URL first.','⚠');return;}
+  const status=document.getElementById('videoImportStatus');if(status)status.textContent='Checking the selected YouTube video or playlist…';
+  try{
+    const imported=await window.invokeLucidFunction('youtube-import',{url:input});
+    const saved=await window.persistLucidYouTubeImport(imported,input);
+    if(status)status.textContent='Imported and saved to your Library.';
+    openPage('video');
+    const items=await window.loadLucidVideoLibrary(saved.playlistResourceId||null);
+    const first=saved.items?.[0]?.resource_id||items[0]?.resource_id;
+    if(first)await window.selectLucidVideo(first);
+    const urlInput=document.getElementById('videoUrlInput');if(urlInput)urlInput.value='';
+    showToast('YouTube content imported and saved.','▶');
+  }catch(error){if(status)status.textContent='Import failed: '+error.message;showToast('YouTube import failed: '+error.message,'⚠');}
+};
+window.quickAI=async function(prompt){await window.askAboutCurrentVideo(prompt);};
+
 
 window.recordLucidQuizAnswer = async function(answer){
   if(!lucidSession?.user||typeof lucidSupabase==='undefined')return false;
@@ -100,7 +503,7 @@ window.recordLucidQuizAnswer = async function(answer){
     const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(state.quizCorrect)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
     if(updateError)throw updateError;
   }
-  const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:window.currentQuizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
+  const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:window.currentQuizCatalogueId||state.selectedCatalogueId||null,p_resource_id:window.currentQuizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
   if(error)throw error;
   if(answer.quizId&&Number(answer.quizIndex)+1>=Number(answer.totalQuestions)){
     try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
@@ -418,7 +821,8 @@ window.saveLucidQuiz = async function(input){
   const {data:quiz,error}=await lucidSupabase.from('quizzes').insert({
     owner_id:lucidSession.user.id,resource_id:input.resourceId||null,quiz_type:input.format||'mcq',
     title:input.title||'Practice quiz',difficulty:input.difficulty||'Balanced',
-    source_context:{coverage:input.coverage||'whole',instructions:input.instructions||'',source_title:input.sourceTitle||'',question_count:(input.questions||[]).length}
+    catalogue_id:input.catalogueId||null,
+    source_context:{coverage:input.coverage||'whole',instructions:input.instructions||'',source_title:input.sourceTitle||'',source_resource_ids:input.resourceIds||[input.resourceId].filter(Boolean),question_count:(input.questions||[]).length}
   }).select('id').single();
   if(error)throw error;
   const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.prompt||q.q,options:q.options||q.opts||[],answer:{answer_index:Number(q.answer_index??q.ans)||0},explanation:q.explanation||'',difficulty:({Easy:1,Balanced:3,Moderate:3,Hard:4,'Exam level':5}[input.difficulty]||3),order_index:index}));
@@ -457,6 +861,7 @@ window.loadLucidLearningProfile = async function(){
     panel.appendChild(p);
     weak.slice(0,4).forEach(x=>{const line=document.createElement('div');line.className='mastery-bar-row';const label=document.createElement('span');label.className='label';label.textContent=x.name;const track=document.createElement('div');track.className='progress-track';const fill=document.createElement('span');fill.className='progress-fill gold';fill.style.width=Math.max(0,Math.min(100,x.mastery))+'%';track.appendChild(fill);const value=document.createElement('span');value.className='mastery-pct';value.textContent=Math.round(x.mastery)+'%';line.append(label,track,value);panel.appendChild(line);});
   }
+  if(window.renderLucidWeakAreas)window.renderLucidWeakAreas(profile);
   return profile;
 };
 window.generateLucidImprovementPlan = async function(){
@@ -547,6 +952,7 @@ window.loadLucidCatalogues = async function(){
     if(!(cats||[]).length){select.add(new Option('Create a catalogue first',''));select.disabled=true;}
     else{select.disabled=false;(cats||[]).forEach(cat=>select.add(new Option(cat.title,cat.id)));if(cats.some(c=>c.id===chosen))select.value=chosen;else select.value=cats[0].id;}
   }
+  state.catalogues=cats||[];
   return cats||[];
 };
 window.moveLucidResourceToCatalogue = async function(resourceId,catalogueId){

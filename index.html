@@ -1453,18 +1453,15 @@ textarea{min-height:75px;resize:vertical;}
 
         <div>
           <div class="card card-padding" style="margin-bottom:17px;">
-            <div class="kicker">Room weak area</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Overfitting</h3>
-            <p class="muted small-text">Average recall for this topic: 34%. Suggested: group practice session.</p>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="generateAIQuiz()">✦ Start room quiz on Overfitting</button>
+            <div class="kicker">What the leaderboard measures</div>
+            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Comparative performance.</h3>
+            <p class="muted small-text">The XP &amp; Level ranking compares learner profiles. XP is updated from recorded learning activity. Focus time and improvement are personal metrics until a shared group comparison is available.</p>
           </div>
           <div class="card card-padding">
-            <div class="kicker">Room challenge</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Machine Learning Test</h3>
-            <p class="muted small-text">10 questions · 20 min · Room test</p>
-            <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" style="width:0%"></span></div>
-            <div class="progress-label"><span>Not started</span><span>0/14 members ready</span></div>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="startRoomTest()">Start room test</button>
+            <div class="kicker">How achievements differ</div>
+            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Personal milestones.</h3>
+            <p class="muted small-text">Achievements are badges you earn by meeting specific activity criteria. They are not rankings and do not depend on other learners.</p>
+            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="openPage('rewards')">View achievements →</button>
           </div>
         </div>
       </div>
@@ -1589,7 +1586,7 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid two-col">
         <div>
           <div class="card card-padding" style="margin-bottom:17px;">
-            <div class="kicker">Active goals</div>
+            <div class="kicker">Your goals</div>
             <div style="display:grid;gap:9px;margin-top:14px;" id="goalList"><p class="muted small-text">Loading your saved goals…</p></div>
           </div>
         </div>

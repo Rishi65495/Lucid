@@ -2253,8 +2253,8 @@ function nextQuestion() {
 }
 function skipQuiz() { nextQuestion(); showToast('Skipped — no mastery change.'); }
 
-async function generateAIQuiz() {
-  if(!window.lucidSession?.user){showToast('Sign in to generate a quiz.','⚠');return;}
+async function generateAIQuiz(preselectedResourceId) {
+  if(typeof lucidSession==='undefined'||!lucidSession?.user){showToast('Sign in to generate a quiz.','⚠');return;}
   const existing=document.getElementById('aiQuizSetup');if(existing){existing.remove();return;}
   const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf');
   const modal=document.createElement('div');modal.id='aiQuizSetup';modal.className='modal-backdrop open';
@@ -2263,7 +2263,7 @@ async function generateAIQuiz() {
   document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
   const sourceSelect=modal.querySelector('#quizSource');
-  if(state.currentResourceId&&resources.some(r=>(r.resourceId||r.id)===state.currentResourceId))sourceSelect.value=state.currentResourceId;
+  const preferredSource=preselectedResourceId||state.currentResourceId;if(preferredSource&&resources.some(r=>(r.resourceId||r.id)===preferredSource))sourceSelect.value=preferredSource;
   modal.querySelector('#quizContinue').onclick=()=>{
     const resourceId=sourceSelect.value,resource=resources.find(r=>(r.resourceId||r.id)===resourceId);
     if(!resource){modal.querySelector('#quizSourceStatus').textContent='Choose a source PDF before continuing.';return;}
@@ -2275,7 +2275,7 @@ async function generateAIQuiz() {
       '<div class="form-row"><label class="form-label">Number of questions<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Entire PDF</option><option value="current">Current PDF page</option><option value="selected">Selected passage</option></select></label></div>'+
       '<label class="form-label">Your instructions<textarea id="quizPrompt" placeholder="Example: Focus on definitions, compare related concepts, include practical applications and exam-style questions…"></textarea></label>'+
       '<div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;"><button class="secondary-button" id="quizBack">← Change source</button><button class="primary-button" id="buildAIQuiz">Generate quiz →</button></div><p class="muted small-text" id="quizBuildStatus">Questions will be grounded only in '+escapeHTML(resource.name)+'.</p>';
-    modal.querySelector('#quizBack').onclick=()=>{modal.querySelector('.modal-header').innerHTML='<div><div class="kicker">Practice builder · Step 1 of 2</div><h2>Choose your source</h2></div><button class="close-button" id="closeAIQuiz">×</button>';modal.querySelector('#closeAIQuiz').onclick=close;modal.querySelector('.form-stack').innerHTML='<p class="muted small-text">Choose the PDF that should be used as the only source for this quiz.</p><label class="form-label">Source PDF<select id="quizSource"><option value="">Choose a PDF…</option>'+options+'</select></label><p class="muted small-text">Select one of your uploaded PDFs to continue.</p><div style="display:flex;justify-content:flex-end;"><button class="primary-button" id="quizContinue">Continue →</button></div>';const sel=modal.querySelector('#quizSource');sel.value=resourceId;modal.querySelector('#quizContinue').onclick=()=>{modal.remove();generateAIQuiz();};};
+    modal.querySelector('#quizBack').onclick=()=>{modal.remove();generateAIQuiz(resourceId);};
     modal.querySelector('#buildAIQuiz').onclick=async()=>{
       const format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim(),btn=modal.querySelector('#buildAIQuiz'),status=modal.querySelector('#quizBuildStatus');
       const resourceId=modal.dataset.resourceId,chosen=resources.find(r=>(r.resourceId||r.id)===resourceId);

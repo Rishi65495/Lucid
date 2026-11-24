@@ -859,11 +859,12 @@ window.loadLucidAchievements = async function(){
   const {data:earned,error}=await lucidSupabase.from('user_badges').select('badge_id,awarded_at,metadata').eq('user_id',uid).order('awarded_at',{ascending:false});
   if(error)throw error;
   const earnedMap=new Map((earned||[]).map(x=>[x.badge_id,x]));
+  const visibleBadges=(badges||[]).filter(b=>b.family!=='collaboration'||earnedMap.has(b.id));
   const icon={collaboration:'🤝',completion:'📚',consistency:'🔥',deep_work:'⚡',practice:'🧠',reading:'📖'};
   const grid=document.getElementById('rewardGrid'),dash=document.getElementById('dashBadges');
   const render=(target,compact)=>{
     if(!target)return;target.innerHTML='';
-    (badges||[]).forEach(badge=>{
+    visibleBadges.forEach(badge=>{
       const record=earnedMap.get(badge.id),card=document.createElement(compact?'div':'article');
       card.className=compact?'reward-badge'+(record?'':' locked'):'card card-padding';
       if(compact){card.textContent=icon[badge.family]||'✦';card.title=badge.name+(record?' · Earned':' · Not earned yet');}
@@ -878,7 +879,7 @@ window.loadLucidAchievements = async function(){
     });
   };
   render(grid,false);render(dash,true);
-  const earnedCount=document.getElementById('earnedBadgeCount');if(earnedCount)earnedCount.textContent=(earned||[]).length+' earned · '+(badges||[]).length+' available';
+  const earnedCount=document.getElementById('earnedBadgeCount');if(earnedCount)earnedCount.textContent=(earned||[]).length+' earned · '+visibleBadges.length+' available';
   const dashSummary=document.getElementById('dashBadgeSummary');if(dashSummary)dashSummary.textContent=(earned||[]).length+' badges earned. Badges unlock when your recorded learning activity meets their criteria.';
   return {earned:earned||[],badges:badges||[],evidence};
 };

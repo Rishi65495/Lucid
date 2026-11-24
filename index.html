@@ -1704,9 +1704,9 @@ textarea{min-height:75px;resize:vertical;}
 <div class="modal-backdrop" id="videoImportModal">
   <div class="modal">
     <div class="modal-header"><h2>Load YouTube video</h2><button class="close-button" onclick="closeModal('videoImportModal')">×</button></div>
-    <p class="muted small-text">Paste a YouTube URL to embed it in Lucid's focused learning shell.</p>
+    <p class="muted small-text">Import a video or playlist into your Library. Playlist details are retrieved from YouTube and saved to your account.</p>
     <div class="form-stack">
-      <label class="form-label">YouTube URL<input id="ytURL" placeholder="https://youtube.com/watch?v=dQw4w9WgXcQ" /></label>
+      <label class="form-label">YouTube URL<input id="ytURL" placeholder="https://www.youtube.com/watch?v=VIDEO_ID" /></label>
       <button class="primary-button full-width" onclick="loadYoutubeVideo()">Load in classroom →</button>
     </div>
   </div>
@@ -2102,9 +2102,11 @@ function loadYoutube() {
   loadYoutubeURL(url);
 }
 function loadPlaylist() {
+  const url=document.getElementById('playlistURL').value.trim();
+  if(!url){showToast('Paste a YouTube playlist URL first.','⚠');return;}
   closeModal('uploadModal');
   openPage('video');
-  showToast('Playlist imported! Creating course structure…', '▶');
+  loadYoutubeURL(url);
 }
 function loadYoutubeVideo() {
   const url = document.getElementById('ytURL').value.trim();

@@ -1740,7 +1740,7 @@ window.askLucidAgentHome=async function(preset){
   if(answer){answer.hidden=true;answer.textContent='';}
   if(status)status.textContent='Reviewing your saved resources, learning activity, quiz history and mastery evidence…';
   try{
-    const data=await window.invokeLucidAgentLocalFirst({action:'home_chat',request:query});
+    const data=await window.invokeLucidAgentLocalFirst({action:'home_chat',request:query,preferred_name:typeof state!=='undefined'?String(state.preferences?.name||'').trim():null});
     const result=data.text||data.result?.text||(typeof data.result==='string'?data.result:'');
     if(!result)throw new Error('Lucid Agent returned an empty answer.');
     if(answer){answer.textContent=result;answer.hidden=false;}

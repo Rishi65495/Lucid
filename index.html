@@ -342,7 +342,7 @@ h3{font-size:15px;font-weight:700;}
 .pdf-viewer-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 12px;}
 .pdf-canvas-viewport{width:100%;max-height:none;overflow:auto;padding:12px;background:#303631;border-radius:10px;}
 .pdf-canvas-stage{position:relative;margin:0 auto;max-width:100%;background:white;box-shadow:0 8px 30px rgba(0,0,0,.25);}
-#pdfPageCanvas{display:block;max-width:100%;height:auto;}
+#pdfPageCanvas{display:block;max-width:none;height:auto;}
 .reader-layout{grid-template-columns:minmax(0,1fr) minmax(260px,320px);align-items:start;}
 .reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr)!important;}
 .reader-layout.sidebar-hidden>.reader-sidebar{display:none!important;}
@@ -2305,17 +2305,17 @@ function answerQuiz(correct, btn) {
   const result = document.getElementById('quizResult') || document.getElementById('modalQuizResult');
   const answeredQuestion=quizBank[currentQuizIdx % quizBank.length];
   if(typeof window.recordLucidQuizAnswer==='function'){
-    window.recordLucidQuizAnswer({question:answeredQuestion.q,selectedOption:btn?btn.textContent:'',correctOption:answeredQuestion.opts[answeredQuestion.ans],correct,quizIndex:currentQuizIdx})
+    window.recordLucidQuizAnswer({question:answeredQuestion.q,selectedOption:btn?btn.textContent:'',correctOption:answeredQuestion.opts[answeredQuestion.ans],correct,quizIndex:currentQuizIdx,totalQuestions:quizBank.length,quizId:window.currentGeneratedQuizId||null,explanation:answeredQuestion.explanation||''})
       .catch(error=>console.warn('Could not persist quiz evidence:',error.message));
   }
   if (correct) {
     state.quizCorrect++; state.xp += 25; updateXP();
     if (btn) btn.classList.add('correct');
-    if (result) { result.style.color = 'var(--forest-2)'; result.textContent = '✓ Correct! +25 XP. Well done.'; }
+    if (result) { result.style.color = 'var(--forest-2)'; result.textContent = '✓ Correct! +25 XP. Well done.'+(answeredQuestion.explanation?' '+answeredQuestion.explanation:''); }
     showToast('Correct! +25 XP 🎯', '🎯');
   } else {
     if (btn) btn.classList.add('wrong');
-    if (result) { result.style.color = 'var(--danger)'; result.textContent = '✗ Not quite. Review the concept and try again.'; }
+    if (result) { result.style.color = 'var(--danger)'; result.textContent = '✗ Not quite. Review the concept and try again.'+(answeredQuestion.explanation?' '+answeredQuestion.explanation:''); }
     showToast('Incorrect — note this for review.', '📝');
   }
   const pct = state.quizTotal ? Math.round((state.quizCorrect/state.quizTotal)*100) : 0;
@@ -2327,6 +2327,7 @@ function answerQuiz(correct, btn) {
   saveState();
 }
 function nextQuestion() {
+  if(currentQuizIdx+1>=quizBank.length){window.currentQuizAttemptId=null;state.quizCorrect=0;state.quizTotal=0;document.getElementById('quizScore').textContent='0/0';document.getElementById('quizScoreBar').style.width='0%';document.getElementById('accuracyBar').style.width='0%';document.getElementById('accuracyPct').textContent='—';}
   currentQuizIdx = (currentQuizIdx + 1) % quizBank.length;
   loadQuiz(currentQuizIdx);
 }
@@ -2362,7 +2363,7 @@ async function generateAIQuiz() {
       const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||format}));
       if(!qs.length)throw new Error('No structured questions returned. Try fewer questions or a different format.');
       let savedQuizId=null;try{savedQuizId=await window.saveLucidQuiz({resourceId,sourceTitle:resource?.name,format,difficulty,coverage,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}catch(saveError){console.warn('Quiz generated but history could not be saved:',saveError.message);}
-      quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;window.currentGeneratedQuizId=savedQuizId;window.currentQuizSourceId=resourceId;
+      quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=savedQuizId;window.currentQuizSourceId=resourceId;
       loadQuiz(0);close();openPage('practice');showToast(qs.length+' questions generated from '+(resource?.name||'your PDF')+(savedQuizId?' and saved to your practice history.':'.'),savedQuizId?'✦':'⚠');
     }catch(error){modal.querySelector('#quizBuildStatus').textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
   };

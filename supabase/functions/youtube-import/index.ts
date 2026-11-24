@@ -10,6 +10,12 @@ const cors = {
 
 const KEY = Deno.env.get("YOUTUBE_API_KEY") || "";
 
+function parseDurationSeconds(value: string | null | undefined) {
+  if (!value) return 0;
+  const m = value.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  return m ? (Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0)) : 0;
+}
+
 function ids(url: string) {
   try {
     const u = new URL(url);
@@ -102,6 +108,7 @@ Deno.serve(async (req) => {
                   item.snippet?.thumbnails?.default?.url || null,
                 video_id: i.videoId,
                 duration: item.contentDetails?.duration || null,
+                duration_seconds: parseDurationSeconds(item.contentDetails?.duration),
                 published_at: item.snippet?.publishedAt || null,
               },
             }), { headers: cors });
@@ -166,6 +173,16 @@ Deno.serve(async (req) => {
 
       page = data.nextPageToken || "";
     } while (page && items.length < 500);
+
+    // Resolve actual durations for imported playlist items in YouTube API batches.
+    for (let offset = 0; offset < items.length; offset += 50) {
+      const batch = items.slice(offset, offset + 50);
+      try {
+        const detail = await yt("videos?part=contentDetails&id=" + batch.map(x => encodeURIComponent(x.video_id)).join(","));
+        const durationById = new Map((detail.items || []).map((v: any) => [v.id, parseDurationSeconds(v.contentDetails?.duration)]));
+        batch.forEach(item => item.duration_seconds = Number(durationById.get(item.video_id) || 0));
+      } catch (_) { batch.forEach(item => item.duration_seconds = 0); }
+    }
 
     return new Response(JSON.stringify({
       type: "playlist",

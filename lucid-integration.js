@@ -254,7 +254,7 @@ window.getLucidResourcePages = async function(resourceId,options={}){
   if(!lucidSession?.user||!resourceId)throw new Error('Sign in and choose a source PDF.');
   let query=lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',resourceId).order('page_number',{ascending:true});
   if(options.page)query=query.eq('page_number',Number(options.page));
-  else query=query.range(0,19);
+  else query=query.range(0,499);
   const {data,error}=await query;if(error)throw error;return data||[];
 };
 window.loadLucidAnnotations = async function(resourceId){
@@ -413,7 +413,12 @@ window.renderLucidReaderPage = async function(){
     const textContent=await pdfPage.getTextContent();
     if(window.pdfjsLib.renderTextLayer){const task=window.pdfjsLib.renderTextLayer({textContent,container:textLayer,viewport:pdfViewport,textDivs:[]});if(task?.promise)await task.promise;}
     const zoomLabel=document.getElementById('pdfZoomLabel');if(zoomLabel)zoomLabel.textContent=Math.round((Number(state.pdfZoom)||1)*100)+'%';
-  }catch(error){stage.innerHTML='<p style="padding:24px;color:#9b3d38">Could not render this PDF page: '+String(error.message||error).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</p>';}
+  }catch(error){
+    if(error?.name==='RenderingCancelledException')return;
+    let errorNode=stage.querySelector('.pdf-render-error');
+    if(!errorNode){errorNode=document.createElement('p');errorNode.className='pdf-render-error';errorNode.style.cssText='padding:24px;color:#9b3d38';stage.appendChild(errorNode);}
+    errorNode.textContent='Could not render this PDF page: '+String(error.message||error);
+  }
 };
 window.goLucidPdfPage=function(value){
   const max=Number(state.currentResourcePageCount||state.resourcePages?.length||1);state.currentResourcePage=Math.max(1,Math.min(max,Number(value)||1));

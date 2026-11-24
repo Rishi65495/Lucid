@@ -1422,11 +1422,11 @@ function renderUploadedBooks(){
     const main=document.createElement('div');main.className='book-main';
     const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent=(b.type||'PDF').toUpperCase();
     const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
-    const sub=document.createElement('div');sub.className='book-author';sub.textContent=(b.pages||0)+' pages · '+(b.status||'saved');
+    const sub=document.createElement('div');sub.className='book-author';sub.textContent=b.type==='video'?'YouTube video · saved':b.type==='playlist'?'YouTube playlist · saved':(b.pages||0)+' pages · '+(b.status||'saved');
     info.append(title,sub);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';
     const tag=document.createElement('span');tag.className='tag';tag.textContent=b.catalogueId?'In catalogue':'Not in a catalogue';
-    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>{if(b.type==='video'){openPage('video');window.selectLucidVideo(b.resourceId||b.id).catch(error=>showToast('Could not open video: '+error.message,'⚠'));}else if(b.type==='playlist'){openPage('video');window.loadLucidVideoPlaylist().catch(error=>showToast(error.message,'⚠'));}else window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));};
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>{if(b.type==='video'){openPage('video');window.selectLucidVideo(b.resourceId||b.id).catch(error=>showToast('Could not open video: '+error.message,'⚠'));}else if(b.type==='playlist'){openPage('video');window.loadLucidVideoPlaylist(b.catalogueId||null).catch(error=>showToast(error.message,'⚠'));}else window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));};
     footer.append(tag,open);el.append(main,footer);
     const move=document.createElement('div');move.style.cssText='display:flex;gap:8px;align-items:center;margin-top:10px;';
     const label=document.createElement('span');label.className='muted small-text';label.textContent='Folder:';

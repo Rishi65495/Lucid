@@ -561,6 +561,19 @@ window.loadLucidGoals = async function(){
       item.append(check,body,tag);list.appendChild(item);
     });
   }
+  const dashboard=document.getElementById('dashboardGoalsSummary');
+  if(dashboard){
+    dashboard.innerHTML='';
+    if(!goals.length)dashboard.innerHTML='<p class="muted small-text">No goals yet. Add a goal to see measurable progress here.</p>';
+    goals.slice(0,3).forEach(goal=>{
+      const row=document.createElement('div');row.className='goal-item';const body=document.createElement('div');body.style.flex='1';
+      const title=document.createElement('strong');title.textContent=goal.title;
+      const current=Number(currentByType[goal.target_type]||0),target=Number(goal.target_value||0),unit=unitByType[goal.target_type]||'';
+      const meta=document.createElement('div');meta.className='muted small-text';meta.textContent=target>0?'Progress '+(goal.target_type==='focus_hours'?current.toFixed(1):Math.round(current))+' / '+target+' '+unit:(goal.deadline?'Due '+new Date(goal.deadline).toLocaleDateString():'Active goal');
+      body.append(title,meta);if(target>0){const track=document.createElement('div');track.className='progress-track';track.style.marginTop='6px';const fill=document.createElement('span');fill.className='progress-fill';fill.style.width=Math.max(0,Math.min(100,current/target*100))+'%';track.appendChild(fill);body.appendChild(track);}
+      const status=document.createElement('span');status.className='tag';status.textContent=goal.status==='completed'?'Completed':'Active';row.append(body,status);dashboard.appendChild(row);
+    });
+  }
   return goals;
 };
 window.createLucidGoal = async function(input){

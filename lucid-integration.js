@@ -62,8 +62,8 @@ window.callAIGuide = async function(prompt,style){
         state.currentVideo?'CURRENT VIDEO SOURCE: '+state.currentVideo.title:'Current resource: '+(state.currentResourceTitle||''),
         state.currentVideo?'VIDEO TRANSCRIPT (authoritative source): '+(state.currentVideo.transcript||'No transcript has been saved for this video.'):'',
         'Current page: '+(state.currentResourcePage||1),
-        'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
-        'Selected passage: '+(state.selectedText||''),
+        state.currentVideo?'':'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
+        state.currentVideo?'':'Selected passage: '+(state.selectedText||''),
         'Annotations: '+(state.annotations||[]).slice(-8).map(x=>typeof x==='string'?x:x.text||x.note||'').join('; ')
       ].filter(Boolean).join('\\n'): ''
     });
@@ -969,6 +969,8 @@ window.goLucidPdfPage=function(value){
 window.changeLucidPdfZoom=function(delta){state.pdfZoom=Math.max(.5,Math.min(2.5,(Number(state.pdfZoom)||1)+delta));window.renderLucidReaderPage();};
 window.resetLucidPdfZoom=function(){state.pdfZoom=1;window.renderLucidReaderPage();};
 window.openLucidResource = async function(id){
+  state.currentVideo=null;
+  const videoCard=document.getElementById('videoAiCard');if(videoCard)videoCard.style.display='none';
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata').eq('id',id).eq('owner_id',lucidSession.user.id).single();
   if(error)throw error;

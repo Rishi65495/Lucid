@@ -288,10 +288,10 @@ window.persistLucidYouTubeImport=async function(imported,url){
     if(inserted.error)throw inserted.error;return inserted.data.id;
   };
   const saveVideoRecord=async(row)=>{
-    const existing=await lucidSupabase.from('resource_videos').select('id').eq('resource_id',row.resource_id).limit(1).maybeSingle();
+    const existing=await lucidSupabase.from('resource_videos').select('id,transcript,metadata').eq('resource_id',row.resource_id).limit(1).maybeSingle();
     if(existing.error)throw existing.error;
     if(existing.data?.id){
-      const updated=await lucidSupabase.from('resource_videos').update(row).eq('id',existing.data.id);
+      const updated=await lucidSupabase.from('resource_videos').update({...row,transcript:row.transcript||existing.data.transcript||null,metadata:{...(existing.data.metadata||{}),...(row.metadata||{})}}).eq('id',existing.data.id);
       if(updated.error)throw updated.error;
     }else{
       const inserted=await lucidSupabase.from('resource_videos').insert(row);
@@ -1097,13 +1097,13 @@ window.openLucidResource = async function(id){
   const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata').eq('id',id).eq('owner_id',lucidSession.user.id).single();
   if(error)throw error;
   if(resource.type==='video'){
-    await window.persistLucidVideoProgress(true);openPage('video');await window.loadLucidVideoLibrary('__standalone__');await window.selectLucidVideo(id);return resource;
+    try{window.lucidVideoPlayer?.pauseVideo?.();}catch(_){}await window.persistLucidVideoProgress(true);openPage('video');await window.loadLucidVideoLibrary('__standalone__');await window.selectLucidVideo(id);return resource;
   }
   if(resource.type==='playlist'){
-    await window.persistLucidVideoProgress(true);openPage('video');const items=await window.loadLucidVideoLibrary(id);if(items.length)await window.selectLucidVideo(items[0].resource_id);return resource;
+    try{window.lucidVideoPlayer?.pauseVideo?.();}catch(_){}await window.persistLucidVideoProgress(true);openPage('video');const items=await window.loadLucidVideoLibrary(id);if(items.length)await window.selectLucidVideo(items[0].resource_id);return resource;
   }
   if(resource.type!=='pdf')throw new Error('This resource type cannot be opened in the PDF reader.');
-  await window.persistLucidVideoProgress(true);state.currentVideoContext=null;state.currentVideoResourceId=null;window.currentLucidVideoResourceId=null;
+  try{window.lucidVideoPlayer?.pauseVideo?.();}catch(_){}await window.persistLucidVideoProgress(true);state.currentVideoContext=null;state.currentVideoResourceId=null;window.currentLucidVideoResourceId=null;
   const {data:fileRow,error:fileError}=await lucidSupabase.from('resource_files').select('storage_bucket,storage_path,original_name').eq('resource_id',id).maybeSingle();
   if(fileError)throw fileError;
   if(!fileRow?.storage_path)throw new Error('The original PDF file link is missing. Re-upload this PDF to restore the document viewer.');

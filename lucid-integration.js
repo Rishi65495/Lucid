@@ -628,7 +628,6 @@ window.loadLucidProfile = async function(){
     state.level=Math.max(1,Number(profile.level)||1);
     state.weeklyGoal=Math.max(1,Number(profile.weekly_goal)||200);
     if(typeof updateXP==='function')updateXP();
-    if(window.syncLucidXP)await window.syncLucidXP(state.xp,state.level);
   }
   const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   const hour=new Date().getHours(),greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';

@@ -1056,6 +1056,34 @@ window.createLucidCatalogue = async function(input){
   const {data,error}=await lucidSupabase.from('catalogues').insert({owner_id:lucidSession.user.id,title:input.title,description:input.description||null,icon:input.icon||'📁'}).select('id,title,description,icon').single();
   if(error)throw error;return data;
 };
+window.removeLucidResourceFromCatalogue = async function(resourceId,catalogueId){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  if(!resourceId||!catalogueId)throw new Error('Missing resource or catalogue.');
+  const owned=await lucidSupabase.from('lucid_resources').select('id').eq('id',resourceId).eq('owner_id',lucidSession.user.id).maybeSingle();
+  if(owned.error)throw owned.error;
+  if(!owned.data)throw new Error('Resource not found in your library.');
+  const removed=await lucidSupabase.from('catalogue_resources').delete().eq('resource_id',resourceId).eq('catalogue_id',catalogueId);
+  if(removed.error)throw removed.error;
+  await window.loadLucidCatalogues();
+  await window.openLucidCatalogue(catalogueId);
+  return true;
+};
+window.deleteLucidCatalogue = async function(catalogueId){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  if(!catalogueId)throw new Error('Missing catalogue.');
+  const owned=await lucidSupabase.from('catalogues').select('id,title').eq('id',catalogueId).eq('owner_id',lucidSession.user.id).maybeSingle();
+  if(owned.error)throw owned.error;
+  if(!owned.data)throw new Error('Catalogue not found or you do not own it.');
+  const links=await lucidSupabase.from('catalogue_resources').delete().eq('catalogue_id',catalogueId);
+  if(links.error)throw links.error;
+  const deleted=await lucidSupabase.from('catalogues').delete().eq('id',catalogueId).eq('owner_id',lucidSession.user.id);
+  if(deleted.error)throw deleted.error;
+  if(state.selectedCatalogueId===catalogueId){state.selectedCatalogueId=null;saveState();}
+  const panel=document.getElementById('catalogueResourcesPanel');
+  if(panel)panel.style.display='none';
+  await window.loadLucidCatalogues();
+  return owned.data.title;
+};
 window.loadLucidCatalogues = async function(){
   if(!lucidSession?.user)return [];
   const {data:cats,error:catError}=await lucidSupabase.from('catalogues').select('id,title,description,icon,created_at').order('created_at',{ascending:false});
@@ -1104,8 +1132,9 @@ window.loadLucidCatalogues = async function(){
       else{preview.textContent='No resources added yet.';}
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:7px;margin-top:14px;';
       const open=document.createElement('button');open.className='secondary-button btn-sm';open.textContent='View resources';open.onclick=()=>window.openLucidCatalogue(cat.id);
-      const add=document.createElement('button');add.className='ghost-button btn-sm';add.textContent='＋ Add PDF';add.onclick=()=>{const sel=document.getElementById('uploadCatalogue');if(sel)sel.value=cat.id;openModal('uploadModal');};
-      actions.append(open,add);card.append(icon,title,desc,count,preview,actions);grid.appendChild(card);
+      const add=document.createElement('button');add.className='ghost-button btn-sm';add.textContent='＋ Add resource';add.onclick=()=>{const sel=document.getElementById('uploadCatalogue');if(sel)sel.value=cat.id;openModal('uploadModal');};
+      const removeCat=document.createElement('button');removeCat.className='danger-button btn-sm';removeCat.textContent='Delete catalogue';removeCat.onclick=async()=>{if(!confirm('Delete "'+cat.title+'"? Its catalogue links will be removed, but the original resources will remain in My Library.'))return;removeCat.disabled=true;try{await window.deleteLucidCatalogue(cat.id);showToast('Catalogue deleted. Your library resources were kept.','✓');}catch(error){showToast('Could not delete catalogue: '+error.message,'⚠');removeCat.disabled=false;}};
+      actions.append(open,add,removeCat);card.append(icon,title,desc,count,preview,actions);grid.appendChild(card);
     });
   }
   const select=document.getElementById('uploadCatalogue');
@@ -1304,7 +1333,8 @@ window.openLucidCatalogue = async function(id){
     info.append(title,status);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';const tag=document.createElement('span');tag.className='tag';tag.textContent=resource.type||'resource';
     const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(resource.id);
-    footer.append(tag,open);card.append(main,footer);list?.appendChild(card);
+    const remove=document.createElement('button');remove.className='danger-button btn-sm';remove.textContent='Remove';remove.title='Remove this resource from this catalogue; keep it in My Library';remove.onclick=async()=>{if(!confirm('Remove "'+(resource.title||'this resource')+'" from this catalogue? It will remain in My Library.'))return;remove.disabled=true;try{await window.removeLucidResourceFromCatalogue(resource.id,id);showToast('Resource removed from catalogue; kept in My Library.','✓');}catch(error){showToast('Could not remove resource: '+error.message,'⚠');remove.disabled=false;}};
+    footer.append(tag,open,remove);card.append(main,footer);list?.appendChild(card);
   });
   if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
   return rows.length;

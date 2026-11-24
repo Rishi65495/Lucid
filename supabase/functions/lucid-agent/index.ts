@@ -1,5 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { routeIntent } from "../_shared/context-engine/intent-router.ts";
+import { composeContext } from "../_shared/context-engine/context-composer.ts";
+import { enforceContextBudget } from "../_shared/context-engine/token-controller.ts";
 
 const CORS={
   "Access-Control-Allow-Origin":"*",
@@ -28,8 +31,8 @@ const toolDefs=[
 function clean(s){return (s||"").replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`$/,"").trim();}
 function safeParse(s){try{return JSON.parse(clean(s))}catch{return null}}
 
-async function gemini(contents){
- const body={contents,generationConfig:{maxOutputTokens:6000},tools:[{functionDeclarations:toolDefs}]};
+async function gemini(contents,availableTools=toolDefs){
+ const body={contents,generationConfig:{maxOutputTokens:6000},...(availableTools.length?{tools:[{functionDeclarations:availableTools}]}:{})};
  const endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent";
  let lastError="Gemini API error";
  for(let attempt=0;attempt<4;attempt++){
@@ -136,6 +139,30 @@ Deno.serve(async(req)=>{
   if(me.error||!me.data.user)return new Response(JSON.stringify({error:"Not authenticated"}),{status:401,headers:CORS});
   const body=await req.json(),action=String(body.action||"chat"),request=String(body.request||"");
   const resourceId=body.resource_id||null,page=body.page_number||null,catalogueId=body.catalogue_id||null,roomId=body.room_id||null;
+  const decision=routeIntent(request);
+  const contextInput=composeContext({
+   intent:decision.intent,
+   userMessage:request,
+   conversation:Array.isArray(body.history)?body.history.slice(-4):[],
+   resourceChunks:[],
+   taskData:{action,resourceId,page,catalogueId,roomId}
+  },decision.level);
+  const budgetCheck=enforceContextBudget(contextInput.context,decision.level);
+  const selectedContext=budgetCheck.withinBudget?budgetCheck.value:{intent:decision.intent,userMessage:request,action};
+  const allowedTools=new Set<string>();
+  if(decision.retrieve.resource||["quiz","flashcards","evaluate_recall","teach"].includes(action))allowedTools.add("search_resource");
+  if(decision.retrieve.learnerProfile||decision.retrieve.currentLesson||decision.retrieve.mastery||decision.retrieve.quizHistory||decision.retrieve.goals)allowedTools.add("get_learning_context");
+  if(decision.retrieve.goals)allowedTools.add("get_goal_state");
+  if(decision.retrieve.agentTools){
+   allowedTools.add("get_due_reviews");
+   allowedTools.add("get_goal_state");
+   if(roomId)allowedTools.add("get_room_state");
+   if(action==="plan")allowedTools.add("create_recommendation");
+   if(action==="analyze_pattern")allowedTools.add("save_learning_pattern");
+   if(action==="complete_goal")allowedTools.add("mark_goal_complete");
+   if(action==="save_room_knowledge")allowedTools.add("create_room_knowledge");
+  }
+  const availableTools=toolDefs.filter(tool=>allowedTools.has(tool.name));
   let typeInstruction="Return a normal helpful answer.";
   if(action==="quiz")typeInstruction='Return ONLY JSON: {"questions":[{"prompt":"","options":["","","",""],"answer_index":0,"explanation":"","concept_key":""}]}';
   if(action==="flashcards")typeInstruction='Return ONLY JSON: {"cards":[{"front":"","back":"","concept_key":""}]}';
@@ -164,7 +191,7 @@ Deno.serve(async(req)=>{
   let contents=[{role:"user",parts:[{text:userPrompt}]}];
   const trace=[];
   for(let round=0;round<6;round++){
-   const d=await gemini(contents),candidate=d.candidates?.[0],parts=candidate?.content?.parts||[];
+   const d=await gemini(contents,availableTools),candidate=d.candidates?.[0],parts=candidate?.content?.parts||[];
    const calls=parts.filter(p=>p.functionCall).map(p=>p.functionCall);
    if(!calls.length){
     const raw=parts.filter(p=>p.text).map(p=>p.text).join("\n").trim(),parsed=safeParse(raw);

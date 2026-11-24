@@ -34,13 +34,14 @@ window.invokeLucidFunction = async function(name,body){
 window.callAIGuide = async function(prompt,style){
   try{
     const history=(typeof state!=='undefined'?state.chatMessages:[]).slice(-8).map(m=>({role:m.role,content:m.text}));
-    let context=style?'Preferred coaching style: '+style:'';
-    if(typeof state!=='undefined'&&state.currentResourceId){
-      const {data,error}=await lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',state.currentResourceId).order('page_number').limit(20);
-      if(error)throw error;
-      context+='\nActive PDF: '+(state.currentResourceTitle||'Selected resource')+'\n'+(data||[]).map(p=>'Page '+p.page_number+': '+(p.text_content||'')).join('\n').slice(0,85000);
-    }
-    const data=await window.invokeLucidFunction('ai-guide',{question:prompt,context,history});
+    // Do not download PDF pages in the browser. The Edge Function routes the
+    // request first and retrieves only the relevant, user-owned resource pages.
+    const data=await window.invokeLucidFunction('ai-guide',{
+      question:prompt,
+      style:style||'',
+      history,
+      resource_id:typeof state!=='undefined'?state.currentResourceId:null
+    });
     return data.text||'The AI Guide returned an empty response.';
   }catch(error){return 'AI Guide error: '+(error&&error.message||'Unknown error');}
 };

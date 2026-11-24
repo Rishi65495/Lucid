@@ -1,0 +1,29 @@
+name: Context Engine Tests
+
+on:
+  push:
+    branches:
+      - feat/dynamic-context-engine
+    paths:
+      - "supabase/functions/_shared/context-engine/**"
+      - "supabase/functions/ai-guide/**"
+      - "supabase/functions/lucid-agent/**"
+      - ".github/workflows/context-engine-tests.yml"
+  pull_request:
+    paths:
+      - "supabase/functions/_shared/context-engine/**"
+      - "supabase/functions/ai-guide/**"
+      - "supabase/functions/lucid-agent/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Run context engine tests
+        run: deno test supabase/functions/_shared/context-engine/

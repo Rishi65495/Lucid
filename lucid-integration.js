@@ -11,15 +11,20 @@ window.updateLucidAuthUI = async function(session){
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};
 window.invokeLucidFunction = async function(name,body){
-  if(!lucidSession)throw new Error('Please sign in before using Lucid AI.');
-  const {data:{session},error:sessionError}=await lucidSupabase.auth.getSession();
-  if(sessionError)throw new Error('Could not refresh your sign-in session: '+sessionError.message);
-  if(!session?.access_token)throw new Error('Your sign-in session expired. Sign in again.');
+  let {data:{session},error:sessionError}=await lucidSupabase.auth.getSession();
+  if(sessionError)throw new Error('Could not read your sign-in session: '+sessionError.message);
+  const needsRefresh=!session?.access_token||!session.expires_at||session.expires_at*1000<Date.now()+30000;
+  if(needsRefresh){
+    const refreshed=await lucidSupabase.auth.refreshSession();
+    if(refreshed.error||!refreshed.data?.session?.access_token)throw new Error('Your sign-in session expired. Please sign in again.');
+    session=refreshed.data.session;lucidSession=session;
+    if(window.updateLucidAuthUI)await window.updateLucidAuthUI(session);
+  }
   async function send(accessToken){
     const response=await fetch(LUCID_SUPABASE_URL+'/functions/v1/'+encodeURIComponent(name),{
       method:'POST',headers:{'Authorization':'Bearer '+accessToken,'apikey':LUCID_SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
@@ -32,9 +37,9 @@ window.invokeLucidFunction = async function(name,body){
   if(result.response.status===401){
     const refreshed=await lucidSupabase.auth.refreshSession();
     if(!refreshed.error&&refreshed.data?.session?.access_token){
-      lucidSession=refreshed.data.session;
-      result=await send(refreshed.data.session.access_token);
-      await window.updateLucidAuthUI(refreshed.data.session);
+      session=refreshed.data.session;lucidSession=session;
+      if(window.updateLucidAuthUI)await window.updateLucidAuthUI(session);
+      result=await send(session.access_token);
     }
   }
   if(!result.response.ok)throw new Error('HTTP '+result.response.status+' · '+(result.payload.error||result.payload.message||result.payload.msg||result.raw||'Edge Function request failed'));
@@ -68,7 +73,7 @@ window.callLucidAgent = async function(prompt){
   const data=await window.invokeLucidFunction('lucid-agent',{action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null});
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
-window.generateAIQuiz = async function(){showToast('Generating an AI quiz…','✦');const prompt='Create one multiple-choice question about Machine Learning and overfitting.';try{const data=await window.callLearningEngine('quiz',prompt,{subject:'Machine Learning',topic:'overfitting'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);openPage('practice');showToast(qs.length+' AI question(s) added to Practice Center.','✦');}else{showToast('AI returned no valid quiz questions.','⚠');}}catch(error){showToast('AI quiz failed: '+error.message,'⚠');}};
+// The source-aware quiz builder is defined in index.html. Do not override it here.
 window.generateFlashcards = async function(){showToast('Generating flashcards from your notes…','✦');const notes=state.annotations.slice(0,3).map(x=>typeof x==='string'?x:(x.text||x.note||''));const prompt='Create three concise flashcards from these notes: '+(notes.join('. ')||'Machine Learning fundamentals, overfitting, bias-variance tradeoff');try{const data=await window.callLearningEngine('flashcards',prompt,{annotations:notes});const cards=data.result?.cards||[];if(cards.length){state.flashcards=cards.map(c=>({q:c.front,a:c.back}));state.flashcardIndex=0;document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';}console.log('Lucid flashcards:',data.result);showToast(cards.length?cards.length+' flashcards generated.':'No flashcards returned.','✦');}catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}};
 window.evaluateOral = async function(){const q=document.getElementById('oralQuestion').textContent;const a=document.getElementById('oralAnswer').value.trim();if(!a){showToast('Write your explanation first.','⚠');return;}const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer…';try{const data=await window.callLearningEngine('evaluate_recall','Evaluate coverage, accuracy and clarity. Question: '+q+' Student answer: '+a,{question:q,answer:a});const text=window.formatLearningResult(data.result);resultEl.innerHTML='<div class="note green"><strong>AI evaluation:</strong><br>'+escapeHTML(text).replace(/\n/g,'<br>')+'</div>';state.xp+=15;updateXP();showToast('Oral recall evaluated! +15 XP','🎙');}catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Evaluation failed.','⚠');}};
 window.practiceWeak = async function(topic){openPage('practice');showToast('Preparing targeted practice for '+topic+'…','📝');try{const data=await window.callLearningEngine('quiz','Create one remedial MCQ about '+topic+' with four options, answer and explanation.',{weak_topic:topic,practice_mode:'remedial'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);showToast('Targeted AI practice ready for '+topic+'.','✦');}else{showToast('AI returned no valid practice question.','⚠');}}catch(error){showToast('Practice generation failed: '+error.message,'⚠');}};
@@ -256,6 +261,117 @@ window.getLucidResourcePages = async function(resourceId,options={}){
   if(options.page)query=query.eq('page_number',Number(options.page));
   else query=query.range(0,499);
   const {data,error}=await query;if(error)throw error;return data||[];
+};
+window.loadLucidGoals = async function(){
+  if(!lucidSession?.user)return [];
+  const {data,error}=await lucidSupabase.from('learning_goals').select('id,title,description,target_type,target_value,deadline,status,created_at,completed_at').eq('owner_id',lucidSession.user.id).order('created_at',{ascending:false});
+  if(error)throw error;
+  const goals=data||[],list=document.getElementById('goalList');
+  if(list){
+    list.innerHTML='';
+    if(!goals.length){list.innerHTML='<p class="muted small-text">No goals yet. Add a goal to define a measurable learning target.</p>';}
+    goals.forEach(goal=>{
+      const item=document.createElement('div');item.className='goal-item'+(goal.status==='completed'?' done':'');
+      const check=document.createElement('button');check.type='button';check.className='goal-check'+(goal.status==='completed'?' checked':'');check.textContent=goal.status==='completed'?'✓':'';check.disabled=goal.status==='completed';check.title=goal.status==='completed'?'Completed':'Mark goal complete';check.onclick=()=>window.completeLucidGoal(goal.id);
+      const body=document.createElement('div');body.style.flex='1';
+      const title=document.createElement('strong');title.textContent=goal.title;
+      const meta=document.createElement('div');meta.className='muted small-text';meta.textContent=[goal.target_type?.replaceAll('_',' '),goal.deadline?'Due '+new Date(goal.deadline).toLocaleDateString():null].filter(Boolean).join(' · ')||'Personal learning goal';
+      body.append(title,meta);const tag=document.createElement('span');tag.className='tag';tag.textContent=goal.status==='completed'?'Completed':'Active';
+      item.append(check,body,tag);list.appendChild(item);
+    });
+  }
+  return goals;
+};
+window.createLucidGoal = async function(input){
+  if(!lucidSession?.user)throw new Error('Sign in to save a goal.');
+  const row={owner_id:lucidSession.user.id,title:String(input.title||'').trim(),description:input.description||null,target_type:input.target_type||'milestone',target_value:input.target_value||null,deadline:input.deadline?new Date(input.deadline+'T23:59:59').toISOString():null,status:'active'};
+  if(!row.title)throw new Error('Enter a goal title.');
+  const {data,error}=await lucidSupabase.from('learning_goals').insert(row).select('id,title,description,target_type,target_value,deadline,status,created_at,completed_at').single();
+  if(error)throw error;await window.loadLucidGoals();return data;
+};
+window.completeLucidGoal = async function(id){
+  if(!lucidSession?.user)throw new Error('Sign in to update a goal.');
+  const {error}=await lucidSupabase.from('learning_goals').update({status:'completed',completed_at:new Date().toISOString()}).eq('id',id).eq('owner_id',lucidSession.user.id);
+  if(error)throw error;await window.loadLucidGoals();
+};
+window.loadLucidAchievements = async function(){
+  if(!lucidSession?.user)return [];
+  const {data:earned,error}=await lucidSupabase.from('user_badges').select('badge_id,awarded_at,metadata').eq('user_id',lucidSession.user.id).order('awarded_at',{ascending:false});
+  if(error)throw error;
+  const {data:badges,error:badgeError}=await lucidSupabase.from('badges').select('id,slug,name,family,description,rule').order('family').order('name');
+  if(badgeError)throw badgeError;
+  const earnedMap=new Map((earned||[]).map(x=>[x.badge_id,x]));
+  const icon={collaboration:'🤝',completion:'📚',consistency:'🔥',deep_work:'⚡',practice:'🧠',reading:'📖'};
+  const grid=document.getElementById('rewardGrid'),dash=document.getElementById('dashBadges');
+  const render=(target,compact)=>{
+    if(!target)return;target.innerHTML='';
+    (badges||[]).forEach(badge=>{
+      const record=earnedMap.get(badge.id),card=document.createElement(compact?'div':'article');
+      card.className=compact?'reward-badge'+(record?'':' locked'):'card card-padding';
+      if(compact){card.textContent=icon[badge.family]||'✦';card.title=badge.name+(record?' · Earned':' · Not earned yet');}
+      else{
+        const emblem=document.createElement('div');emblem.className='reward-badge'+(record?'':' locked');emblem.textContent=icon[badge.family]||'✦';
+        const title=document.createElement('h3');title.style.marginTop='13px';title.textContent=badge.name;
+        const desc=document.createElement('p');desc.className='muted small-text';desc.textContent=badge.description;
+        const tag=document.createElement('span');tag.className='tag';tag.style.marginTop='8px';tag.textContent=record?'Earned '+new Date(record.awarded_at).toLocaleDateString():'Not earned yet';
+        card.append(emblem,title,desc,tag);
+      }
+      target.appendChild(card);
+    });
+  };
+  render(grid,false);render(dash,true);
+  const earnedCount=document.getElementById('earnedBadgeCount');if(earnedCount)earnedCount.textContent=(earned||[]).length+' earned · '+(badges||[]).length+' available';
+  return {earned:earned||[],badges:badges||[]};
+};
+window.saveLucidQuiz = async function(input){
+  if(!lucidSession?.user)throw new Error('Sign in to save quiz history.');
+  const {data:quiz,error}=await lucidSupabase.from('quizzes').insert({
+    owner_id:lucidSession.user.id,resource_id:input.resourceId||null,quiz_type:input.format||'mcq',
+    title:input.title||'Practice quiz',difficulty:input.difficulty||'Balanced',
+    source_context:{coverage:input.coverage||'whole',instructions:input.instructions||'',source_title:input.sourceTitle||'',question_count:(input.questions||[]).length}
+  }).select('id').single();
+  if(error)throw error;
+  const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.prompt||q.q,options:q.options||q.opts||[],answer:{answer_index:Number(q.answer_index??q.ans)||0},explanation:q.explanation||'',difficulty:input.difficulty||'Balanced',order_index:index}));
+  const saved=await lucidSupabase.from('questions').insert(rows);
+  if(saved.error){await lucidSupabase.from('quizzes').delete().eq('id',quiz.id).eq('owner_id',lucidSession.user.id);throw saved.error;}
+  return quiz.id;
+};
+window.loadLucidLearningProfile = async function(){
+  if(!lucidSession?.user)return null;
+  const uid=lucidSession.user.id;
+  const [mastery,attempts,sessions]=await Promise.all([
+    lucidSupabase.from('concept_mastery').select('concept_id,mastery,recall,application,updated_at').eq('user_id',uid).order('mastery',{ascending:true}).limit(12),
+    lucidSupabase.from('quiz_attempts').select('score,max_score,completed_at').eq('user_id',uid).not('completed_at','is',null).order('completed_at',{ascending:false}).limit(20),
+    lucidSupabase.from('reading_sessions').select('active_seconds,started_at,ended_at').eq('user_id',uid).order('started_at',{ascending:false}).limit(30)
+  ]);
+  for(const x of [mastery,attempts,sessions])if(x.error)throw x.error;
+  const conceptIds=(mastery.data||[]).map(x=>x.concept_id);
+  let concepts=[];
+  if(conceptIds.length){const result=await lucidSupabase.from('concepts').select('id,title,name').in('id',conceptIds);if(!result.error)concepts=result.data||[];}
+  const names=new Map(concepts.map(x=>[x.id,x.title||x.name||'Concept']));
+  const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:Number(x.mastery)||0,recall:Number(x.recall)||0,application:Number(x.application)||0,updated_at:x.updated_at}));
+  const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
+  const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
+  const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  const panel=document.getElementById('aiImprovementPanel');
+  if(panel){
+    panel.innerHTML='';
+    const p=document.createElement('p');p.className='muted small-text';p.textContent=weak.length?'Lowest measured mastery areas from your saved concept evidence:':'No concept mastery evidence has been recorded yet. Complete a source-based quiz or recall check to build your learning profile.';
+    panel.appendChild(p);
+    weak.slice(0,4).forEach(x=>{const line=document.createElement('div');line.className='mastery-bar-row';const label=document.createElement('span');label.className='label';label.textContent=x.name;const track=document.createElement('div');track.className='progress-track';const fill=document.createElement('span');fill.className='progress-fill gold';fill.style.width=Math.max(0,Math.min(100,x.mastery))+'%';track.appendChild(fill);const value=document.createElement('span');value.className='mastery-pct';value.textContent=Math.round(x.mastery)+'%';line.append(label,track,value);panel.appendChild(line);});
+  }
+  return profile;
+};
+window.generateLucidImprovementPlan = async function(){
+  const status=document.getElementById('aiImprovementStatus');if(status)status.textContent='Analysing your saved learning evidence…';
+  try{
+    const profile=await window.loadLucidLearningProfile();
+    const data=await window.callLearningEngine('analyze_pattern','Identify the highest-impact improvements for this learner. Give specific actions based only on the evidence.',profile||{});
+    const patterns=data.result?.patterns||[];
+    const panel=document.getElementById('aiImprovementPlan');if(panel){panel.innerHTML='';if(!patterns.length)throw new Error('The model did not return an improvement plan.');patterns.forEach(item=>{const card=document.createElement('div');card.className='note';const title=document.createElement('strong');title.textContent=item.pattern_key||item.dimension||'Suggested improvement';const desc=document.createElement('p');desc.className='muted small-text';desc.textContent=item.adaptive_response||item.reason||'Review the related learning evidence.';card.append(title,desc);panel.appendChild(card);});}
+    if(status)status.textContent='Recommendations generated from your saved progress.';
+    return patterns;
+  }catch(error){if(status)status.textContent='Could not generate recommendations: '+error.message;throw error;}
 };
 window.loadLucidAnnotations = async function(resourceId){
   if(!lucidSession?.user||!resourceId)return [];

@@ -404,13 +404,6 @@ textarea,input,select{
   padding:10px 12px;background:#fbfcf8;color:var(--ink);font-size:12px;
 }
 textarea{min-height:75px;resize:vertical;}
-.music-control{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border-radius:13px;background:var(--sage-2);}
-.music-control strong{display:block;font-size:11px;}
-.music-control small{display:block;margin-top:3px;color:var(--muted);font-size:10px;}
-.toggle{position:relative;width:38px;height:22px;border:0;border-radius:99px;background:#ccd8cd;flex-shrink:0;}
-.toggle::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:white;transition:.2s ease;}
-.toggle.on{background:var(--forest-2);}
-.toggle.on::after{left:19px;}
 
 .mini-avatar{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#dc9877;color:white;font-size:8px;font-weight:800;}
 .mini-avatar.blue{background:#668da2;}
@@ -2025,7 +2018,7 @@ const pageNames = {
 
 // ─── State persistence ───────────────────────────
 function saveState() {
-  localStorage.setItem('Lucid-state-v2', JSON.stringify({
+  localStorage.setItem('leafline-state-v2', JSON.stringify({
     pagesRead: state.pagesRead, streak: state.streak, xp: state.xp,
     annotations: state.annotations, highlights: state.highlights, selectedText: state.selectedText, uploadedBooks: state.uploadedBooks, selectedCatalogueId: state.selectedCatalogueId, currentResourceId: state.currentResourceId, currentResourceTitle: state.currentResourceTitle, currentResourcePage: state.currentResourcePage,
     preferences: state.preferences, quizCorrect: state.quizCorrect,
@@ -2036,7 +2029,7 @@ function saveState() {
 
 function restoreState() {
   try {
-    const s = JSON.parse(localStorage.getItem('Lucid-state-v2') || '{}');
+    const s = JSON.parse(localStorage.getItem('leafline-state-v2') || '{}');
     if (s.pagesRead !== undefined) state.pagesRead = s.pagesRead;
     if (s.streak !== undefined) state.streak = s.streak;
     if (s.xp !== undefined) state.xp = s.xp;
@@ -2053,7 +2046,7 @@ function restoreState() {
     if (s.quizTotal !== undefined) state.quizTotal = s.quizTotal;
     if (s.chatMessages) state.chatMessages = s.chatMessages;
     if (s.coachMode) state.coachMode = s.coachMode;
-  } catch { localStorage.removeItem('Lucid-state-v2'); }
+  } catch { localStorage.removeItem('leafline-state-v2'); }
 }
 
 // ─── Navigation ──────────────────────────────────
@@ -2208,8 +2201,11 @@ function openAnnotation(index){
 }
 async function delNote(btn) {
   const kind=btn.dataset.kind||'note',idx=Number(btn.dataset.index);
-  if(kind==='highlight')state.highlights.splice(idx,1);
-  else{
+  if(kind==='highlight'){
+    const item=state.highlights[idx];
+    if(item?.id&&window.deleteLucidAnnotation){try{await window.deleteLucidAnnotation(item.id);}catch(error){showToast('Could not delete highlight: '+error.message,'⚠');return;}}
+    state.highlights.splice(idx,1);
+  }else{
     const item=state.annotations[idx];
     if(item&&typeof item==='object'&&item.id&&window.deleteLucidAnnotation){
       try{await window.deleteLucidAnnotation(item.id);}catch(error){showToast('Could not delete annotation: '+error.message,'⚠');return;}
@@ -2708,7 +2704,7 @@ function exportData() {
 }
 function clearLocalData() {
   if (!confirm('Clear all local data (annotations, progress, preferences)?')) return;
-  localStorage.removeItem('Lucid-state-v2');
+  localStorage.removeItem('leafline-state-v2');
   location.reload();
 }
 function exportWeeklyReport() { showToast('Weekly report prepared for export.', '📊'); }
@@ -2776,8 +2772,8 @@ document.addEventListener('click', e => {
 });
 
 // Clear any old browser-stored Gemini credential from the previous implementation.
-localStorage.removeItem('Lucid-gemini-key');
-localStorage.removeItem('Lucid-gemini-model');
+localStorage.removeItem('leafline-gemini-key');
+localStorage.removeItem('leafline-gemini-model');
 restoreState();
 if(localStorage.getItem('lucid-reader-sidebar-hidden')==='1'){
   const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');

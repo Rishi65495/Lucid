@@ -1028,6 +1028,36 @@ window.loadLucidLearningProfile = async function(){
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
   const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
   window.currentLucidLearningProfile=profile;
+  const masteryChart=document.getElementById('analyticsMasteryChart');
+  if(masteryChart){
+    masteryChart.innerHTML='';
+    if(!weak.length){
+      masteryChart.textContent='No concept-level evidence recorded yet. Complete source-based quizzes or recall checks to populate this chart.';
+    }else{
+      const metrics=[['Mastery','mastery'],['Recall','recall'],['Application','application']];
+      weak.slice(0,10).forEach(item=>{
+        const group=document.createElement('div');group.style.cssText='display:grid;grid-template-columns:minmax(110px,1fr) 3fr;gap:12px;align-items:center;margin:10px 0;';
+        const name=document.createElement('strong');name.className='small-text';name.textContent=item.name;group.appendChild(name);
+        const bars=document.createElement('div');bars.style.cssText='display:grid;gap:5px;';
+        metrics.forEach(([label,key])=>{
+          const line=document.createElement('div');line.style.cssText='display:grid;grid-template-columns:78px 1fr 38px;gap:8px;align-items:center;';
+          const caption=document.createElement('span');caption.className='muted small-text';caption.textContent=label;
+          const track=document.createElement('div');track.className='progress-track';track.style.height='7px';
+          const fill=document.createElement('span');fill.className='progress-fill'+(key==='application'?' gold':'');const value=Math.max(0,Math.min(100,Number(item[key])||0));fill.style.width=value+'%';track.appendChild(fill);
+          const pct=document.createElement('span');pct.className='muted small-text';pct.textContent=Math.round(value)+'%';
+          line.append(caption,track,pct);bars.appendChild(line);
+        });
+        group.append(name,bars);masteryChart.appendChild(group);
+      });
+    }
+  }
+  const savedInsight=typeof state!=='undefined'?state.generatedInsights:null;
+  const insightPanel=document.getElementById('analyticsAIInsight');
+  const insightStatus=document.getElementById('analyticsAIInsightStatus');
+  if(savedInsight?.text&&insightPanel&&insightPanel.textContent.startsWith('Generate an insight')){
+    insightPanel.textContent=savedInsight.text;
+    if(insightStatus)insightStatus.textContent='Saved insight · '+new Date(savedInsight.generatedAt).toLocaleString()+' · '+(savedInsight.provider==='ollama'?'Local Ollama':savedInsight.provider==='cloud-fallback'?'Cloud fallback':'AI');
+  }
   const analyticsMastery=document.getElementById('analyticsMastery');
   if(analyticsMastery){
     analyticsMastery.innerHTML='';

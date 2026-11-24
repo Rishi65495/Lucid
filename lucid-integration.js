@@ -104,6 +104,11 @@ window.recordLucidQuizAnswer = async function(answer){
   if(error)throw error;return true;
 };
 
+window.syncLucidXP = async function(xp,level){
+  if(!lucidSession?.user)return false;
+  const {error}=await lucidSupabase.from('profiles').update({xp:Math.max(0,Math.floor(Number(xp)||0)),level:Math.max(1,Math.floor(Number(level)||1)),updated_at:new Date().toISOString()}).eq('id',lucidSession.user.id);
+  if(error)throw error;return true;
+};
 window.loadLucidLeaderboard = async function(){
   const list=document.getElementById('lbList');if(!list||!lucidSession)return;
   list.innerHTML='<div class="muted small-text">Loading learner standings…</div>';
@@ -160,6 +165,11 @@ window.loadLucidProfile = async function(){
     if(upd.error)throw upd.error;profile=Object.assign({},profile,upd.data);
   }
   const name=profile.display_name||fallback;
+  if(typeof state!=='undefined'){
+    state.xp=Math.max(Number(state.xp)||0,Number(profile.xp)||0);
+    state.level=Math.max(Number(state.level)||1,Number(profile.level)||1);
+    if(typeof updateXP==='function')updateXP();
+  }
   const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   setText('profileDisplayHeading',name);setText('profileEmail',user.email||'');setText('sideProfileName',name);
   const ni=document.getElementById('profileNameInput');if(ni)ni.value=name;
@@ -355,7 +365,7 @@ window.loadLucidLearningProfile = async function(){
   const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:toPct(x.mastery),recall:toPct(x.recall),application:toPct(x.application),updated_at:x.updated_at}));
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
-  const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};\n  const focusSummary=document.getElementById('lbFocusSummary');if(focusSummary)focusSummary.textContent='You recorded '+Math.round(totalFocusSeconds/60)+' minutes across your last '+(sessions.data||[]).length+' reading sessions. This is your personal focus record, not a group ranking.';
   const resourceTag=document.getElementById('aiCurrentResource');if(resourceTag)resourceTag.textContent=state.currentResourceTitle||'No resource selected';
   const pageTag=document.getElementById('aiCurrentPage');if(pageTag)pageTag.textContent=state.currentResourceId?'PDF page '+(state.currentResourcePage||1):'No page context';
   const recallTag=document.getElementById('aiRecallEvidence');if(recallTag)recallTag.textContent=weak.length?'Avg recall: '+Math.round(weak.reduce((sum,x)=>sum+x.recall,0)/weak.length)+'%':'Recall: not measured';

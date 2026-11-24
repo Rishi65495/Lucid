@@ -1781,3 +1781,22 @@ const oldAsk=window.askAboutCurrentVideo;
 window.askAboutCurrentVideo=async function(prompt){const out=document.getElementById('videoAiResponse');if(!state.currentVideoContext||!state.currentVideoContext.resource_id){if(out){out.style.display='block';out.textContent='Select a video first.';}return;}let input=document.getElementById('videoTopicInput');if(!input){let panel=document.querySelector('#video .card:has(#videoAiResponse)');if(panel){input=document.createElement('input');input.id='videoTopicInput';input.className='video-topic-input';input.maxLength=500;input.placeholder='Optional: tell Lucid what this video is about';let actions=panel.querySelector('.ai-actions');if(actions)actions.insertAdjacentElement('afterend',input);}}let topic=input?input.value.trim():'';let transcript=String(state.currentVideoContext.transcript||'').trim();if(!transcript&&!topic){if(out){out.style.display='block';out.textContent='No transcript is available. Enter the video topic above to continue.';}return;}let scoped=[String(prompt||'Help me learn this video.'),'Video: '+String(state.currentVideoContext.title||''),'Learner topic: '+(topic||'Not supplied'),'Transcript: '+(transcript?transcript.slice(0,18000):'Unavailable. Do not invent video details.')].join('\n\n');if(out){out.style.display='block';out.textContent='Preparing video-specific answer…';}try{let answer=await window.callAIGuide(scoped,state.coachMode||'Gentle');if(out)out.textContent=answer||'No answer returned.';}catch(e){if(out)out.textContent='Video AI failed: '+e.message;}};
 document.addEventListener('visibilitychange',function(){if(document.hidden){if(window.lucidVideoPersistTimer){clearInterval(window.lucidVideoPersistTimer);window.lucidVideoPersistTimer=null;}if(window.lucidVideoLastTick)window.lucidVideoLastTick=Date.now();}else if(window.lucidVideoPlayer&&window.lucidVideoPlayer.getPlayerState&&window.lucidVideoPlayer.getPlayerState()===1&&!window.lucidVideoPersistTimer){window.lucidVideoLastTick=Date.now();window.lucidVideoLastPositionSeconds=Number(window.lucidVideoPlayer.getCurrentTime()||0);window.lucidVideoPersistTimer=setInterval(function(){window.persistLucidVideoProgress(false);},15000);}});
 })();
+
+
+window.deleteLucidResource = async function(resourceId){
+  if(!lucidSession?.user)throw new Error('Sign in first.');
+  if(!resourceId)throw new Error('Missing resource ID.');
+  if(state.currentResourceId===resourceId||state.currentVideoResourceId===resourceId)throw new Error('Close this resource before removing it from your library.');
+  const owned=await lucidSupabase.from('lucid_resources').select('id,title,owner_id').eq('id',resourceId).eq('owner_id',lucidSession.user.id).maybeSingle();
+  if(owned.error)throw owned.error;if(!owned.data)throw new Error('Resource not found in your library.');
+  const fileRows=await lucidSupabase.from('resource_files').select('storage_bucket,storage_path').eq('resource_id',resourceId);
+  if(fileRows.error)throw fileRows.error;
+  const deleted=await lucidSupabase.from('lucid_resources').delete().eq('id',resourceId).eq('owner_id',lucidSession.user.id).select('id').maybeSingle();
+  if(deleted.error)throw deleted.error;if(!deleted.data)throw new Error('Resource was not deleted. Check ownership and database permissions.');
+  let storageWarning='';
+  for(const file of (fileRows.data||[])){const result=await lucidSupabase.storage.from(file.storage_bucket||'learning-assets').remove([file.storage_path]);if(result.error)storageWarning=result.error.message;}
+  await window.loadLucidCatalogues();
+  if(window.loadLucidVideoLibrary)await window.loadLucidVideoLibrary();
+  if(window.loadLucidDashboardMetrics)await window.loadLucidDashboardMetrics();
+  return {title:owned.data.title,storageWarning};
+};

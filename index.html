@@ -2248,7 +2248,9 @@ function updateXP() {
   document.getElementById('sideXPFill').style.width = pctInLevel + '%';
 }
 
-// Focus music controls removed: no ambient-audio state or handlers.\n\nfunction startRoomTest() {
+// Focus music controls removed: no ambient-audio state or handlers.
+
+function startRoomTest() {
   closeModal?.('');
   openPage('practice');
   showToast('Room test started! 14 members competing.', '🏆');
@@ -2453,7 +2455,7 @@ async function generateAIQuiz() {
   const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
   modal.querySelector('#buildAIQuiz').onclick=async()=>{
     const resourceId=modal.querySelector('#quizSource').value,format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim();
-    if(!resourceId){modal.querySelector('#quizBuildStatus').textContent='Select a source PDF first.';return;}
+    if(!resourceId){modal.querySelector('#quizBuildStatus').textContent='Select a source PDF first.';return;}if(coverage==='selected'&&resourceId!==state.currentResourceId){modal.querySelector('#quizBuildStatus').textContent='Open the selected PDF and select a passage first.';return;}if(coverage==='selected'&&!state.selectedText){modal.querySelector('#quizBuildStatus').textContent='Select a passage in the PDF first.';return;}
     const resource=resources.find(r=>(r.resourceId||r.id)===resourceId),btn=modal.querySelector('#buildAIQuiz');btn.disabled=true;btn.textContent='Generating…';
     modal.querySelector('#quizBuildStatus').textContent='Preparing source-grounded questions…';
     try{

@@ -2259,7 +2259,7 @@ async function generateAIQuiz(preselectedResourceId) {
   const existing=document.getElementById('aiQuizSetup');if(existing){existing.remove();return;}
   const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf');
   const modal=document.createElement('div');modal.id='aiQuizSetup';modal.className='modal-backdrop open';
-  const options=resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+' · '+(Number(r.pages)||'pages unknown')+'</option>').join('');
+  const options=resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+' · '+(Number(r.pages)||'pages unknown')+' · ref '+String(r.resourceId||r.id).slice(-6)+'</option>').join('');
   modal.innerHTML='<div class="modal"><div class="modal-header"><div><div class="kicker">Practice builder · Step 1 of 2</div><h2>Choose your source</h2></div><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack"><p class="muted small-text">Every question will be generated from the PDF you choose. Your other resources will not be mixed in.</p><label class="form-label">Source PDF<select id="quizSource"><option value="">Choose a PDF…</option>'+options+'</select></label><p class="muted small-text" id="quizSourceStatus">'+(resources.length?'Select one of your uploaded PDFs to continue.':'No PDFs found. Upload a PDF to your Library first.')+'</p><div style="display:flex;justify-content:flex-end;gap:8px;"><button class="primary-button" id="quizContinue" '+(resources.length?'':'disabled')+'>Continue →</button></div></div></div>';
   document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});

@@ -2441,12 +2441,13 @@ async function askGuide() {
 }
 
 async function quickAIModal(prompt) {
-  const ansEl = document.getElementById('aiAnswer');
-  document.getElementById('aiQuestion').value = prompt;
-  ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student notes: ${state.annotations.slice(0,2).join('; ')}.`;
-  const resp = await callGemini(`Context: ${context}\n\n${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
-  ansEl.innerHTML = `<strong>Guide:</strong><br>${resp.replace(/\n/g,'<br>')}`;
+  const ansEl=document.getElementById('aiAnswer');
+  document.getElementById('aiQuestion').value=prompt;
+  ansEl.style.display='block';ansEl.textContent='✦ Lucid is reading your current page and preparing an explanation…';
+  try{
+    const response=await window.callAIGuide(prompt,state.coachMode||'Gentle');
+    ansEl.textContent=response||'Lucid did not return an answer.';
+  }catch(error){ansEl.textContent='AI Teach failed: '+error.message;}
 }
 
 async function quickAI(prompt) {
@@ -2465,34 +2466,21 @@ async function sendAIChat() {
 }
 
 async function sendAIChatWithPrompt(prompt) {
-  const chat = document.getElementById('aiChat');
-  const empty = document.getElementById('aiChatEmpty');
-  if (empty) empty.style.display = 'none';
-
-  // Add user message
-  state.chatMessages.push({ role: 'user', text: prompt });
-  const userEl = document.createElement('div');
-  userEl.className = 'ai-msg user'; userEl.textContent = prompt;
-  chat.appendChild(userEl);
-
-  // Add thinking indicator
-  const thinkEl = document.createElement('div');
-  thinkEl.className = 'ai-msg bot thinking'; thinkEl.textContent = '✦ Thinking…';
-  chat.appendChild(thinkEl);
-  chat.scrollTop = chat.scrollHeight;
-
-  document.getElementById('chatCount').textContent = state.chatMessages.length;
-
-  const context = `Learner: ${state.preferences.name}. Current study: Deep Work Ch.4 + MCA Semester 5 ML. Weak areas: Overfitting (22%), Algorithms (55%). Recall: 81%. Streak: ${state.streak} days. Coach mode: ${state.coachMode}. Recent annotations: ${state.annotations.slice(0,2).join('; ')}.`;
-  const resp = await callGemini(`Learning context: ${context}\n\nStudent: ${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
-
-  // Replace thinking with real response
-  thinkEl.className = 'ai-msg bot';
-  thinkEl.innerHTML = resp.replace(/\n/g,'<br>');
-  state.chatMessages.push({ role: 'bot', text: resp });
-  chat.scrollTop = chat.scrollHeight;
-  document.getElementById('chatCount').textContent = state.chatMessages.length;
-  saveState();
+  const chat=document.getElementById('aiChat'),empty=document.getElementById('aiChatEmpty');
+  if(empty)empty.style.display='none';
+  state.chatMessages.push({role:'user',text:prompt});
+  const userEl=document.createElement('div');userEl.className='ai-msg user';userEl.textContent=prompt;chat.appendChild(userEl);
+  const thinkEl=document.createElement('div');thinkEl.className='ai-msg bot thinking';thinkEl.textContent='✦ Reading your learning context…';chat.appendChild(thinkEl);
+  chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;
+  try{
+    const response=await window.callAIGuide(prompt,state.coachMode||'Gentle');
+    thinkEl.className='ai-msg bot';thinkEl.textContent=response||'Lucid did not return an answer.';
+    state.chatMessages.push({role:'bot',text:response||''});
+  }catch(error){
+    thinkEl.className='ai-msg bot error';thinkEl.textContent='AI Guide failed: '+error.message;
+    state.chatMessages.push({role:'bot',text:'AI Guide failed: '+error.message});
+  }
+  chat.scrollTop=chat.scrollHeight;document.getElementById('chatCount').textContent=state.chatMessages.length;saveState();
 }
 
 function clearAIChat() {

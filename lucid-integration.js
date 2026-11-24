@@ -61,9 +61,37 @@ window.callAIGuide = async function(prompt,style){
 };
 window.callLearningEngine = async function(action,request,context){return await window.invokeLucidFunction('ai-learning',{action,request,context:context||{}});};
 window.formatLearningResult = function(result){if(!result)return 'No learning result was returned.';if(result.feedback)return 'Score: '+(result.score??'—')+'\nCoverage: '+(result.coverage??'—')+'\nAccuracy: '+(result.accuracy??'—')+'\nClarity: '+(result.clarity??'—')+'\nFeedback: '+result.feedback+(result.missing?.length?'\nReview: '+result.missing.join(', '):'');if(result.questions?.length)return result.questions.map((q,i)=>(i+1)+'. '+q.prompt+'\n'+(q.options||[]).map((o,j)=>String.fromCharCode(65+j)+'. '+o).join('\n')+'\nAnswer: '+(q.options?.[q.answer_index]||'Not provided')+'\n'+(q.explanation||'')).join('\n\n');if(result.cards?.length)return result.cards.map((c,i)=>(i+1)+'. '+c.front+'\n'+c.back).join('\n\n');return result.lesson||result.text||JSON.stringify(result,null,2);};
+// Local-first Home/Progress Agent. Supabase prepares authenticated learner context;
+// the browser sends that context only to the loopback bridge. Cloud agent remains fallback.
+window.invokeLucidAgentLocalFirst = async function(body){
+  const payload=body||{};
+  const localEligible=payload.action==='home_chat'||(payload.action==='chat'&&!payload.resource_id);
+  if(!localEligible)return await window.invokeLucidFunction('lucid-agent',payload);
+  try{
+    const prepared=await window.invokeLucidFunction('lucid-agent-context',payload);
+    if(!prepared||!prepared.prompt)throw new Error('Supabase did not return learner context.');
+    let {data:{session},error}=await lucidSupabase.auth.getSession();
+    if(error||!session?.access_token)throw new Error('Please sign in again to use local AI.');
+    const response=await fetch('http://127.0.0.1:3210/chat',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+session.access_token,'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:prepared.prompt})
+    });
+    const raw=await response.text();let result={};try{result=raw?JSON.parse(raw):{};}catch(_){result={error:raw};}
+    if(!response.ok||!result.text)throw new Error(result.error||('Local bridge returned HTTP '+response.status));
+    return {ok:true,action:payload.action||'chat',text:result.text,result:{text:result.text},model:result.model||'llama3.2:1b',provider:'ollama'};
+  }catch(localError){
+    console.warn('Lucid local AI unavailable; using cloud fallback:',localError?.message||localError);
+    const cloud=await window.invokeLucidFunction('lucid-agent',payload);
+    cloud.provider='cloud-fallback';
+    cloud.localFallbackReason=String(localError?.message||localError).slice(0,240);
+    return cloud;
+  }
+};
 window.callLucidAgent = async function(prompt){
   if(typeof state!=='undefined'&&state.currentVideoContext){if(!String(state.currentVideoContext.transcript||'').trim())return 'Lucid could not retrieve public captions for this video. Try a video with captions enabled; Lucid will use its transcript automatically when available.';return await window.callAIGuide(prompt,state.coachMode||'Gentle');}
-  const data=await window.invokeLucidFunction('lucid-agent',{action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null});
+  const payload={action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null};
+  const data=await window.invokeLucidAgentLocalFirst(payload);
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
 // Source-first practice: every generated activity must start with an explicit learner-selected source.
@@ -1525,11 +1553,11 @@ window.askLucidAgentHome=async function(preset){
   if(answer){answer.hidden=true;answer.textContent='';}
   if(status)status.textContent='Reviewing your saved resources, learning activity, quiz history and mastery evidence…';
   try{
-    const data=await window.invokeLucidFunction('lucid-agent',{action:'home_chat',request:query});
+    const data=await window.invokeLucidAgentLocalFirst({action:'home_chat',request:query});
     const result=data.text||data.result?.text||(typeof data.result==='string'?data.result:'');
     if(!result)throw new Error('Lucid Agent returned an empty answer.');
     if(answer){answer.textContent=result;answer.hidden=false;}
-    if(status)status.textContent='Answer based on your saved learning data. Any unmeasured areas are identified explicitly.';
+    if(status)status.textContent=data.provider==='ollama'?'Answered locally with your Supabase learning context.':'Local AI unavailable; answered using cloud fallback. Your learning data remains in Supabase.';
   }catch(error){
     const message=String(error.message||error);
     if(answer){

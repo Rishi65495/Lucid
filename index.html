@@ -958,6 +958,7 @@ textarea{min-height:75px;resize:vertical;}
           <label class="form-label" style="flex:1;">YouTube video or playlist URL
             <input id="videoUrlInput" type="url" placeholder="https://www.youtube.com/watch?v=… or playlist URL">
           </label>
+          <label class="form-label">Save to catalogue<select id="videoPageCatalogue"><option value="">No catalogue</option></select></label>
           <button class="primary-button" onclick="loadYoutubeURL(document.getElementById('videoUrlInput').value)">Import</button>
         </div>
         <p class="muted small-text" id="videoImportStatus" aria-live="polite">Importing a playlist requires a configured YouTube Data API key. Single videos can be imported using their public metadata.</p>

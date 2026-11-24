@@ -13,6 +13,8 @@ function send(res, status, body, headers = {}) {
 }
 function applyCors(req, res) {
   const origin = req.headers.origin || "";
+  // Allow a direct loopback health check in the address bar/PowerShell; never allow origin-less chat POSTs.
+  if (!origin && req.method === "GET" && (req.url || "").startsWith("/health")) return true;
   if (!ALLOWED_ORIGINS.has(origin)) return false;
   res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Vary", "Origin");

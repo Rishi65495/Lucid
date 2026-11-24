@@ -57,6 +57,7 @@ window.callAIGuide = async function(prompt,style){
       history,
       resource_id:typeof state!=='undefined'&&!state.currentVideo?state.currentResourceId:null,
       current_page:typeof state!=='undefined'?Number(state.currentResourcePage)||1:1,
+      video_context:typeof state!=='undefined'&&state.currentVideo?{title:state.currentVideo.title,transcript:state.currentVideo.transcript||''}:null,
       context:typeof state!=='undefined'?[
         state.currentVideo?'CURRENT VIDEO SOURCE: '+state.currentVideo.title:'Current resource: '+(state.currentResourceTitle||''),
         state.currentVideo?'VIDEO TRANSCRIPT (authoritative source): '+(state.currentVideo.transcript||'No transcript has been saved for this video.'):'',

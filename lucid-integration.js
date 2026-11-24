@@ -292,13 +292,23 @@ window.loadLucidVideoPlaylist=async function(catalogueId=null){
     if(linkError)throw linkError;ids=(links||[]).map(x=>x.resource_id);
   }
   let query=lucidSupabase.from('lucid_resources').select('id,title,source_url,metadata').eq('owner_id',lucidSession.user.id).eq('type','video').order('created_at',{ascending:false});
-  if(ids)query=query.in('id',ids);
+  if(ids)query=ids.length?query.in('id',ids):query.eq('id','00000000-0000-0000-0000-000000000000');
   const {data:resources,error}=await query;if(error)throw error;
   const resourceIds=(resources||[]).map(x=>x.id);let videos=[];
   if(resourceIds.length){const result=await lucidSupabase.from('resource_videos').select('resource_id,youtube_video_id,duration_seconds,transcript,metadata').in('resource_id',resourceIds);if(result.error)throw result.error;videos=result.data||[];}
   const byId=new Map(videos.map(x=>[x.resource_id,x]));
-  state.videoPlaylist={title,catalogueId:catalogueId||null,items:(resources||[]).map((r,index)=>{const v=byId.get(r.id)||{};return {resourceId:r.id,videoId:v.youtube_video_id,title:r.title,durationSeconds:Number(v.duration_seconds)||0,transcript:v.transcript||'',catalogueId:catalogueId||null,thumbnail:v.metadata?.thumbnail||r.metadata?.thumbnail||null,playlistIndex:index};}).filter(x=>x.videoId)};
+  const nextItems=(resources||[]).map((r,index)=>{const v=byId.get(r.id)||{};return {resourceId:r.id,videoId:v.youtube_video_id,title:r.title,durationSeconds:Number(v.duration_seconds)||0,transcript:v.transcript||'',catalogueId:catalogueId||null,thumbnail:v.metadata?.thumbnail||r.metadata?.thumbnail||null,playlistIndex:index};}).filter(x=>x.videoId);
+  if(state.currentVideo&&!nextItems.some(x=>x.resourceId===state.currentVideo.resourceId)){
+    await window.finishLucidVideoSession(false);
+    if(window.lucidYTPlayer?.destroy){try{window.lucidYTPlayer.destroy();}catch(_){}}
+    window.lucidYTPlayer=null;state.currentVideo=null;
+    const player=document.getElementById('youtubePlayer'),wrapper=document.getElementById('youtubePlayerWrapper');if(player)player.style.display='none';if(wrapper)wrapper.style.display='flex';
+    const transcript=document.getElementById('videoTranscriptInput');if(transcript)transcript.value='';
+    const notes=document.getElementById('videoNoteList');if(notes)notes.innerHTML='<p class="muted small-text">Select a video to load its notes.</p>';
+  }
+  state.videoPlaylist={title,catalogueId:catalogueId||null,items:nextItems};
   if(window.renderVideoPlaylist)window.renderVideoPlaylist();
+  if(window.refreshVideoProgress)await window.refreshVideoProgress();
   return state.videoPlaylist.items;
 };
 window.recordLucidQuizAnswer = async function(answer){

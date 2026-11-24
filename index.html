@@ -1666,6 +1666,18 @@ function openPage(pageId) {
   document.getElementById('breadcrumbText').textContent = pageNames[pageId];
   window.scrollTo({ top: 0, behavior: 'smooth' });
   closeNotifPanel();
+  // Keep the current PDF mounted in state while navigating between tabs.
+  // Re-render its existing page when returning; re-open from Supabase only
+  // when the signed URL is absent (for example, after a full reload).
+  if(pageId==='reader'&&state.currentResourceId){
+    requestAnimationFrame(()=>{
+      if(window.currentPdfUrl&&typeof window.renderLucidReaderPage==='function'){
+        window.renderLucidReaderPage().catch(error=>showToast('Could not restore the open PDF: '+error.message,'⚠'));
+      }else if(typeof window.openLucidResource==='function'){
+        window.openLucidResource(state.currentResourceId).catch(error=>showToast('Could not reopen the last PDF: '+error.message,'⚠'));
+      }
+    });
+  }
 }
 
 // ─── Modals ───────────────────────────────────────

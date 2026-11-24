@@ -378,24 +378,42 @@ window.openLucidCatalogue = async function(id){
   if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
   return rows.length;
 };
-window.renderLucidReaderPage = function(){
-  const title=state.currentResourceTitle||'Selected resource';
-  const pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
-  const page=Math.max(1,Math.min(pageCount||1,Number(state.currentResourcePage)||1));
-  const meta=document.getElementById('docMeta'),heading=document.getElementById('docTitle'),content=document.getElementById('readerPageContent'),empty=document.getElementById('readerEmptyState'),footer=document.getElementById('readerDocumentFooter'),tag=document.getElementById('pageTag'),kicker=document.getElementById('readerKicker'),status=document.getElementById('readerPageStatus'),panel=document.getElementById('pdfViewerPanel'),frame=document.getElementById('originalPdfViewer'),label=document.getElementById('pdfViewerTitle');
+window.renderLucidReaderPage = async function(){
+  const title=state.currentResourceTitle||'Selected resource',pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
+  const pageNumber=Math.max(1,Math.min(pageCount||1,Number(state.currentResourcePage)||1));
+  const meta=document.getElementById('docMeta'),heading=document.getElementById('docTitle'),content=document.getElementById('readerPageContent'),empty=document.getElementById('readerEmptyState'),footer=document.getElementById('readerDocumentFooter'),tag=document.getElementById('pageTag'),kicker=document.getElementById('readerKicker'),status=document.getElementById('readerPageStatus'),panel=document.getElementById('pdfViewerPanel'),label=document.getElementById('pdfViewerTitle'),pageInput=document.getElementById('pdfPageInput'),pageTotal=document.getElementById('pdfPageTotal');
   const hasPdf=Boolean(window.currentPdfUrl);
-  if(meta)meta.textContent=title+' · Original PDF';
-  if(heading)heading.textContent=title;
-  if(kicker)kicker.textContent=title;
-  if(label)label.textContent=title;
-  if(content){content.innerHTML='';content.style.display='none';}
-  if(empty)empty.style.display=hasPdf?'none':'block';
-  if(panel)panel.style.display=hasPdf?'block':'none';
+  if(meta)meta.textContent=title+' · Original PDF';if(heading)heading.textContent=title;if(kicker)kicker.textContent=title;if(label)label.textContent=title;
+  if(content){content.innerHTML='';content.style.display='none';}if(empty)empty.style.display=hasPdf?'none':'block';if(panel)panel.style.display=hasPdf?'block':'none';
   if(tag)tag.textContent=hasPdf?(pageCount?'PDF · '+pageCount+' pages':'Original PDF'):'No page';
-  if(status)status.textContent=hasPdf?'PDF page '+page+(pageCount?' of '+pageCount:''):'No PDF selected';
-  if(footer)footer.style.display=hasPdf?'flex':'none';
-  if(frame&&hasPdf&&window.currentPdfUrl)frame.src=window.currentPdfUrl+'#page='+page+'&zoom=page-width&toolbar=1&navpanes=1&view=FitH';
+  if(status)status.textContent=hasPdf?'PDF page '+pageNumber+(pageCount?' of '+pageCount:''):'No PDF selected';if(footer)footer.style.display=hasPdf?'flex':'none';
+  if(pageInput)pageInput.value=String(pageNumber);if(pageTotal)pageTotal.textContent='/ '+(pageCount||'—');
+  const stage=document.getElementById('pdfCanvasStage'),canvas=document.getElementById('pdfPageCanvas'),textLayer=document.getElementById('pdfTextLayer'),viewport=document.getElementById('pdfCanvasViewport');
+  if(!hasPdf||!stage||!canvas||!viewport)return;
+  try{
+    if(!window.pdfjsLib)throw new Error('PDF.js did not load. Refresh the page and try again.');
+    if(!window.currentPdfDocument||window.currentPdfDocumentUrl!==window.currentPdfUrl){
+      window.currentPdfDocument=await window.pdfjsLib.getDocument({url:window.currentPdfUrl}).promise;window.currentPdfDocumentUrl=window.currentPdfUrl;
+      state.currentResourcePageCount=window.currentPdfDocument.numPages;if(pageTotal)pageTotal.textContent='/ '+window.currentPdfDocument.numPages;
+    }
+    const pdfPage=await window.currentPdfDocument.getPage(pageNumber),base=pdfPage.getViewport({scale:1});
+    const fitScale=Math.max(.35,(viewport.clientWidth-28)/base.width),scale=fitScale*(Number(state.pdfZoom)||1),pdfViewport=pdfPage.getViewport({scale}),dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.floor(pdfViewport.width*dpr);canvas.height=Math.floor(pdfViewport.height*dpr);canvas.style.width=pdfViewport.width+'px';canvas.style.height=pdfViewport.height+'px';
+    stage.style.width=pdfViewport.width+'px';stage.style.height=pdfViewport.height+'px';textLayer.innerHTML='';textLayer.style.width=pdfViewport.width+'px';textLayer.style.height=pdfViewport.height+'px';
+    const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);
+    if(window.lucidPdfRenderTask)try{window.lucidPdfRenderTask.cancel();}catch(_){}
+    window.lucidPdfRenderTask=pdfPage.render({canvasContext:context,viewport:pdfViewport});await window.lucidPdfRenderTask.promise;
+    const textContent=await pdfPage.getTextContent();
+    if(window.pdfjsLib.renderTextLayer){const task=window.pdfjsLib.renderTextLayer({textContent,container:textLayer,viewport:pdfViewport,textDivs:[]});if(task?.promise)await task.promise;}
+    const zoomLabel=document.getElementById('pdfZoomLabel');if(zoomLabel)zoomLabel.textContent=Math.round((Number(state.pdfZoom)||1)*100)+'%';
+  }catch(error){stage.innerHTML='<p style="padding:24px;color:#9b3d38">Could not render this PDF page: '+String(error.message||error).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</p>';}
 };
+window.goLucidPdfPage=function(value){
+  const max=Number(state.currentResourcePageCount||state.resourcePages?.length||1);state.currentResourcePage=Math.max(1,Math.min(max,Number(value)||1));
+  saveState();window.renderLucidReaderPage();if(typeof renderAnnotations==='function')renderAnnotations();
+};
+window.changeLucidPdfZoom=function(delta){state.pdfZoom=Math.max(.5,Math.min(3,(Number(state.pdfZoom)||1)+delta));window.renderLucidReaderPage();};
+window.resetLucidPdfZoom=function(){state.pdfZoom=1;window.renderLucidReaderPage();};
 window.openLucidResource = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata').eq('id',id).eq('owner_id',lucidSession.user.id).single();

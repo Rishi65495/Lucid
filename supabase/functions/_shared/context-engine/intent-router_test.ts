@@ -59,3 +59,18 @@ Deno.test("continuing a lesson retrieves current lesson only", () => {
   assertEquals(result.retrieve.currentLesson, true);
   assertEquals(result.retrieve.mastery, false);
 });
+
+Deno.test("Hindi progress request enables learner evidence retrieval", () => {
+  const result = routeIntent("मेरी प्रगति और कमज़ोर टॉपिक बताओ");
+  assertEquals(result.intent, "progress_analysis");
+  assertEquals(result.retrieve.learnerProfile, true);
+  assertEquals(result.retrieve.mastery, true);
+  assertEquals(result.retrieve.quizHistory, true);
+});
+
+Deno.test("study planning enables goal and agent context", () => {
+  const result = routeIntent("Create a study plan for this week");
+  assertEquals(result.intent, "study_planning");
+  assertEquals(result.retrieve.goals, true);
+  assertEquals(result.retrieve.agentTools, true);
+});

@@ -620,6 +620,7 @@ window.renderLucidReaderPage = async function(){
     const task=pdfPage.render({canvasContext:context,viewport:pdfViewport});window.lucidPdfRenderTask=task;
     await task.promise;
     if(renderId!==window.lucidPdfRenderId)return;
+    stage.querySelector('.pdf-render-error')?.remove();
     const textContent=await pdfPage.getTextContent();
     if(window.pdfjsLib.renderTextLayer){
       const textTask=window.pdfjsLib.renderTextLayer({textContent,container:textLayer,viewport:pdfViewport,textDivs:[]});

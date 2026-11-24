@@ -297,7 +297,7 @@ window.loadLucidYouTubeApi=function(){
 window.persistLucidYouTubeImport=async function(imported,url){
   if(!lucidSession?.user)throw new Error('Sign in before importing videos.');
   if(imported.type==='playlist'&&!imported.api_key_configured)throw new Error('Playlist import needs a configured YouTube Data API key. No placeholder playlist was saved.');
-  const owner=lucidSession.user.id,catalogueId=state.selectedCatalogueId||document.getElementById('uploadYoutubeCatalogue')?.value||null;
+  const owner=lucidSession.user.id,catalogueId=state.selectedCatalogueId||document.getElementById('videoPageCatalogue')?.value||document.getElementById('uploadYoutubeCatalogue')?.value||null;
   const saveResource=async(row)=>{
     const existing=await lucidSupabase.from('lucid_resources').select('id').eq('owner_id',owner).eq('source_url',row.source_url).limit(1).maybeSingle();
     if(existing.error&&existing.error.code!=='PGRST116')throw existing.error;
@@ -1055,8 +1055,17 @@ window.loadLucidCatalogues = async function(){
     if(!(cats||[]).length){select.add(new Option('Create a catalogue first',''));select.disabled=true;}
     else{select.disabled=false;(cats||[]).forEach(cat=>select.add(new Option(cat.title,cat.id)));if(cats.some(c=>c.id===chosen))select.value=chosen;else select.value=cats[0].id;}
   }
-  const videoCatalogueSelect=document.getElementById('uploadYoutubeCatalogue');
-  if(videoCatalogueSelect){const chosenVideoCatalogue=state.selectedCatalogueId||videoCatalogueSelect.value;videoCatalogueSelect.innerHTML='';videoCatalogueSelect.add(new Option('No catalogue',''));(cats||[]).forEach(cat=>videoCatalogueSelect.add(new Option(cat.title,cat.id)));videoCatalogueSelect.value=(cats||[]).some(cat=>cat.id===chosenVideoCatalogue)?chosenVideoCatalogue:'';}
+  const videoCatalogueSelects=['uploadYoutubeCatalogue','videoPageCatalogue'].map(id=>document.getElementById(id)).filter(Boolean);
+  videoCatalogueSelects.forEach(videoCatalogueSelect=>{
+    const chosenVideoCatalogue=state.selectedCatalogueId||videoCatalogueSelect.value;
+    videoCatalogueSelect.innerHTML='';videoCatalogueSelect.add(new Option('No catalogue',''));
+    (cats||[]).forEach(cat=>videoCatalogueSelect.add(new Option(cat.title,cat.id)));
+    videoCatalogueSelect.value=(cats||[]).some(cat=>cat.id===chosenVideoCatalogue)?chosenVideoCatalogue:'';
+    videoCatalogueSelect.onchange=()=>{
+      state.selectedCatalogueId=videoCatalogueSelect.value||null;
+      videoCatalogueSelects.forEach(other=>{if(other!==videoCatalogueSelect)other.value=videoCatalogueSelect.value;});
+    };
+  });
   state.catalogues=cats||[];
   state.catalogueResourceCounts=Object.fromEntries(Array.from(countByCatalogue.entries()).map(([id,set])=>[id,set.size]));
   if(window.renderLucidDashboardBooks)window.renderLucidDashboardBooks();

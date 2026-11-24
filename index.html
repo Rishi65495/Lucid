@@ -1906,8 +1906,7 @@ function toggleTimer() {
         clearInterval(state.timerInterval); state.timerRunning = false;
         btn.textContent = 'Session complete';
         status.textContent = 'Beautiful work. Take a moment to reflect.';
-        state.xp += 20; updateXP();
-        showToast('Session complete! +20 XP earned. 🎉', '🎉');
+        if(window.recordLucidFocusCompleted)window.recordLucidFocusCompleted('focus-'+crypto.randomUUID()).then(result=>showToast('Session complete! +'+(result?.xp_awarded||0)+' XP recorded. 🎉','🎉')).catch(error=>showToast('Session complete, but progress could not be saved: '+error.message,'⚠'));
         openModal('quizModal');
       }
     }, 1000);
@@ -2036,14 +2035,11 @@ async function delNote(btn) {
 
 // ─── Page completion ─────────────────────────────
 function completePage() {
-  if(window.changeLucidReaderPage && (state.resourcePages||[]).length && state.currentResourcePage < state.resourcePages.length) window.changeLucidReaderPage(1);
-  state.pagesRead += 1;
-  state.xp += 12;
-  state.sessionPagesCompleted += 1;
-  saveState();
-  updateXP();
-  updateSessionProgress();
-  showToast(`Page complete! +12 XP earned. Total: ${state.pagesRead} pages.`, '📖');
+  const completedPage=Number(state.currentResourcePage)||1,totalPages=Number(state.currentResourcePageCount||state.resourcePages?.length||1),resourceId=state.currentResourceId;
+  if(resourceId&&window.recordLucidPageCompleted)window.recordLucidPageCompleted(resourceId,completedPage,totalPages).catch(error=>showToast('Page progress could not be saved: '+error.message,'⚠'));
+  if(window.changeLucidReaderPage && totalPages && completedPage<totalPages)window.changeLucidReaderPage(1);
+  state.pagesRead+=1;state.sessionPagesCompleted+=1;saveState();updateSessionProgress();
+  showToast('Page progress recorded. Total pages completed this session: '+state.sessionPagesCompleted+'.','📖');
 }
 function prevPage() { if(window.changeLucidReaderPage)window.changeLucidReaderPage(-1); }
 function updateSessionProgress() {
@@ -2057,14 +2053,18 @@ function updateSessionProgress() {
 
 // ─── XP / Level ───────────────────────────────────
 function updateXP() {
-  const xpPerLevel = 500;
-  state.level = Math.floor(state.xp / xpPerLevel) + 1;
-  const levelNames = ['','Curious','Explorer','Learner','Practitioner','Focused','Consistent','Scholar','Deep Learner','Mastery Seeker','Mentor'];
-  const levelName = levelNames[Math.min(state.level, levelNames.length-1)] || 'Mentor';
-  const pctInLevel = ((state.xp % xpPerLevel) / xpPerLevel) * 100;
-  document.getElementById('sideXP').textContent = `${state.xp} XP`;
-  document.getElementById('sideLevel').textContent = `Lv. ${state.level} — ${levelName}`;
-  document.getElementById('sideXPFill').style.width = pctInLevel + '%';
+  const thresholds=[0,100,250,500,800,1200,1700,2300,3000,4000];
+  const names=['','Curious','Explorer','Learner','Practitioner','Focused','Consistent','Scholar','Deep Learner','Mastery Seeker','Mentor'];
+  const xp=Math.max(0,Number(state.xp)||0);let level=1;
+  while(level<10&&xp>=thresholds[level])level++;
+  if(level===10&&xp>=4000)level=10+Math.floor((xp-4000)/1000);
+  state.level=level;
+  const start=level<=9?thresholds[level-1]:4000+(level-10)*1000;
+  const end=level<=9?thresholds[level]:start+1000;
+  const pct=Math.max(0,Math.min(100,((xp-start)/Math.max(1,end-start))*100));
+  const title=names[Math.min(level,names.length-1)]||'Mentor';
+  const xpEl=document.getElementById('sideXP'),levelEl=document.getElementById('sideLevel'),fill=document.getElementById('sideXPFill');
+  if(xpEl)xpEl.textContent=xp.toLocaleString()+' XP';if(levelEl)levelEl.textContent='Lv. '+level+' — '+title;if(fill)fill.style.width=pct+'%';
 }
 
 // Focus music controls removed: no ambient-audio state or handlers.
@@ -2227,13 +2227,14 @@ function answerQuiz(correct, btn) {
   const answeredQuestion=quizBank[currentQuizIdx % quizBank.length];
   if(typeof window.recordLucidQuizAnswer==='function'){
     window.recordLucidQuizAnswer({question:answeredQuestion.q,selectedOption:btn?btn.textContent:'',correctOption:answeredQuestion.opts[answeredQuestion.ans],correct,quizIndex:currentQuizIdx})
-      .catch(error=>console.warn('Could not persist quiz evidence:',error.message));
+      .then(evidence=>{if(correct&&Number(evidence?.xpAwarded)>0)showToast('Correct! +'+evidence.xpAwarded+' XP recorded.','🎯');})
+      .catch(error=>{console.warn('Could not persist quiz evidence:',error.message);showToast('Answer checked, but progress could not be saved: '+error.message,'⚠');});
   }
   if (correct) {
-    state.quizCorrect++; state.xp += 25; updateXP();
+    state.quizCorrect++;
     if (btn) btn.classList.add('correct');
-    if (result) { result.style.color = 'var(--forest-2)'; result.textContent = '✓ Correct! +25 XP. Well done.'; }
-    showToast('Correct! +25 XP 🎯', '🎯');
+    if (result) { result.style.color = 'var(--forest-2)'; result.textContent = '✓ Correct! Your recall evidence is being saved.'; }
+    showToast('Correct! Saving your recall evidence…', '🎯');
   } else {
     if (btn) btn.classList.add('wrong');
     if (result) { result.style.color = 'var(--danger)'; result.textContent = '✗ Not quite. Review the concept and try again.'; }
@@ -2303,7 +2304,7 @@ async function generateAIQuiz(preselectedResourceId) {
         const score=document.getElementById('quizScore');if(score)score.textContent='0/0';
         const bar=document.getElementById('quizScoreBar');if(bar)bar.style.width='0%';
         const accuracy=document.getElementById('accuracyPct');if(accuracy)accuracy.textContent='—';
-        if(window.saveGeneratedLucidQuiz){try{await window.saveGeneratedLucidQuiz({resourceId,title:chosen.name+' · '+format+' quiz',format,difficulty,coverage,instructions,questions:qs,sourcePages:selectedPages.map(p=>p.page_number)});}catch(saveError){console.warn('Quiz generated but history was not saved:',saveError.message);showToast('Quiz generated; history could not be saved.','⚠');}}
+        if(window.saveGeneratedLucidQuiz){try{state.activeQuizId=await window.saveGeneratedLucidQuiz({resourceId,title:chosen.name+' · '+format+' quiz',format,difficulty,coverage,instructions,questions:qs,sourcePages:selectedPages.map(p=>p.page_number)});}catch(saveError){state.activeQuizId=null;console.warn('Quiz generated but history was not saved:',saveError.message);showToast('Quiz generated; history could not be saved.','⚠');}}
         close();openPage('practice');showToast(qs.length+' questions generated from '+chosen.name+'.','✦');
       }catch(error){status.textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
     };

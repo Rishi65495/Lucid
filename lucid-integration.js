@@ -721,7 +721,13 @@ window.loadLucidCatalogues = async function(){
   const {data:cats,error:catError}=await lucidSupabase.from('catalogues').select('id,title,description,icon,created_at').order('created_at',{ascending:false});
   if(catError)throw catError;
   state.catalogues=cats||[];
-  const videoCatalogueSelect=document.getElementById('videoImportCatalogue');if(videoCatalogueSelect){const selected=videoCatalogueSelect.value;videoCatalogueSelect.innerHTML='<option value="">No catalogue (keep in Library)</option>';(cats||[]).forEach(cat=>videoCatalogueSelect.add(new Option(cat.title,cat.id)));if(selected&&cats.some(cat=>cat.id===selected))videoCatalogueSelect.value=selected;else if(state.selectedCatalogueId&&cats.some(cat=>cat.id===state.selectedCatalogueId))videoCatalogueSelect.value=state.selectedCatalogueId;}
+  ['videoImportCatalogue','youtubeImportCatalogue','playlistImportCatalogue'].forEach(id=>{
+    const select=document.getElementById(id);if(!select)return;
+    const selected=select.value;select.innerHTML='<option value="">No catalogue (keep in Library)</option>';
+    (cats||[]).forEach(cat=>select.add(new Option(cat.title,cat.id)));
+    if(selected&&cats.some(cat=>cat.id===selected))select.value=selected;
+    else if(state.selectedCatalogueId&&cats.some(cat=>cat.id===state.selectedCatalogueId))select.value=state.selectedCatalogueId;
+  });
   const {data:resources,error:resourceError}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata,created_at').eq('owner_id',lucidSession.user.id).order('created_at',{ascending:false});
   if(resourceError)throw resourceError;
   const {data:links,error:linkError}=await lucidSupabase.from('catalogue_resources').select('catalogue_id,resource_id,status').eq('status','active');

@@ -1962,27 +1962,25 @@ function showToast(message, icon = '✓') {
 
 // ─── Timer ────────────────────────────────────────
 function toggleTimer() {
-  const btn = document.getElementById('timerButton');
-  const status = document.getElementById('timerStatus');
-  state.timerRunning = !state.timerRunning;
-  if (state.timerRunning) {
-    btn.textContent = 'Pause session';
-    status.textContent = 'You are in a focused reading session.';
-    state.timerInterval = setInterval(() => {
-      if (state.timerSeconds > 0) { state.timerSeconds -= 1; renderTimer(); }
-      if (state.timerSeconds === 0) {
-        clearInterval(state.timerInterval); state.timerRunning = false;
-        btn.textContent = 'Session complete';
-        status.textContent = 'Beautiful work. Take a moment to reflect.';
-        state.xp += 20; updateXP();
-        showToast('Session complete! +20 XP earned. 🎉', '🎉');
+  const btn=document.getElementById('timerButton'),status=document.getElementById('timerStatus');
+  state.timerRunning=!state.timerRunning;
+  if(state.timerRunning){
+    btn.textContent='Pause session';status.textContent='You are in a focused reading session.';
+    if(!window.currentLucidReadingSessionId&&window.startLucidReadingSession){
+      window.startLucidReadingSession().then(id=>{window.currentLucidReadingSessionId=id;}).catch(error=>console.warn('Could not start saved focus session:',error.message));
+    }
+    state.timerInterval=setInterval(()=>{
+      if(state.timerSeconds>0){state.timerSeconds-=1;renderTimer();}
+      if(state.timerSeconds===0){
+        clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Session complete';status.textContent='Beautiful work. Take a moment to reflect.';
+        state.xp+=20;updateXP();showToast('Session complete! +20 XP earned. 🎉','🎉');
+        const activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60);
+        if(window.finishLucidReadingSession)Promise.resolve(window.currentLucidReadingSessionId).then(id=>window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:true})).catch(error=>showToast('Session saved locally; cloud sync failed: '+error.message,'⚠'));
         openModal('quizModal');
       }
-    }, 1000);
-  } else {
-    clearInterval(state.timerInterval);
-    btn.textContent = 'Resume session';
-    status.textContent = 'Paused. Your progress is safe.';
+    },1000);
+  }else{
+    clearInterval(state.timerInterval);btn.textContent='Resume session';status.textContent='Paused. Your progress is safe.';
   }
 }
 function renderTimer() {
@@ -1992,11 +1990,13 @@ function renderTimer() {
   document.getElementById('focusTimer').textContent = `${m}:${s}`;
 }
 function resetTimer() {
-  clearInterval(state.timerInterval); state.timerRunning = false;
-  state.timerSeconds = (state.preferences.focusLength || 25) * 60;
-  renderTimer();
-  document.getElementById('timerButton').textContent = 'Start session';
-  document.getElementById('timerStatus').textContent = 'Ready when you are.';
+  clearInterval(state.timerInterval);state.timerRunning=false;
+  if(window.currentLucidReadingSessionId&&window.finishLucidReadingSession){
+    const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60-state.timerSeconds);
+    window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:false}).catch(error=>console.warn('Could not save stopped session:',error.message));
+  }
+  state.timerSeconds=(state.preferences.focusLength||25)*60;renderTimer();
+  document.getElementById('timerButton').textContent='Start session';document.getElementById('timerStatus').textContent='Ready when you are.';
 }
 
 // ─── Annotations ─────────────────────────────────

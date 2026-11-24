@@ -676,7 +676,6 @@ textarea{min-height:75px;resize:vertical;}
         <button class="nav-item" data-page="reader"><span class="nav-icon">◉</span><span>Reading room</span></button>
         <button class="nav-item" data-page="practice"><span class="nav-icon">?</span><span>Practice center</span></button>
         <button class="nav-item" data-page="profile"><span class="nav-icon">◎</span><span>My profile</span></button>
-        <button class="nav-item" data-page="aiGuide"><span class="nav-icon">✦</span><span>AI Guide</span><span class="nav-badge" id="aiBadge" style="display:none">AI</span></button>
       </div>
       <div class="nav-section">
         <div class="nav-label">Community</div>
@@ -1775,9 +1774,11 @@ function openReaderAI() {
   const selection = window.getSelection()?.toString().trim();
   if (selection) state.selectedText = selection;
   const status = document.getElementById('aiContextStatus');
-  if (status) status.textContent = state.selectedText
-    ? 'Selected passage will be included: “' + state.selectedText.slice(0, 180) + (state.selectedText.length > 180 ? '…' : '') + '”'
-    : 'No passage selected. The guide will use your current resource and notes.';
+  const resourceName=state.currentResourceTitle||state.currentVideoContext?.title||'No resource selected';
+  const page=Number(state.currentResourcePage)||1;
+  if (status) status.textContent = (state.currentResourceId ? 'Context: '+resourceName+' · page '+page+'. ' : state.currentVideoContext ? 'Context: '+resourceName+'. ' : 'No resource is open. ') + (state.selectedText
+    ? 'Selected passage included: “' + state.selectedText.slice(0, 180) + (state.selectedText.length > 180 ? '…' : '') + '”'
+    : 'Ask about the current resource or selected passage.');
   openModal('aiModal');
 }
 function focusAnnotation() { document.getElementById('annotationInput').focus(); }
@@ -2167,7 +2168,7 @@ const systemInstructions = {
   Casual: 'You are a friendly, casual AI study buddy. Keep it conversational, use examples, and keep it fun.'
 };
 
-async function askGuide() {
+async async function askGuide() {
   const q=document.getElementById('aiQuestion').value.trim(),ansEl=document.getElementById('aiAnswer');
   if(!q){ansEl.style.display='block';ansEl.textContent='Ask a question first.';return;}
   ansEl.style.display='block';ansEl.textContent='✦ Lucid is analysing your current learning context…';
@@ -2186,10 +2187,13 @@ async function quickAIModal(prompt) {
 }
 
 async function quickAI(prompt) {
-  const videoRespEl = document.getElementById('videoAiResponse');
-  if (videoRespEl) { videoRespEl.style.display='block'; videoRespEl.textContent = '✦ Thinking…'; }
-  openPage('aiGuide');
-  await sendAIChatWithPrompt(prompt);
+  // Keep AI assistance beside the material being studied, not in a duplicate global AI page.
+  if(!state.currentResourceId && !state.currentVideoContext){
+    showToast('Open a resource first so Lucid can answer with the correct learning context.','⚠');
+    return;
+  }
+  openReaderAI();
+  await quickAIModal(prompt);
 }
 
 async function sendAIChat() {
@@ -2327,7 +2331,7 @@ function clearLocalData() {
   location.reload();
 }
 function exportWeeklyReport() { showToast('Weekly report prepared for export.', '📊'); }
-async function listenAI() {
+async async function listenAI() {
   if(!state.currentResourceId){showToast('Open a PDF before starting AI Teach.','⚠');return;}
   const page=Number(state.currentResourcePage)||1;
   const pageText=(state.resourcePages||[]).find(p=>Number(p.page_number)===page)?.text_content||'';

@@ -2282,7 +2282,7 @@ async function generateAIQuiz() {
       const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||format}));
       if(!qs.length)throw new Error('The AI returned no valid questions grounded in this source.');
       let savedQuizId=null;
-      try{savedQuizId=await window.saveLucidQuiz({resourceId:source.resourceId,sourceTitle:source.title,format,difficulty,coverage:source.sourceType,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}catch(saveError){console.warn('Quiz could not be saved:',saveError.message);}
+      try{savedQuizId=await window.saveLucidQuiz({resourceId:source.resourceId,catalogueId:source.catalogueId,sourceTitle:source.title,format,difficulty,coverage:source.sourceType,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}catch(saveError){console.warn('Quiz could not be saved:',saveError.message);}
       quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=savedQuizId;window.currentQuizSourceId=source.resourceId;state.flashcards=[];
       document.getElementById('quizScore').textContent='0/0';document.getElementById('quizScoreBar').style.width='0%';document.getElementById('accuracyBar').style.width='0%';document.getElementById('accuracyPct').textContent='—';
       const difficultyTag=document.getElementById('practiceDifficultyTag');if(difficultyTag)difficultyTag.textContent='Difficulty: '+difficulty;
@@ -2332,7 +2332,7 @@ async function getLucidPracticeContext(){
   const content=chunks.join('\n\n--- RESOURCE BREAK ---\n\n').slice(0,24000);
   if(!content.trim())throw new Error('The selected source has no readable text. For videos, paste and save the transcript first. For scanned PDFs, run OCR first.');
   const title=state.practiceSourceType==='catalogue'?(state.catalogues||[]).find(x=>x.id===state.practiceSourceId)?.title||'Selected catalogue':selectedResources[0].name;
-  return {title,sourceType:state.practiceSourceType,sourceId:state.practiceSourceId,resourceId:state.practiceSourceType==='resource'?state.practiceSourceId:null,resources:selectedResources,content};
+  return {title,sourceType:state.practiceSourceType,sourceId:state.practiceSourceId,resourceId:state.practiceSourceType==='resource'?state.practiceSourceId:null,catalogueId:state.practiceSourceType==='catalogue'?state.practiceSourceId:null,resources:selectedResources,content};
 }
 async function refreshPracticeSourceList(){if(window.loadLucidCatalogues)await window.loadLucidCatalogues();refreshPracticeSources();}
 // ─── Flashcards ───────────────────────────────────

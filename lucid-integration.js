@@ -1418,3 +1418,70 @@ window.selectLucidResource = async function(id){
 };
 
 window.initLucidAuth();
+
+
+/* Reliable Quick Actions: route each control to the feature it advertises. */
+window.quickAI = async function(prompt){
+  const normalized=String(prompt||'').toLowerCase();
+  if(/create a quiz|generate a quiz|quiz to test/.test(normalized)){
+    if(state.currentVideoContext?.resource_id){
+      await window.generateVideoQuiz();
+    }else if(window.generateAIQuiz){
+      await window.generateAIQuiz();
+    }else{
+      showToast('Open a source before generating a quiz.','⚠');
+    }
+    return;
+  }
+  if(typeof window.sendAIChatWithPrompt==='function'){
+    openPage('aiGuide');
+    await window.sendAIChatWithPrompt(prompt);
+  }else{
+    showToast('AI conversation is not ready yet. Refresh and try again.','⚠');
+  }
+};
+
+window.generateFlashcards = async function(){
+  const button=document.querySelector('#aiGuide button[onclick="generateFlashcards()"]');
+  if(button){button.disabled=true;button.dataset.oldText=button.textContent;button.textContent='Preparing…';}
+  try{
+    let context={};
+    if(state.currentVideoContext?.transcript?.trim()){
+      context={video_title:state.currentVideoContext.title,video_transcript:state.currentVideoContext.transcript,source_type:'video'};
+    }else{
+      if(!window.openLucidPracticeSourcePicker||!window.collectLucidPracticeContext)throw new Error('Source selection is not available.');
+      const selection=await window.openLucidPracticeSourcePicker();
+      if(!selection)return;
+      context=await window.collectLucidPracticeContext(selection);
+    }
+    const result=await window.callLearningEngine('flashcards','Create concise active-recall flashcards grounded only in the selected source. Return clear questions on the front and accurate answers on the back.',context);
+    const cards=result.result?.cards||[];
+    if(!cards.length)throw new Error('No flashcards were returned from the selected source.');
+    state.flashcards=cards.map(card=>({q:String(card.front||''),a:String(card.back||'')})).filter(card=>card.q&&card.a);
+    if(!state.flashcards.length)throw new Error('The returned flashcards were incomplete.');
+    state.flashcardIndex=0;
+    const front=document.getElementById('flashFront'),back=document.getElementById('flashBack'),progress=document.getElementById('cardProgress');
+    if(front)front.textContent=state.flashcards[0].q;if(back)back.textContent=state.flashcards[0].a;
+    if(progress)progress.textContent='Card 1 of '+state.flashcards.length+' · Click to flip';
+    const practiceTab=document.querySelector('[onclick*="practiceTab"][onclick*="flashcards"]');
+    if(practiceTab)practiceTab.click();else openPage('practice');
+    showToast(state.flashcards.length+' source-grounded flashcards generated.','✦');
+  }catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}
+  finally{if(button){button.disabled=false;button.textContent=button.dataset.oldText||'Make flashcards';}}
+};
+
+/* Remove duplicated status chrome and give the tutor conversation priority. */
+(function(){
+  const style=document.createElement('style');
+  style.textContent=`
+    #aiGuide > .grid.two-col{grid-template-columns:minmax(0,1fr) minmax(230px,.48fr);align-items:start}
+    #aiGuide #aiChat{min-height:320px;max-height:58vh;overflow:auto}
+    #aiGuide .ai-chat + .empty-state{max-width:560px;margin:0 auto}
+    @media(max-width:900px){#aiGuide > .grid.two-col{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(style);
+  document.querySelectorAll('#aiGuide .grid.two-col > div:last-child .card').forEach(card=>{
+    const heading=card.querySelector('h3')?.textContent?.trim().toLowerCase();
+    if(heading==='secure ai connection')card.remove();
+  });
+})();

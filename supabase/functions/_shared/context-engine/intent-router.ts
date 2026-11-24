@@ -1,14 +1,13 @@
 import type { ContextIntent, IntentDecision } from "./types.ts";
 
 const RULES: Array<{ intent: ContextIntent; patterns: RegExp[] }> = [
-  { intent: "greeting", patterns: [/^(hi|hello|hey|hii|hola|नमस्ते|नमस्कार|हाय|हेलो)[!?.\\s]*$/i] },
+  { intent: "greeting", patterns: [/^(hi|hello|hey|hii|hola|नमस्ते|नमस्कार|हाय|हेलो)[!?.\s]*$/i] },
   { intent: "continue_lesson", patterns: [/(continue|resume|next topic|where did we stop|पिछला पाठ|आगे पढ़|अगला टॉपिक|जहाँ छोड़ा|वहीं से शुरू)/i] },
-  // Task-specific intents must precede generic resource matching (e.g. "make a quiz from my PDF").
-  { intent: "quiz_generation", patterns: [/(make|create|generate|take|start).{0,40}(quiz|test|mcq|questions)|\\bquiz\\b|\\bmcq\\b|क्विज़|टेस्ट बनाओ/i] },
+  { intent: "quiz_generation", patterns: [/(make|create|generate|take|start).{0,40}(quiz|test|mcq|questions)|\bquiz\b|\bmcq\b|क्विज़|टेस्ट बनाओ/i] },
   { intent: "flashcard_generation", patterns: [/(flash ?cards?|कार्ड बनाओ|फ्लैशकार्ड)/i] },
   { intent: "progress_analysis", patterns: [/(my progress|learning progress|progress report|performance|weak areas|mastery|quiz history|मेरी प्रगति|कमज़ोर टॉपिक|प्रदर्शन)/i] },
   { intent: "study_planning", patterns: [/(study plan|timetable|learning plan|schedule|roadmap|पढ़ाई का प्लान|स्टडी प्लान|समय सारणी)/i] },
-  { intent: "resource_question", patterns: [/(pdf|document|uploaded file|my notes|this page|page\\s*\\d+|chapter|syllabus|मेरी पीडीएफ|इस पेज|पेज\\s*\\d+|नोट्स|दस्तावेज़|अध्याय)/i] },
+  { intent: "resource_question", patterns: [/(pdf|document|uploaded file|my notes|this page|page\s*\d+|chapter|syllabus|मेरी पीडीएफ|इस पेज|पेज\s*\d+|नोट्स|दस्तावेज़|अध्याय)/i] },
   { intent: "complex_agent_task", patterns: [/(analy[sz]e|compare|organize|plan|recommend|manage|update|save|complete|विश्लेषण|तुलना|योजना|सुझाव|मैनेज)/i] },
 ];
 
@@ -33,9 +32,7 @@ const RETRIEVAL: Record<ContextIntent, IntentDecision["retrieve"]> = {
 
 export function routeIntent(message: string): IntentDecision {
   const normalized = message.trim();
-  if (!normalized) {
-    return { intent: "general_chat", level: 0, confidence: "high", retrieve: RETRIEVAL.general_chat };
-  }
+  if (!normalized) return { intent: "general_chat", level: 0, confidence: "high", retrieve: RETRIEVAL.general_chat };
 
   for (const rule of RULES) {
     if (rule.patterns.some((pattern) => pattern.test(normalized))) {
@@ -44,13 +41,7 @@ export function routeIntent(message: string): IntentDecision {
     }
   }
 
-  // Handles natural phrasing such as "Hey, can you explain Python?"
-  const looksLikeQuestion = /\\?|\\b(what|why|how|when|where|who|explain|define|difference)\\b|क्यों|कैसे|क्या|समझाओ/i.test(normalized);
+  const looksLikeQuestion = /\?|\b(what|why|how|when|where|who|explain|define|difference)\b|क्यों|कैसे|क्या|समझाओ/i.test(normalized);
   const intent: ContextIntent = looksLikeQuestion ? "general_learning" : "general_chat";
-  return {
-    intent,
-    level: LEVELS[intent],
-    confidence: "medium",
-    retrieve: RETRIEVAL[intent],
-  };
+  return { intent, level: LEVELS[intent], confidence: "medium", retrieve: RETRIEVAL[intent] };
 }

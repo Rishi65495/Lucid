@@ -148,11 +148,11 @@ window.generateAIQuiz = async function(){
       const data=await window.callLearningEngine('quiz',request,{...context,question_count:count,difficulty,question_format:'mcq'});
       const questions=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||'mcq'}));
       if(!questions.length)throw new Error('The AI did not return valid questions. Try a smaller question count or a more text-readable source.');
-      let quizId=null;
+      let quizId=null;window.currentGeneratedQuestionIds=[];
       try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}
       catch(saveError){console.warn('Quiz generated but could not be saved:',saveError.message);}
       quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
-      window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;
+      window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizSourceIds=context.source_resource_ids;window.currentQuizCatalogueId=context.catalogue_id;
       const label=document.getElementById('quizSourceLabel');if(label)label.textContent='Sources: '+context.source_titles.join(', ');
       const diff=document.getElementById('quizDifficultyTag');if(diff)diff.textContent='Difficulty: '+difficulty;
       loadQuiz(0);close();openPage('practice');showToast(questions.length+' questions generated from your selected sources.','✦');
@@ -220,7 +220,7 @@ window.practiceWeak = async function(topic){
     const data=await window.callLearningEngine('quiz','Create five remedial multiple-choice questions about the learner weak area "'+topic+'". Use only the selected source material and explain each answer.',{...context,learner_evidence:profile,topic,question_count:5,question_format:'mcq'});
     const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
     if(!questions.length)throw new Error('No source-grounded remedial questions were returned.');
-    let quizId=null;
+    let quizId=null;window.currentGeneratedQuestionIds=[];
     try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty:'Balanced',coverage:'weak_area',instructions:'Remedial practice for '+topic,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(saveError){console.warn('Remedial quiz history could not be saved:',saveError.message);}
     quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;window.currentGeneratedQuestionIds=window.currentGeneratedQuestionIds||[];const sourceLabel=document.getElementById('quizSourceLabel');if(sourceLabel)sourceLabel.textContent='Weak area: '+topic+' · '+context.source_titles.join(', ');loadQuiz(0);openPage('practice');showToast('Remedial practice generated from selected sources for '+topic+'.','✦');
   }catch(error){showToast('Weak-area practice failed: '+error.message,'⚠');}
@@ -462,8 +462,8 @@ window.generateVideoQuiz=async function(){
     const data=await window.callLearningEngine('quiz','Create five multiple-choice questions using only this video transcript. Include explanations.',{video_title:state.currentVideoContext.title,video_transcript:state.currentVideoContext.transcript,question_count:5,question_format:'mcq'});
     const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
     if(!qs.length)throw new Error('No valid questions were returned from the transcript.');
-    let quizId=null;try{quizId=await window.saveLucidQuiz({resourceId:state.currentVideoContext.resource_id,sourceTitle:state.currentVideoContext.title,format:'mcq',difficulty:'Balanced',coverage:'video_transcript',questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(e){console.warn('Video quiz history save failed:',e.message);}
-    quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=state.currentVideoContext.resource_id;window.currentQuizCatalogueId=null;loadQuiz(0);openPage('practice');showToast('Quiz generated from the selected video transcript.','✦');
+    let quizId=null;window.currentGeneratedQuestionIds=[];try{quizId=await window.saveLucidQuiz({resourceId:state.currentVideoContext.resource_id,sourceTitle:state.currentVideoContext.title,format:'mcq',difficulty:'Balanced',coverage:'video_transcript',questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(e){console.warn('Video quiz history save failed:',e.message);}
+    quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=state.currentVideoContext.resource_id;window.currentQuizSourceIds=[state.currentVideoContext.resource_id];window.currentQuizCatalogueId=null;loadQuiz(0);openPage('practice');showToast('Quiz generated from the selected video transcript.','✦');
   }catch(error){showToast('Video quiz failed: '+error.message,'⚠');}
 };
 window.renderLucidVideoNotes=function(){
@@ -518,8 +518,9 @@ window.recordLucidQuizAnswer = async function(answer){
     const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(state.quizCorrect)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
     if(updateError)throw updateError;
   }
-  const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:window.currentQuizCatalogueId||state.selectedCatalogueId||null,p_resource_id:window.currentQuizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
-  if(error)throw error;
+  const sourceIds=Array.from(new Set((window.currentQuizSourceIds||[window.currentQuizSourceId||state.currentResourceId]).filter(Boolean)));
+  const events=await Promise.all((sourceIds.length?sourceIds:[null]).map(resourceId=>lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:window.currentQuizCatalogueId||state.selectedCatalogueId||null,p_resource_id:resourceId,p_session_id:null,p_payload:payload})));
+  const eventError=events.find(x=>x.error)?.error;if(eventError)throw eventError;
   if(answer.quizId&&Number(answer.quizIndex)+1>=Number(answer.totalQuestions)){
     try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
   }

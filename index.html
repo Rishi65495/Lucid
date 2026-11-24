@@ -2458,7 +2458,9 @@ async function generateAIQuiz() {
     modal.querySelector('#quizBuildStatus').textContent='Preparing source-grounded questions…';
     try{
       const pages=coverage==='selected'?[]:await window.getLucidResourcePages(resourceId,{page:coverage==='current'?state.currentResourcePage:null});
-      const pageContext=coverage==='selected'?(state.selectedText||'') :pages.slice(0,coverage==='current'?1:12).map(p=>'Page '+p.page_number+': '+p.text_content).join('\\n\\n').slice(0,18000);
+      const stride=Math.max(1,Math.ceil(pages.length/24));
+      const selectedPages=coverage==='current'?pages:pages.filter((_,index)=>index%stride===0);
+      const pageContext=coverage==='selected'?(state.selectedText||'') :selectedPages.map(p=>'Page '+p.page_number+': '+String(p.text_content||'').slice(0,760)).join('\\n\\n').slice(0,18000);
       const prompt='Create '+count+' quiz questions from "'+(resource?.name||'the selected PDF')+'". Format: '+format+'. Difficulty: '+difficulty+'. Coverage: '+coverage+'. Instructions: '+(instructions||'Test understanding and application, not only memorization')+'. Return structured questions with prompt, options, answer_index and explanation. Do not invent facts beyond the supplied source.';
       const data=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:resource?.name,question_format:format,difficulty,question_count:count,coverage,page_content:pageContext});
       const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));

@@ -226,6 +226,7 @@ window.selectLucidVideo=async function(resourceId){
   const kicker=document.getElementById('videoKicker');if(kicker)kicker.textContent='Selected video';
   const subtitle=document.getElementById('videoSubtitle');if(subtitle)subtitle.textContent='Current source: '+resource.title+' · AI uses only the saved transcript.';
   const transcript=document.getElementById('videoTranscriptInput');if(transcript)transcript.value=state.currentVideo.transcript;
+  const transcriptStatus=document.getElementById('videoTranscriptStatus');if(transcriptStatus)transcriptStatus.textContent=state.currentVideo.transcript?'Saved':'Not added';
   if(window.renderLucidVideoNotes)await window.renderLucidVideoNotes();
   window.mountLucidYoutubePlayer(state.currentVideo.videoId);
   if(window.renderVideoPlaylist)window.renderVideoPlaylist();
@@ -261,13 +262,21 @@ window.renderLucidVideoNotes=async function(){
 window.refreshVideoProgress=async function(){
   const items=state.videoPlaylist?.items||[];if(!items.length)return;
   const ids=items.map(x=>x.resourceId),uid=lucidSession?.user?.id;if(!uid)return;
-  const [progress,sessions]=await Promise.all([
+  const [progress,sessions,videos,quizzes]=await Promise.all([
     lucidSupabase.from('resource_item_progress').select('resource_id,completed').eq('user_id',uid).in('resource_id',ids),
-    lucidSupabase.from('video_sessions').select('active_seconds').eq('user_id',uid).in('resource_id',ids).limit(1000)
+    lucidSupabase.from('video_sessions').select('active_seconds').eq('user_id',uid).in('resource_id',ids).limit(1000),
+    lucidSupabase.from('resource_videos').select('resource_id,transcript').in('resource_id',ids),
+    lucidSupabase.from('quizzes').select('id,resource_id').in('resource_id',ids)
   ]);
-  const completed=new Set((progress.data||[]).filter(x=>x.completed).map(x=>x.resource_id)).size;
-  const pct=Math.round(completed/items.length*100),watch=(sessions.data||[]).reduce((s,x)=>s+(Number(x.active_seconds)||0),0);
-  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
+  const completed=new Set((progress.data||[]).filter(x=>x.completed).map(x=>x.resource_id)).size,pct=Math.round(completed/items.length*100);
+  const watch=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;},bar=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=value+'%';};
+  set('videoPlaylistCount',items.length);set('videoWatchedTime',watch>=3600?Math.floor(watch/3600)+'h '+Math.floor(watch%3600/60)+'m':Math.floor(watch/60)+'m');
+  set('videoCompletedPct',pct+'%');bar('videoCompletedBar',pct);
+  const transcriptPct=Math.round((videos.data||[]).filter(x=>Boolean(x.transcript?.trim())).length/items.length*100);set('videoTranscriptPct',transcriptPct+'%');bar('videoTranscriptBar',transcriptPct);
+  let quizPct=0;if((quizzes.data||[]).length){const quizIds=quizzes.data.map(x=>x.id);const attempts=await lucidSupabase.from('quiz_attempts').select('quiz_id').eq('user_id',uid).in('quiz_id',quizIds).not('completed_at','is',null);if(!attempts.error)quizPct=Math.round(new Set((attempts.data||[]).map(x=>x.quiz_id)).size/quizzes.data.length*100);}
+  set('videoQuizPct',quizPct+'%');bar('videoQuizBar',quizPct);
+};
   const bar=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=value+'%';};
   set('videoPlaylistCount',items.length);set('videoWatchedTime',watch>=3600?Math.floor(watch/3600)+'h '+Math.floor(watch%3600/60)+'m':Math.floor(watch/60)+'m');
   set('videoCompletedPct',pct+'%');bar('videoCompletedBar',pct);
@@ -276,6 +285,24 @@ window.refreshVideoProgress=async function(){
 };
 
 
+window.loadLucidVideoPlaylist=async function(catalogueId=null){
+  if(!lucidSession?.user)return [];
+  let ids=null,title='My video library';
+  if(catalogueId){
+    const cat=(state.catalogues||[]).find(x=>x.id===catalogueId);title=cat?.title||'Catalogue videos';
+    const {data:links,error:linkError}=await lucidSupabase.from('catalogue_resources').select('resource_id').eq('catalogue_id',catalogueId).eq('status','active');
+    if(linkError)throw linkError;ids=(links||[]).map(x=>x.resource_id);
+  }
+  let query=lucidSupabase.from('lucid_resources').select('id,title,source_url,metadata').eq('owner_id',lucidSession.user.id).eq('type','video').order('created_at',{ascending:false});
+  if(ids)query=query.in('id',ids);
+  const {data:resources,error}=await query;if(error)throw error;
+  const resourceIds=(resources||[]).map(x=>x.id);let videos=[];
+  if(resourceIds.length){const result=await lucidSupabase.from('resource_videos').select('resource_id,youtube_video_id,duration_seconds,transcript,metadata').in('resource_id',resourceIds);if(result.error)throw result.error;videos=result.data||[];}
+  const byId=new Map(videos.map(x=>[x.resource_id,x]));
+  state.videoPlaylist={title,items:(resources||[]).map((r,index)=>{const v=byId.get(r.id)||{};return {resourceId:r.id,videoId:v.youtube_video_id,title:r.title,durationSeconds:Number(v.duration_seconds)||0,transcript:v.transcript||'',catalogueId:catalogueId||null,thumbnail:v.metadata?.thumbnail||r.metadata?.thumbnail||null,playlistIndex:index};}).filter(x=>x.videoId)};
+  if(window.renderVideoPlaylist)window.renderVideoPlaylist();
+  return state.videoPlaylist.items;
+};
 window.recordLucidQuizAnswer = async function(answer){
   if(!lucidSession?.user||typeof lucidSupabase==='undefined')return false;
   const payload={question:String(answer.question||'').slice(0,2000),selected_option:String(answer.selectedOption||'').slice(0,1000),correct_option:String(answer.correctOption||'').slice(0,1000),is_correct:Boolean(answer.correct),quiz_index:Number(answer.quizIndex)||0,source:'practice_center'};
@@ -712,7 +739,8 @@ window.loadLucidCatalogues = async function(){
   });
   if(typeof renderUploadedBooks==='function')renderUploadedBooks();
   if(typeof refreshPracticeSources==='function')refreshPracticeSources();
-  if(typeof renderVideoPlaylist==='function')renderVideoPlaylist();
+  if(window.loadLucidVideoPlaylist)await window.loadLucidVideoPlaylist(state.selectedCatalogueId||null);
+    if(typeof renderVideoPlaylist==='function')renderVideoPlaylist();
   const countByCatalogue=new Map();
   (links||[]).forEach(link=>{
     if(!ownedResourceIds.has(link.resource_id))return;

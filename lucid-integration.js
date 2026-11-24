@@ -205,6 +205,7 @@ window.loadYoutubeURL = async function(url){
       const link=await lucidSupabase.from('catalogue_resources').upsert({catalogue_id:catalogueId,resource_id:playlistResourceId,order_index:0,status:'active'},{onConflict:'catalogue_id,resource_id'});if(link.error)throw link.error;
     }
     state.videoPlaylist={title:imported.playlist?.title||items[0]?.title||'Imported videos',playlistId:imported.playlist_id||null,playlistResourceId,catalogueId,items:savedItems};
+    state.selectedCatalogueId=catalogueId||null;saveState();
     state.uploadedBooks=state.uploadedBooks||[];
     if(playlistResourceId)state.uploadedBooks.unshift({id:playlistResourceId,resourceId:playlistResourceId,name:state.videoPlaylist.title,type:'playlist',catalogueId});
     savedItems.forEach(item=>state.uploadedBooks.unshift({id:item.resourceId,resourceId:item.resourceId,name:item.title,type:'video',catalogueId}));
@@ -808,6 +809,7 @@ window.openLucidCatalogue = async function(id){
   const {data:cat,error:catError}=await lucidSupabase.from('catalogues').select('id,title,description').eq('id',id).single();
   if(catError)throw catError;
   state.selectedCatalogueId=id;saveState();
+  if(window.loadLucidVideoPlaylist)await window.loadLucidVideoPlaylist(id);
   const panel=document.getElementById('catalogueResourcesPanel'),heading=document.getElementById('catalogueResourcesTitle'),list=document.getElementById('catalogueResourcesList'),empty=document.getElementById('catalogueResourcesEmpty');
   if(panel)panel.style.display='block';if(heading)heading.textContent=cat.title;if(list)list.innerHTML='<div class="muted small-text">Loading resources…</div>';
   const {data:links,error:linkError}=await lucidSupabase.from('catalogue_resources').select('resource_id,order_index,status').eq('catalogue_id',id).eq('status','active').order('order_index',{ascending:true});
@@ -832,7 +834,7 @@ window.openLucidCatalogue = async function(id){
     const status=document.createElement('div');status.className='book-author';status.textContent=(resource.metadata?.page_count?resource.metadata.page_count+' pages · ':'')+(resource.processing_status||'saved');
     info.append(title,status);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';const tag=document.createElement('span');tag.className='tag';tag.textContent=resource.type||'resource';
-    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(resource.id);
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>{if(resource.type==='video'){openPage('video');window.selectLucidVideo(resource.id).catch(error=>showToast('Could not open video: '+error.message,'⚠'));}else if(resource.type==='playlist'){openPage('video');window.loadLucidVideoPlaylist(id).catch(error=>showToast(error.message,'⚠'));}else window.openLucidResource(resource.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));};
     footer.append(tag,open);card.append(main,footer);list?.appendChild(card);
   });
   if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});

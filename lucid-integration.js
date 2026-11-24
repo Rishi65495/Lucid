@@ -270,20 +270,15 @@ window.refreshVideoProgress=async function(){
   ]);
   const completed=new Set((progress.data||[]).filter(x=>x.completed).map(x=>x.resource_id)).size,pct=Math.round(completed/items.length*100);
   const watch=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
-  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;},bar=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=value+'%';};
-  set('videoPlaylistCount',items.length);set('videoWatchedTime',watch>=3600?Math.floor(watch/3600)+'h '+Math.floor(watch%3600/60)+'m':Math.floor(watch/60)+'m');
-  set('videoCompletedPct',pct+'%');bar('videoCompletedBar',pct);
-  const transcriptPct=Math.round((videos.data||[]).filter(x=>Boolean(x.transcript?.trim())).length/items.length*100);set('videoTranscriptPct',transcriptPct+'%');bar('videoTranscriptBar',transcriptPct);
-  let quizPct=0;if((quizzes.data||[]).length){const quizIds=quizzes.data.map(x=>x.id);const attempts=await lucidSupabase.from('quiz_attempts').select('quiz_id').eq('user_id',uid).in('quiz_id',quizIds).not('completed_at','is',null);if(!attempts.error)quizPct=Math.round(new Set((attempts.data||[]).map(x=>x.quiz_id)).size/quizzes.data.length*100);}
-  set('videoQuizPct',quizPct+'%');bar('videoQuizBar',quizPct);
-};
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   const bar=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=value+'%';};
   set('videoPlaylistCount',items.length);set('videoWatchedTime',watch>=3600?Math.floor(watch/3600)+'h '+Math.floor(watch%3600/60)+'m':Math.floor(watch/60)+'m');
   set('videoCompletedPct',pct+'%');bar('videoCompletedBar',pct);
-  const transcriptPct=Math.round(items.filter(x=>Boolean(x.transcript)).length/items.length*100);set('videoTranscriptPct',transcriptPct+'%');bar('videoTranscriptBar',transcriptPct);
-  set('videoQuizPct','0%');bar('videoQuizBar',0);
+  const transcriptPct=Math.round((videos.data||[]).filter(x=>Boolean(x.transcript?.trim())).length/items.length*100);set('videoTranscriptPct',transcriptPct+'%');bar('videoTranscriptBar',transcriptPct);
+  let quizPct=0;
+  if((quizzes.data||[]).length){const quizIds=quizzes.data.map(x=>x.id);const attempts=await lucidSupabase.from('quiz_attempts').select('quiz_id').eq('user_id',uid).in('quiz_id',quizIds).not('completed_at','is',null);if(!attempts.error)quizPct=Math.round(new Set((attempts.data||[]).map(x=>x.quiz_id)).size/quizzes.data.length*100);}
+  set('videoQuizPct',quizPct+'%');bar('videoQuizBar',quizPct);
 };
-
 
 window.loadLucidVideoPlaylist=async function(catalogueId=null){
   if(!lucidSession?.user)return [];
@@ -422,8 +417,7 @@ window.loadLucidProfile = async function(){
   setText('profileDisplayHeading',name);setText('profileEmail',user.email||'');setText('sideProfileName',name);
   setText('dashboardProfileName',name);setText('dashboardProfileBio',profile.bio||user.email||'Your learning profile');setText('dashboardProfileLevel','Level '+(profile.level||state.level||1));setText('dashboardProfileXP',(profile.xp||state.xp||0)+' XP');
   const dashboardAvatar=document.getElementById('dashboardProfileAvatar');if(dashboardAvatar){dashboardAvatar.textContent=name.split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();if(profile.avatar_url){dashboardAvatar.innerHTML='';const image=document.createElement('img');image.src=profile.avatar_url;image.alt='';image.className='avatar-image';dashboardAvatar.appendChild(image);}}
-  setText('dashboardProfileName',name);setText('dashboardProfileBio',profile.bio||user.email||'Your learning profile');setText('dashboardProfileLevel','Level '+(profile.level||state.level||1));setText('dashboardProfileXP',(profile.xp||state.xp||0)+' XP');
-  const dashboardAvatar=document.getElementById('dashboardProfileAvatar');if(dashboardAvatar){dashboardAvatar.textContent=name.split(/\\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase();if(profile.avatar_url){dashboardAvatar.innerHTML='';const image=document.createElement('img');image.src=profile.avatar_url;image.alt='';image.className='avatar-image';dashboardAvatar.appendChild(image);}}
+
   const ni=document.getElementById('profileNameInput');if(ni)ni.value=name;
   const bi=document.getElementById('profileBioInput');if(bi)bi.value=profile.bio||'';
   setText('profileLevel',profile.level==null?1:profile.level);setText('profileXP',profile.xp==null?0:profile.xp);setText('profileWeeklyGoal',profile.weekly_goal==null?200:profile.weekly_goal);
@@ -669,6 +663,11 @@ window.loadLucidLearningProfile = async function(){
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
   const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  const weakList=document.getElementById('weakAreaList');
+  if(weakList){weakList.innerHTML='';if(!weak.length)weakList.innerHTML='<p class="muted small-text">No concept mastery evidence has been recorded yet. Complete a source-based quiz or oral recall to build this list.</p>';
+    weak.slice(0,8).forEach(item=>{const row=document.createElement('div');row.className='goal-item';const body=document.createElement('div');body.style.flex='1';const title=document.createElement('strong');title.textContent=item.name;const meta=document.createElement('div');meta.className='muted small-text';meta.textContent='Recorded mastery: '+Math.round(item.mastery)+'% · Recall: '+Math.round(item.recall)+'%';const track=document.createElement('div');track.className='progress-track';track.style.marginTop='6px';const fill=document.createElement('span');fill.className='progress-fill rose';fill.style.width=item.mastery+'%';track.appendChild(fill);body.append(title,meta,track);const button=document.createElement('button');button.className='danger-button btn-sm';button.textContent='Practice now';button.onclick=()=>window.practiceWeak(item.name);row.append(body,button);weakList.appendChild(row);});
+  }
+
   const focusSummary=document.getElementById('lbFocusSummary');if(focusSummary)focusSummary.textContent='You recorded '+Math.round(totalFocusSeconds/60)+' minutes across your last '+(sessions.data||[]).length+' reading sessions. This is your personal focus record, not a group ranking.';
   const resourceTag=document.getElementById('aiCurrentResource');if(resourceTag)resourceTag.textContent=state.currentResourceTitle||'No resource selected';
   const pageTag=document.getElementById('aiCurrentPage');if(pageTag)pageTag.textContent=state.currentResourceId?'PDF page '+(state.currentResourcePage||1):'No page context';

@@ -460,7 +460,7 @@ window.persistLucidVideoProgress=async function(endSession){
   if(error)console.warn('Could not persist video progress:',error.message);
   if(endSession){window.currentLucidVideoSessionId=null;window.lucidVideoLastTick=null;try{await window.loadLucidVideoLibrary(window.currentLucidPlaylistResourceId);}catch(_){}}
 };
-document.addEventListener('visibilitychange',()=>{if(document.hidden)window.persistLucidVideoProgress(false);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){window.persistLucidVideoProgress(false);if(state.timerRunning&&window.currentLucidReadingSessionId&&window.saveLucidReadingSessionProgress)window.saveLucidReadingSessionProgress({id:window.currentLucidReadingSessionId,activeSeconds:state.sessionTimerSeconds,pagesCompleted:state.sessionPagesCompleted}).catch(error=>console.warn('Could not save focus checkpoint on tab hide:',error.message));}});
 window.saveCurrentVideoTranscript=async function(){
   const transcript=document.getElementById('videoTranscriptInput').value.trim();
   if(!window.currentLucidVideoResourceId){showToast('Select a saved video first.','⚠');return;}

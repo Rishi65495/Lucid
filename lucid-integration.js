@@ -440,11 +440,11 @@ window.persistLucidVideoProgress=async function(endSession){
   const positionDelta=current-(Number(window.lucidVideoLastPositionSeconds)||current),maxContentDelta=elapsed*speed*1.25+1,watchedDelta=playing&&positionDelta>0?Math.min(positionDelta,maxContentDelta):0;
   window.lucidVideoActiveSeconds+=elapsed;window.lucidVideoWatchedContentSeconds+=watchedDelta;window.lucidVideoLastPositionSeconds=current;window.lucidVideoLastTick=now;
   const totalWatched=window.lucidVideoBaseWatchedContentSeconds+window.lucidVideoWatchedContentSeconds,completed=duration>0&&totalWatched>=duration*.9;
-  const patch={active_seconds:window.lucidVideoActiveSeconds,last_timestamp_seconds:current,playback_speed:speed,completed,ended_at:endSession||completed?new Date().toISOString():null,result:{source:'youtube_iframe_player',watched_content_seconds:window.lucidVideoWatchedContentSeconds,watched_content_total_seconds:totalWatched}};
+  const patch={active_seconds:window.lucidVideoActiveSeconds,last_timestamp_seconds:current,playback_speed:speed,completed,ended_at:endSession?new Date().toISOString():null,result:{source:'youtube_iframe_player',watched_content_seconds:window.lucidVideoWatchedContentSeconds,watched_content_total_seconds:totalWatched}};
   const {error}=await lucidSupabase.from('video_sessions').update(patch).eq('id',window.currentLucidVideoSessionId).eq('user_id',lucidSession.user.id);
   const currentItem=(window.lucidVideoPlaylistItems||[]).find(x=>x.resource_id===window.currentLucidVideoResourceId);if(currentItem){currentItem.progress=currentItem.progress||{active:0,completed:false,last:0,watchedContent:0};currentItem.progress.active=window.lucidVideoBaseActiveSeconds+window.lucidVideoActiveSeconds;currentItem.progress.last=current;currentItem.progress.watchedContent=totalWatched;currentItem.progress.completed=completed;}if(window.updateLucidVideoProgressUI)window.updateLucidVideoProgressUI();
   if(error)console.warn('Could not persist video progress:',error.message);
-  if(endSession||completed){window.currentLucidVideoSessionId=null;window.lucidVideoLastTick=null;try{await window.loadLucidVideoLibrary(window.currentLucidPlaylistResourceId);}catch(_){}}
+  if(endSession){window.currentLucidVideoSessionId=null;window.lucidVideoLastTick=null;try{await window.loadLucidVideoLibrary(window.currentLucidPlaylistResourceId);}catch(_){}}
 };
 document.addEventListener('visibilitychange',()=>{if(document.hidden)window.persistLucidVideoProgress(false);});
 window.saveCurrentVideoTranscript=async function(){

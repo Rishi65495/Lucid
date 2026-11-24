@@ -1633,27 +1633,35 @@ function showToast(message, icon = '✓') {
 }
 
 // ─── Timer ────────────────────────────────────────
-function toggleTimer() {
+async function toggleTimer() {
   const btn=document.getElementById('timerButton'),status=document.getElementById('timerStatus');
-  state.timerRunning=!state.timerRunning;
   if(state.timerRunning){
-    btn.textContent='Pause session';status.textContent='You are in a focused reading session.';
-    if(!window.currentLucidReadingSessionId&&window.startLucidReadingSession){
-      window.startLucidReadingSession().then(id=>{window.currentLucidReadingSessionId=id;}).catch(error=>console.warn('Could not start saved focus session:',error.message));
+    clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Resume session';status.textContent='Paused. Your progress is saved.';
+    if(window.currentLucidReadingSessionId&&window.saveLucidReadingSessionProgress){
+      try{await window.saveLucidReadingSessionProgress({id:window.currentLucidReadingSessionId,activeSeconds:state.sessionTimerSeconds,pagesCompleted:state.sessionPagesCompleted});}
+      catch(error){showToast('Could not save focus checkpoint: '+error.message,'⚠');}
     }
-    state.timerInterval=setInterval(()=>{
-      if(state.timerSeconds>0){state.timerSeconds-=1;renderTimer();}
-      if(state.timerSeconds===0){
-        clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Session complete';status.textContent='Beautiful work. Take a moment to reflect.';
-        state.xp+=20;updateXP();showToast('Session complete! +20 XP earned. 🎉','🎉');
-        const activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60);
-        if(window.finishLucidReadingSession)Promise.resolve(window.currentLucidReadingSessionId).then(id=>window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:true})).catch(error=>showToast('Session saved locally; cloud sync failed: '+error.message,'⚠'));
-        openModal('quizModal');
-      }
-    },1000);
-  }else{
-    clearInterval(state.timerInterval);btn.textContent='Resume session';status.textContent='Paused. Your progress is safe.';
+    return;
   }
+  if(state.timerSeconds<=0)state.timerSeconds=(Number(state.preferences.focusLength)||25)*60;
+  if(!window.currentLucidReadingSessionId){
+    state.sessionTimerSeconds=0;state.sessionPagesCompleted=0;
+    if(window.startLucidReadingSession){
+      try{window.currentLucidReadingSessionId=await window.startLucidReadingSession();}
+      catch(error){showToast('Could not start a saved focus session: '+error.message,'⚠');}
+    }
+  }
+  state.timerRunning=true;state.sessionStartTime=Date.now();btn.textContent='Pause session';status.textContent='You are in a focused learning session.';
+  state.timerInterval=setInterval(()=>{
+    if(state.timerSeconds>0){state.timerSeconds-=1;state.sessionTimerSeconds=(Number(state.sessionTimerSeconds)||0)+1;renderTimer();}
+    if(state.timerSeconds===0){
+      clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Session complete';status.textContent='Beautiful work. Take a moment to reflect.';
+      state.xp+=20;updateXP();showToast('Session complete! +20 XP earned. 🎉','🎉');
+      const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,Number(state.sessionTimerSeconds)||0);
+      if(id&&window.finishLucidReadingSession)window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:true}).catch(error=>showToast('Could not save completed session: '+error.message,'⚠'));
+      openModal('quizModal');
+    }
+  },1000);
 }
 function renderTimer() {
   const m = String(Math.floor(state.timerSeconds/60)).padStart(2,'0');
@@ -1661,13 +1669,15 @@ function renderTimer() {
   document.getElementById('timerDisplay').textContent = `${m}:${s}`;
   document.getElementById('focusTimer').textContent = `${m}:${s}`;
 }
-function resetTimer() {
+async function resetTimer() {
   clearInterval(state.timerInterval);state.timerRunning=false;
-  if(window.currentLucidReadingSessionId&&window.finishLucidReadingSession){
-    const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60-state.timerSeconds);
-    window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:false}).catch(error=>console.warn('Could not save stopped session:',error.message));
+  const id=window.currentLucidReadingSessionId;
+  if(id&&window.finishLucidReadingSession){
+    try{await window.finishLucidReadingSession({id,activeSeconds:Math.max(0,Number(state.sessionTimerSeconds)||0),pagesCompleted:state.sessionPagesCompleted,completed:false});}
+    catch(error){showToast('Could not save stopped session: '+error.message,'⚠');}
   }
-  state.timerSeconds=(state.preferences.focusLength||25)*60;renderTimer();
+  state.sessionTimerSeconds=0;state.sessionPagesCompleted=0;
+  state.timerSeconds=(Number(state.preferences.focusLength)||25)*60;renderTimer();
   document.getElementById('timerButton').textContent='Start session';document.getElementById('timerStatus').textContent='Ready when you are.';
 }
 

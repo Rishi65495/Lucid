@@ -1657,7 +1657,7 @@ async function toggleTimer() {
     if(state.timerSeconds===0){
       clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Session complete';status.textContent='Beautiful work. Take a moment to reflect.';
       state.xp+=20;updateXP();showToast('Session complete! +20 XP earned. 🎉','🎉');
-      const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,Number(state.sessionTimerSeconds)||0);
+      const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,Number(state.sessionTimerSeconds)||0);window.currentLucidReadingSessionId=null;
       if(id&&window.finishLucidReadingSession)window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:true}).catch(error=>showToast('Could not save completed session: '+error.message,'⚠'));
       openModal('quizModal');
     }
@@ -1671,7 +1671,7 @@ function renderTimer() {
 }
 async function resetTimer() {
   clearInterval(state.timerInterval);state.timerRunning=false;
-  const id=window.currentLucidReadingSessionId;
+  const id=window.currentLucidReadingSessionId;window.currentLucidReadingSessionId=null;
   if(id&&window.finishLucidReadingSession){
     try{await window.finishLucidReadingSession({id,activeSeconds:Math.max(0,Number(state.sessionTimerSeconds)||0),pagesCompleted:state.sessionPagesCompleted,completed:false});}
     catch(error){showToast('Could not save stopped session: '+error.message,'⚠');}

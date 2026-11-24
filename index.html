@@ -1407,7 +1407,7 @@ textarea{min-height:75px;resize:vertical;}
     <!-- ══ LEADERBOARD ══ -->
     <section class="page" id="leaderboard">
       <div class="page-heading">
-        <div><div class="kicker">Room standings</div><h1>Leaderboard.</h1></div>
+        <div><div class="kicker">Learner rankings</div><h1>Leaderboard.</h1></div>
         <span class="tag gold">MCA Semester Group</span>
       </div>
 
@@ -1439,22 +1439,6 @@ textarea{min-height:75px;resize:vertical;}
           </div>
         </div>
 
-        <div>
-          <div class="card card-padding" style="margin-bottom:17px;">
-            <div class="kicker">Room weak area</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Overfitting</h3>
-            <p class="muted small-text">Average recall for this topic: 34%. Suggested: group practice session.</p>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="generateAIQuiz()">✦ Start room quiz on Overfitting</button>
-          </div>
-          <div class="card card-padding">
-            <div class="kicker">Room challenge</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Machine Learning Test</h3>
-            <p class="muted small-text">10 questions · 20 min · Room test</p>
-            <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" style="width:0%"></span></div>
-            <div class="progress-label"><span>Not started</span><span>0/14 members ready</span></div>
-            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="startRoomTest()">Start room test</button>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -2240,13 +2224,6 @@ function changeSound(name) {
   document.getElementById('musicStatus').textContent = 'Sound playing';
   showToast(`${name} selected.`, '♫');
 }
-
-function startRoomTest() {
-  closeModal?.('');
-  openPage('practice');
-  showToast('Room test started! 14 members competing.', '🏆');
-}
-
 
 // ─── Library ──────────────────────────────────────
 async function uploadBook() {

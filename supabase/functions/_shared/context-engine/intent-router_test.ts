@@ -6,6 +6,13 @@ Deno.test("greeting uses minimal context", () => {
   assertEquals(result.intent, "greeting");
   assertEquals(result.level, 0);
   assertEquals(result.retrieve.resource, false);
+  assertEquals(result.retrieve.learnerProfile, false);
+});
+
+Deno.test("empty message stays lightweight", () => {
+  const result = routeIntent("   ");
+  assertEquals(result.intent, "general_chat");
+  assertEquals(result.level, 0);
 });
 
 Deno.test("PDF page request enables resource retrieval", () => {
@@ -14,10 +21,17 @@ Deno.test("PDF page request enables resource retrieval", () => {
   assertEquals(result.retrieve.resource, true);
 });
 
+Deno.test("quiz request based on a PDF is classified as quiz generation", () => {
+  const result = routeIntent("Create a quiz from my PDF");
+  assertEquals(result.intent, "quiz_generation");
+  assertEquals(result.retrieve.resource, true);
+});
+
 Deno.test("progress analysis enables learner records", () => {
   const result = routeIntent("Analyze my learning progress");
   assertEquals(result.intent, "progress_analysis");
   assertEquals(result.retrieve.mastery, true);
+  assertEquals(result.retrieve.quizHistory, true);
 });
 
 Deno.test("general learning does not fetch learner database context", () => {
@@ -25,4 +39,23 @@ Deno.test("general learning does not fetch learner database context", () => {
   assertEquals(result.intent, "general_learning");
   assertEquals(result.retrieve.learnerProfile, false);
   assertEquals(result.retrieve.resource, false);
+});
+
+Deno.test("greeting followed by a question is not treated as greeting", () => {
+  const result = routeIntent("Hey, can you explain Python?");
+  assertEquals(result.intent, "general_learning");
+  assertEquals(result.retrieve.resource, false);
+});
+
+Deno.test("Hindi syllabus request is routed to resource retrieval", () => {
+  const result = routeIntent("मेरे syllabus का दूसरा chapter समझाओ");
+  assertEquals(result.intent, "resource_question");
+  assertEquals(result.retrieve.resource, true);
+});
+
+Deno.test("continuing a lesson retrieves current lesson only", () => {
+  const result = routeIntent("Continue my lesson");
+  assertEquals(result.intent, "continue_lesson");
+  assertEquals(result.retrieve.currentLesson, true);
+  assertEquals(result.retrieve.mastery, false);
 });

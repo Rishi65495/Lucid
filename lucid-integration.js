@@ -767,7 +767,7 @@ window.loadLucidGoals = async function(){
   if(error)throw error;
   const goals=data||[],list=document.getElementById('goalList');
   const [resourceProgress,resources,mastery,sessions,videoSessions,attempts]=await Promise.all([
-    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(5000),
+    lucidSupabase.from('resource_item_progress').select('resource_id,item_key').eq('user_id',uid).eq('completed',true).limit(5000),
     lucidSupabase.from('lucid_resources').select('id,type,metadata').eq('owner_id',uid).limit(2000),
     lucidSupabase.from('concept_mastery').select('mastery').eq('user_id',uid).limit(1000),
     lucidSupabase.from('reading_sessions').select('active_seconds').eq('user_id',uid).limit(1000),
@@ -775,7 +775,7 @@ window.loadLucidGoals = async function(){
     lucidSupabase.from('quiz_attempts').select('score,max_score').eq('user_id',uid).not('completed_at','is',null).limit(500)
   ]);
   for(const result of [resourceProgress,resources,mastery,sessions,videoSessions,attempts])if(result.error)throw result.error;
-  const progressCounts=new Map();(resourceProgress.data||[]).forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
+  const progressCounts=new Map();(resourceProgress.data||[]).filter(x=>String(x.item_key||'').startsWith('page:')).forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
   const completedPdfs=(resources.data||[]).filter(r=>r.type==='pdf'&&Number(r.metadata?.page_count)>0&&(progressCounts.get(r.id)||0)>=Number(r.metadata.page_count)).length;
   const completedVideos=new Set((videoSessions.data||[]).filter(x=>x.completed).map(x=>x.resource_id).filter(Boolean)).size;
   const completedResources=completedPdfs+completedVideos;
@@ -834,7 +834,7 @@ window.loadLucidAchievements = async function(){
   ]);
   const sessionsRows=sessions.error?[]:(sessions.data||[]);
   const resourcesRows=resourceProgress.error?[]:(resourceProgress.data||[]);
-  const progressCounts=new Map();resourcesRows.forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
+  const progressCounts=new Map();resourcesRows.filter(x=>String(x.item_key||'').startsWith('page:')).forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
   const completedPdfs=(resources.data||[]).filter(r=>r.type==='pdf'&&Number(r.metadata?.page_count)>0&&(progressCounts.get(r.id)||0)>=Number(r.metadata.page_count)).length;
   const completedVideos=new Set((videoSessions.data||[]).map(x=>x.resource_id).filter(Boolean)).size;
   const evidence={
@@ -1007,7 +1007,7 @@ window.loadLucidCatalogues = async function(){
   const {data:progressRows,error:progressError}=await lucidSupabase.from('resource_item_progress').select('resource_id,item_key,position,completed,last_activity_at').eq('user_id',lucidSession.user.id).limit(5000);
   if(progressError)throw progressError;
   const progressByResource=new Map();
-  (progressRows||[]).forEach(row=>{const current=progressByResource.get(row.resource_id)||{completed:0,lastPosition:0,lastActivity:null};if(row.completed)current.completed+=1;current.lastPosition=Math.max(current.lastPosition,Number(row.position)||0);if(!current.lastActivity||new Date(row.last_activity_at)>new Date(current.lastActivity))current.lastActivity=row.last_activity_at;progressByResource.set(row.resource_id,current);});
+  (progressRows||[]).filter(row=>String(row.item_key||'').startsWith('page:')).forEach(row=>{const current=progressByResource.get(row.resource_id)||{completed:0,lastPosition:0,lastActivity:null};if(row.completed)current.completed+=1;current.lastPosition=Math.max(current.lastPosition,Number(row.position)||0);if(!current.lastActivity||new Date(row.last_activity_at)>new Date(current.lastActivity))current.lastActivity=row.last_activity_at;progressByResource.set(row.resource_id,current);});
   const catalogueIdsByResource=new Map();
   (links||[]).forEach(link=>{
     if(!catalogueIdsByResource.has(link.resource_id))catalogueIdsByResource.set(link.resource_id,[]);
@@ -1196,7 +1196,7 @@ window.markLucidPdfPageComplete=async function(pageNumber){
 };
 window.loadLucidResourceProgress=async function(resourceId){
   if(!lucidSession?.user||!resourceId)return {completedPages:0,lastPosition:0};
-  const {data,error}=await lucidSupabase.from('resource_item_progress').select('item_key,position,completed').eq('user_id',lucidSession.user.id).eq('resource_id',resourceId).limit(2000);
+  const {data,error}=await lucidSupabase.from('resource_item_progress').select('item_key,position,completed').eq('user_id',lucidSession.user.id).eq('resource_id',resourceId).like('item_key','page:%').limit(2000);
   if(error)throw error;
   return {completedPages:(data||[]).filter(x=>x.completed).length,lastPosition:(data||[]).reduce((max,x)=>Math.max(max,Number(x.position)||0),0)};
 };

@@ -8,52 +8,92 @@ const CORS = {
   "Content-Type": "application/json",
 };
 
-async function getLearnerOverview(sb: any, user: any) {
+async function getLearnerContext(sb: any, user: any, request: string, preferredName: string | null) {
   const userId = user.id;
-  const [profile, resources, catalogues, journeys, mastery, attempts, xp, earnedBadges] = await Promise.all([
-    sb.from("profiles").select("display_name,bio,level,xp,weekly_goal").eq("id", userId).maybeSingle(),
-    sb.from("lucid_resources").select("id,title,type,processing_status,created_at", { count: "exact" }).eq("owner_id", userId).order("created_at", { ascending: false }).limit(500),
-    sb.from("catalogues").select("id,title,description,created_at").eq("owner_id", userId).order("created_at", { ascending: false }).limit(200),
-    sb.from("learning_journeys").select("completion,exposure,understanding,recall,application,last_activity_at,resource_id,catalogue_id,lucid_resources(title,type)").eq("owner_id", userId).order("last_activity_at", { ascending: false }).limit(100),
-    sb.from("concept_mastery").select("mastery,exposure,understanding,recall,application,updated_at,concepts(title,normalized_key)").eq("user_id", userId).order("mastery", { ascending: true }).limit(50),
-    sb.from("quiz_attempts").select("score,max_score,completed_at,skipped,quizzes(title,quiz_type)").eq("user_id", userId).order("completed_at", { ascending: false }).limit(20),
-    sb.from("user_xp").select("xp,level,streak_days").eq("user_id", userId).maybeSingle(),
-    sb.from("user_badges").select("awarded_at,metadata,badges(name,description,family)").eq("user_id", userId).order("awarded_at", { ascending: false }).limit(100),
-  ]);
-  for (const result of [profile, resources, catalogues, journeys, mastery, attempts, xp, earnedBadges]) if (result.error) throw result.error;
-  const resourceRows = resources.data || [];
-  const catalogueIds = (catalogues.data || []).map((x: any) => x.id);
-  const catalogueLinks = catalogueIds.length
-    ? await sb.from("catalogue_resources").select("catalogue_id,resource_id,status").in("catalogue_id", catalogueIds).eq("status", "active").limit(2000)
-    : { data: [], error: null };
-  if (catalogueLinks.error) throw catalogueLinks.error;
-  const journeyRows = journeys.data || [];
-  const valid = (attempts.data || []).filter((x: any) => !x.skipped && Number(x.max_score) > 0);
-  const earned = valid.reduce((sum: number, x: any) => sum + Number(x.score || 0), 0);
-  const possible = valid.reduce((sum: number, x: any) => sum + Number(x.max_score || 0), 0);
-  const displayName = profile.data?.display_name || user.user_metadata?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || null;
-  const completedResourceIds = new Set(journeyRows.filter((x: any) => Number(x.completion) >= 100 && x.resource_id).map((x: any) => x.resource_id));
-  const linkedResourceIds = new Set((catalogueLinks.data || []).map((x: any) => x.resource_id));
-  return {
-    learner_profile: { display_name: displayName, bio: profile.data?.bio || null, level: xp.data?.level ?? profile.data?.level ?? null, xp: xp.data?.xp ?? profile.data?.xp ?? null, streak_days: xp.data?.streak_days ?? null, weekly_goal: profile.data?.weekly_goal ?? null },
-    resource_library: {
-      total_resources: resources.count ?? resourceRows.length,
-      by_type: resourceRows.reduce((counts: Record<string, number>, row: any) => { const type = String(row.type || "other"); counts[type] = (counts[type] || 0) + 1; return counts; }, {}),
-      linked_to_catalogue: linkedResourceIds.size,
-      not_linked_to_catalogue: resourceRows.filter((x: any) => !linkedResourceIds.has(x.id)).length,
-      completed_resources: completedResourceIds.size,
-      resources: resourceRows.slice(0, 30).map((x: any) => ({ id: x.id, title: x.title, type: x.type, processing_status: x.processing_status })),
-    },
-    catalogues: { total: (catalogues.data || []).length, items: catalogues.data || [] },
-    achievements: (earnedBadges.data || []).map((x: any) => ({ name: x.badges?.name || null, description: x.badges?.description || null, family: x.badges?.family || null, awarded_at: x.awarded_at })),
-    progress_summary: {
-      tracked_learning_items: journeyRows.length,
-      completed_items: journeyRows.filter((x: any) => Number(x.completion) >= 100).length,
-      average_completion: journeyRows.length ? Math.round(journeyRows.reduce((sum: number, x: any) => sum + Number(x.completion || 0), 0) / journeyRows.length) : null,
-    },
-    learning_journeys: journeyRows, concept_mastery: mastery.data || [],
-    quiz_summary: { completed_attempts: valid.length, overall_accuracy: possible ? Math.round(earned / possible * 100) : null, recent_attempts: valid.slice(0, 10) },
-  };
+  const q = request.toLowerCase();
+  const identityOnly = /\b(my name|what'?s my name|who am i|what is my name|my profile name)\b/.test(q);
+  const asksResources = /\b(resource|library|upload|pdf|video|catalogue|catalog)\b/.test(q);
+  const asksAchievements = /\b(achievement|badge|xp|level|streak)\b/.test(q);
+  const asksProgress = /\b(progress|analyse|analyze|weak|strong|mastery|accuracy|quiz|performance|study|pages|focus|completion|learning|improve|insight)\b/.test(q);
+  const scope = identityOnly ? "identity" : asksProgress ? "progress" : asksResources ? "resources" : asksAchievements ? "achievements" : "overview";
+
+  const profileQuery = sb.from("profiles").select("display_name,bio,level,xp,weekly_goal").eq("id", userId).maybeSingle();
+  const profile = await profileQuery;
+  if (profile.error) throw profile.error;
+  const displayName = preferredName || profile.data?.display_name ||
+    user.user_metadata?.display_name || user.user_metadata?.full_name ||
+    user.user_metadata?.name || (user.email ? String(user.email).split("@")[0] : null);
+
+  const base = { learner_profile: { display_name: displayName } };
+  if (scope === "identity") return { ...base, context_scope: scope };
+
+  const empty = { data: [], error: null, count: 0 };
+  const jobs: Record<string, Promise<any>> = {};
+  if (scope === "progress" || scope === "overview") {
+    jobs.journeys = sb.from("learning_journeys").select("completion,exposure,understanding,recall,application,last_activity_at,resource_id,catalogue_id,lucid_resources(title,type)").eq("owner_id", userId).order("last_activity_at", { ascending: false }).limit(12);
+    jobs.mastery = sb.from("concept_mastery").select("mastery,exposure,understanding,recall,application,updated_at,concepts(title,normalized_key)").eq("user_id", userId).order("mastery", { ascending: true }).limit(12);
+    jobs.attempts = sb.from("quiz_attempts").select("score,max_score,completed_at,skipped,quizzes(title,quiz_type)").eq("user_id", userId).order("completed_at", { ascending: false }).limit(8);
+    jobs.sessions = sb.from("reading_sessions").select("active_seconds,started_at,ended_at").eq("user_id", userId).order("started_at", { ascending: false }).limit(14);
+  }
+  if (scope === "resources" || scope === "overview") {
+    jobs.resources = sb.from("lucid_resources").select("id,title,type,processing_status,created_at", { count: "exact" }).eq("owner_id", userId).order("created_at", { ascending: false }).limit(12);
+    jobs.catalogues = sb.from("catalogues").select("id,title,description,created_at").eq("owner_id", userId).order("created_at", { ascending: false }).limit(8);
+  }
+  if (scope === "achievements" || scope === "overview") {
+    jobs.xp = sb.from("user_xp").select("xp,level,streak_days").eq("user_id", userId).maybeSingle();
+    jobs.earnedBadges = sb.from("user_badges").select("awarded_at,badges(name,description,family)").eq("user_id", userId).order("awarded_at", { ascending: false }).limit(12);
+  }
+
+  const keys = Object.keys(jobs);
+  const values = await Promise.all(keys.map(key => jobs[key]));
+  const data: Record<string, any> = {};
+  values.forEach((value, index) => {
+    if (value.error) throw value.error;
+    data[keys[index]] = value;
+  });
+
+  const result: Record<string, any> = { ...base, context_scope: scope };
+  if (data.journeys || data.mastery || data.attempts || data.sessions) {
+    const journeys = data.journeys?.data || [];
+    const mastery = data.mastery?.data || [];
+    const attempts = (data.attempts?.data || []).filter((x: any) => !x.skipped && Number(x.max_score) > 0);
+    const earned = attempts.reduce((sum: number, x: any) => sum + Number(x.score || 0), 0);
+    const possible = attempts.reduce((sum: number, x: any) => sum + Number(x.max_score || 0), 0);
+    const sessions = data.sessions?.data || [];
+    result.progress_summary = {
+      tracked_learning_items: journeys.length,
+      completed_items: journeys.filter((x: any) => Number(x.completion) >= 100).length,
+      average_completion: journeys.length ? Math.round(journeys.reduce((sum: number, x: any) => sum + Number(x.completion || 0), 0) / journeys.length) : null,
+      completed_quiz_attempts: attempts.length,
+      quiz_accuracy: possible ? Math.round(earned / possible * 100) : null,
+      recorded_focus_minutes: Math.round(sessions.reduce((sum: number, x: any) => sum + Number(x.active_seconds || 0), 0) / 60),
+    };
+    result.learning_journeys = journeys;
+    result.concept_mastery = mastery;
+    result.recent_quiz_attempts = attempts.slice(0, 6);
+    result.recent_focus_sessions = sessions.slice(0, 7);
+  }
+  if (data.resources || data.catalogues) {
+    const resources = data.resources || empty;
+    result.resource_library = {
+      total_resources: resources.count ?? (resources.data || []).length,
+      resources: (resources.data || []).map((x: any) => ({ title: x.title, type: x.type, processing_status: x.processing_status })),
+      catalogues: (data.catalogues?.data || []).map((x: any) => ({ title: x.title, description: x.description })),
+    };
+  }
+  if (data.xp || data.earnedBadges) {
+    result.learner_profile = {
+      ...result.learner_profile,
+      level: data.xp?.data?.level ?? profile.data?.level ?? null,
+      xp: data.xp?.data?.xp ?? profile.data?.xp ?? null,
+      streak_days: data.xp?.data?.streak_days ?? null,
+    };
+    result.achievements = (data.earnedBadges?.data || []).map((x: any) => ({
+      name: x.badges?.name || null, description: x.badges?.description || null,
+      family: x.badges?.family || null, awarded_at: x.awarded_at,
+    }));
+  }
+  return result;
 }
 
 Deno.serve(async (req: Request) => {
@@ -73,7 +113,8 @@ Deno.serve(async (req: Request) => {
     const request = String(body.request || "").trim().slice(0, 4000);
     if (!request) return new Response(JSON.stringify({ error: "A question is required." }), { status: 400, headers: CORS });
 
-    const overview = await getLearnerOverview(sb, me.data.user);
+    const preferredName = String(body.preferred_name || "").trim().slice(0, 80) || null;
+    const overview = await getLearnerContext(sb, me.data.user, request, preferredName);
     const history = Array.isArray(body.history) ? body.history.slice(-4).map((m: any) => ({
       role: m.role === "assistant" || m.role === "bot" ? "assistant" : "user",
       content: String(m.content || m.text || "").slice(0, 1200),
@@ -82,10 +123,10 @@ Deno.serve(async (req: Request) => {
     const prompt = [
       "You are Lucid Agent, the signed-in learner's personal learning assistant. Answer in the learner's language and be concise, specific, and supportive.",
       "Use learner_profile.display_name for identity questions whenever available; never say the name is unknown when it is supplied.",
-      "Use resource_library totals, type breakdown, completed resources, catalogues, and achievements for library and achievement questions. Distinguish total resources from catalogue-linked and completed resources.",
+      "Only use fields present in the supplied context. Context is intentionally scoped to the question; never assume omitted categories are zero.",
       "Use ONLY the supplied learner data for claims about progress, strengths, weaknesses, completions, quiz performance, and resources. Never invent missing measurements. If evidence is absent, say it has not been measured.",
       "Distinguish completion, exposure, understanding, recall, and application. Do not claim an action was saved or progress changed.",
-      "If the question requires reading the contents of a PDF/video or changing goals/recommendations, explain that this local progress mode currently handles progress analytics only; do not guess.",
+      "For identity questions, answer directly from learner_profile.display_name. For progress questions, cite only measured values and name missing evidence. Never invent page counts or trends that are not present.",
       "LEARNER DATA (JSON):",
       JSON.stringify(overview),
       history.length ? "RECENT CONVERSATION (JSON):\n" + JSON.stringify(history) : "",

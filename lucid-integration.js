@@ -443,6 +443,7 @@ window.openLucidResource = async function(id){
   state.resourcePages=pages||[];
   try{
     const saved=await window.loadLucidAnnotations(id);
+    state.highlights=(state.highlights||[]).filter(row=>row.resourceId!==id);
     state.annotations=saved.map(row=>({id:row.id,text:row.note||row.text||'',page:row.page||1,color:row.color||'yellow',resourceId:id}));
     renderAnnotations();
   }catch(annotationError){console.warn('Could not load page annotations:',annotationError.message);}

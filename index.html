@@ -1026,7 +1026,7 @@ textarea{min-height:75px;resize:vertical;}
         <button class="secondary-button btn-sm" onclick="highlightSelection('blue')">🟦 Definition</button>
         <button class="secondary-button btn-sm" onclick="highlightSelection('red')">🟥 Review</button>
         <button class="secondary-button btn-sm" onclick="focusAnnotation()">✎ Annotate</button>
-        <button class="secondary-button btn-sm" onclick="openModal('aiModal')">✦ Ask AI</button>
+        <button class="secondary-button btn-sm" onclick="openReaderAI()">✦ Ask AI</button>
         <button class="secondary-button btn-sm" onclick="openModal('quizModal')">? Quick quiz</button>
         <button class="secondary-button btn-sm" onclick="listenAI()">🎧 AI Teach</button>
       </div>
@@ -2034,7 +2034,7 @@ textarea{min-height:75px;resize:vertical;}
 <div class="modal-backdrop" id="aiModal">
   <div class="modal">
     <div class="modal-header"><h2>✦ AI Guide</h2><button class="close-button" onclick="closeModal('aiModal')">×</button></div>
-    <p class="muted small-text">Context: current page + your annotations + learning profile.</p>
+    <p class="muted small-text" id="aiContextStatus">The guide can use your selected passage, current resource and annotations.</p>
     <div class="ai-actions" style="margin-bottom:12px;">
       <button class="ai-action-chip" onclick="quickAIModal('Explain the main idea of this page simply')">Explain</button>
       <button class="ai-action-chip" onclick="quickAIModal('Give me an analogy for this concept')">Analogy</button>
@@ -2169,6 +2169,7 @@ const state = {
   xp: 390,
   level: 16,
   annotations: ['Clarity about what deserves your attention.', 'Tools should serve values, not replace them.'],
+  selectedText: '',
   uploadedBooks: [],
   currentResourceId: null,
   currentResourceTitle: null,
@@ -2210,10 +2211,10 @@ const pageNames = {
 function saveState() {
   localStorage.setItem('leafline-state-v2', JSON.stringify({
     pagesRead: state.pagesRead, streak: state.streak, xp: state.xp,
-    annotations: state.annotations, uploadedBooks: state.uploadedBooks,
+    annotations: state.annotations, selectedText: state.selectedText, uploadedBooks: state.uploadedBooks,
     preferences: state.preferences, quizCorrect: state.quizCorrect,
     quizTotal: state.quizTotal, chatMessages: state.chatMessages,
-    coachMode: state.coachMode
+    coachMode: state.coachMode, selectedText: state.selectedText
   }));
 }
 
@@ -2224,6 +2225,7 @@ function restoreState() {
     if (s.streak !== undefined) state.streak = s.streak;
     if (s.xp !== undefined) state.xp = s.xp;
     if (s.annotations) state.annotations = s.annotations;
+    if (typeof s.selectedText === 'string') state.selectedText = s.selectedText;
     if (s.uploadedBooks) state.uploadedBooks = s.uploadedBooks;
     if (s.preferences) Object.assign(state.preferences, s.preferences);
     if (s.quizCorrect !== undefined) state.quizCorrect = s.quizCorrect;
@@ -2305,11 +2307,21 @@ function setHL(color, el) {
 function highlightSelection(color) {
   const sel = window.getSelection()?.toString().trim();
   if (!sel) { showToast('Select text in the document first.', '⚠'); return; }
+  state.selectedText = sel;
   state.annotations.push(sel);
   document.getElementById('annotationInput').value = sel;
   renderAnnotations();
   saveState();
   showToast(`Highlighted as ${color || state.currentHL}. Saved to annotations.`);
+}
+function openReaderAI() {
+  const selection = window.getSelection()?.toString().trim();
+  if (selection) state.selectedText = selection;
+  const status = document.getElementById('aiContextStatus');
+  if (status) status.textContent = state.selectedText
+    ? 'Selected passage will be included: “' + state.selectedText.slice(0, 180) + (state.selectedText.length > 180 ? '…' : '') + '”'
+    : 'No passage selected. The guide will use your current resource and notes.';
+  openModal('aiModal');
 }
 function focusAnnotation() { document.getElementById('annotationInput').focus(); }
 function saveAnnotation() {

@@ -349,12 +349,16 @@ window.loadLucidLearningProfile = async function(){
   for(const x of [mastery,attempts,sessions])if(x.error)throw x.error;
   const conceptIds=(mastery.data||[]).map(x=>x.concept_id);
   let concepts=[];
-  if(conceptIds.length){const result=await lucidSupabase.from('concepts').select('id,title,name').in('id',conceptIds);if(!result.error)concepts=result.data||[];}
+  if(conceptIds.length){const result=await lucidSupabase.from('concepts').select('id,title,normalized_key').in('id',conceptIds);if(!result.error)concepts=result.data||[];}
   const names=new Map(concepts.map(x=>[x.id,x.title||x.name||'Concept']));
   const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:Number(x.mastery)||0,recall:Number(x.recall)||0,application:Number(x.application)||0,updated_at:x.updated_at}));
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
   const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  const resourceTag=document.getElementById('aiCurrentResource');if(resourceTag)resourceTag.textContent=state.currentResourceTitle||'No resource selected';
+  const pageTag=document.getElementById('aiCurrentPage');if(pageTag)pageTag.textContent=state.currentResourceId?'PDF page '+(state.currentResourcePage||1):'No page context';
+  const recallTag=document.getElementById('aiRecallEvidence');if(recallTag)recallTag.textContent=weak.length?'Avg recall: '+Math.round(weak.reduce((sum,x)=>sum+x.recall,0)/weak.length)+'%':'Recall: not measured';
+  const weakTag=document.getElementById('aiWeakArea');if(weakTag)weakTag.textContent=weak[0]?'Weak: '+weak[0].name:'Weak area: not measured';
   const panel=document.getElementById('aiImprovementPanel');
   if(panel){
     panel.innerHTML='';

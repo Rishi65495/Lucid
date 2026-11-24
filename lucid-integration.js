@@ -76,8 +76,8 @@ window.callLucidLocalQuiz = async function(request,context){
     'Difficulty: '+String(context?.difficulty||'Balanced')+'. Focus: '+String(request||'Test understanding and application.'),
     'Return ONLY valid JSON with this exact top-level shape: {"questions":[{"prompt":"...","type":"mcq","options":["...","...","...","..."],"answer_index":0,"explanation":"...","concept_key":"..."}]}',
     'SOURCE TITLES: '+JSON.stringify(context?.source_titles||[]),
-    'SOURCE TEXT:\\n'+sourceText
-  ].join('\\n\\n');
+    'SOURCE TEXT:\n'+sourceText
+  ].join('\n\n');
   const response=await fetch('http://127.0.0.1:3210/chat',{
     method:'POST',
     headers:{'Authorization':'Bearer '+session.access_token,'Content-Type':'application/json'},

@@ -47,7 +47,7 @@ window.invokeLucidFunction = async function(name,body){
   return result.payload;
 };
 window.callAIGuide = async function(prompt,style){
-  if(typeof state!=='undefined'&&state.currentVideoContext&&!String(state.currentVideoContext.transcript||'').trim())return 'This video has no saved transcript. Paste its captions in the Video Classroom transcript panel before asking video-specific questions.';
+  if(typeof state!=='undefined'&&state.currentVideoContext&&!String(state.currentVideoContext.transcript||'').trim())return 'Lucid could not retrieve public captions for this video. Try a video with captions enabled; Lucid will use its transcript automatically when available.';
   try{
     const history=(typeof state!=='undefined'?state.chatMessages:[]).slice(-8).map(m=>({role:m.role,content:m.text}));
     // Do not download PDF pages in the browser. The Edge Function routes the
@@ -75,7 +75,7 @@ window.callAIGuide = async function(prompt,style){
 window.callLearningEngine = async function(action,request,context){return await window.invokeLucidFunction('ai-learning',{action,request,context:context||{}});};
 window.formatLearningResult = function(result){if(!result)return 'No learning result was returned.';if(result.feedback)return 'Score: '+(result.score??'—')+'\nCoverage: '+(result.coverage??'—')+'\nAccuracy: '+(result.accuracy??'—')+'\nClarity: '+(result.clarity??'—')+'\nFeedback: '+result.feedback+(result.missing?.length?'\nReview: '+result.missing.join(', '):'');if(result.questions?.length)return result.questions.map((q,i)=>(i+1)+'. '+q.prompt+'\n'+(q.options||[]).map((o,j)=>String.fromCharCode(65+j)+'. '+o).join('\n')+'\nAnswer: '+(q.options?.[q.answer_index]||'Not provided')+'\n'+(q.explanation||'')).join('\n\n');if(result.cards?.length)return result.cards.map((c,i)=>(i+1)+'. '+c.front+'\n'+c.back).join('\n\n');return result.lesson||result.text||JSON.stringify(result,null,2);};
 window.callLucidAgent = async function(prompt){
-  if(typeof state!=='undefined'&&state.currentVideoContext){if(!String(state.currentVideoContext.transcript||'').trim())return 'This video has no saved transcript. Paste its captions in the Video Classroom transcript panel before asking video-specific questions.';return await window.callAIGuide(prompt,state.coachMode||'Gentle');}
+  if(typeof state!=='undefined'&&state.currentVideoContext){if(!String(state.currentVideoContext.transcript||'').trim())return 'Lucid could not retrieve public captions for this video. Try a video with captions enabled; Lucid will use its transcript automatically when available.';return await window.callAIGuide(prompt,state.coachMode||'Gentle');}
   const data=await window.invokeLucidFunction('lucid-agent',{action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null});
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
@@ -449,7 +449,7 @@ window.selectLucidVideo=async function(resourceId){
     }
   }
   await window.startLucidVideoPlayer(videoId);
-  const response=document.getElementById('videoAiResponse');if(response){response.style.display='block';response.textContent=video.transcript?'This AI assistant is grounded in the selected video transcript.':'No transcript is saved for this video. Paste its captions below before asking video-specific questions.';}
+  const response=document.getElementById('videoAiResponse');if(response){response.style.display='block';response.textContent=video.transcript?'This AI assistant is grounded in the selected video transcript.':'No public transcript was retrieved for this video. Try another video with captions enabled.';}
   return resource;
 };
 window.startLucidVideoPlayer=async function(videoId){

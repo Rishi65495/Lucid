@@ -1347,14 +1347,6 @@ textarea{min-height:75px;resize:vertical;}
           </div>
         </div>
         <div>
-          <div class="card card-padding">
-            <div class="kicker">How goals and achievements differ</div>
-            <h3 style="margin:10px 0 6px;">Goals are targets you choose.</h3>
-            <p class="muted small-text">Examples: finish a resource, practise 30 minutes daily, or reach a mastery target. Lucid tracks the goal status and deadline.</p>
-            <h3 style="margin:14px 0 6px;">Achievements are milestones you earn.</h3>
-            <p class="muted small-text">Badges are awarded when recorded learning evidence meets a defined rule. They are not goals and cannot be manually checked off.</p>
-            <button class="secondary-button btn-sm full-width" onclick="openPage('rewards')">View earned achievements →</button>
-          </div>
           <div class="card card-padding" style="margin-top:17px;">
             <div class="kicker">AI improvement suggestions</div>
             <p class="muted small-text" style="margin:9px 0;">Use your saved quiz and concept-mastery evidence to generate a practical next-step plan in AI Guide.</p>
@@ -1604,7 +1596,7 @@ textarea{min-height:75px;resize:vertical;}
 
 // ─── State ────────────────────────────────────────
 const state = {
-  activePage: 'dashboard',
+  activePage: 'home',
   timerSeconds: 1500,
   timerRunning: false,
   timerInterval: null,

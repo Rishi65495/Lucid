@@ -1802,8 +1802,10 @@ textarea{min-height:75px;resize:vertical;}
       <label class="form-label">Goal description<input id="goalDesc" placeholder="e.g. Complete Cyber Security by November" /></label>
       <div class="form-row">
         <label class="form-label">Type<select id="goalType"><option>Resource completion</option><option>Mastery target</option><option>Focus hours</option><option>Quiz accuracy</option></select></label>
-        <label class="form-label">Deadline<input id="goalDeadline" type="date" /></label>
+        <label class="form-label">Target value<input id="goalTarget" type="number" min="1" step="1" placeholder="e.g. 5 or 85" /></label>
       </div>
+      <label class="form-label">Deadline<input id="goalDeadline" type="date" /></label>
+      <p class="muted small-text">Lucid estimates progress from recorded completed resources, concept mastery, focus sessions or quiz attempts, depending on the goal type.</p>
       <button class="primary-button full-width" onclick="addGoal()">Add goal →</button>
     </div>
   </div>
@@ -2518,11 +2520,11 @@ async function createCatalogue() {
 
 // ─── Goals ────────────────────────────────────────
 async function addGoal() {
-  const desc=document.getElementById('goalDesc').value.trim(),deadline=document.getElementById('goalDeadline').value,type=document.getElementById('goalType').value;
+  const desc=document.getElementById('goalDesc').value.trim(),deadline=document.getElementById('goalDeadline').value,type=document.getElementById('goalType').value,targetValue=document.getElementById('goalTarget').value;
   if(!desc){showToast('Enter a goal description.','⚠');return;}
   try{
-    await window.createLucidGoal({title:desc,target_type:type.toLowerCase().replace(/[^a-z0-9]+/g,'_'),deadline});
-    document.getElementById('goalDesc').value='';document.getElementById('goalDeadline').value='';
+    await window.createLucidGoal({title:desc,target_type:type.toLowerCase().replace(/[^a-z0-9]+/g,'_'),target_value:targetValue?Number(targetValue):null,deadline});
+    document.getElementById('goalDesc').value='';document.getElementById('goalDeadline').value='';document.getElementById('goalTarget').value='';
     closeModal('goalModal');showToast('Goal saved to your account.','✓');
   }catch(error){showToast('Could not save goal: '+error.message,'⚠');}
 }

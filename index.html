@@ -685,7 +685,7 @@ textarea{min-height:75px;resize:vertical;}
         <div class="avatar" id="sideAvatar">R</div>
         <div>
           <div class="profile-name" id="sideProfileName">Rishabh</div>
-          <span class="profile-role" id="sideProfileRole">MCA Semester · Level 16</span>
+          <span class="profile-role" id="sideProfileRole">Learner · Lucid</span>
         </div>
       </div>
     </div>
@@ -714,10 +714,7 @@ textarea{min-height:75px;resize:vertical;}
               <strong style="font-size:13px;">Notifications</strong>
               <button class="ghost-button btn-xs" onclick="clearNotifs()">Clear all</button>
             </div>
-            <div id="notifList">
-              <div class="notif-item"><span class="notif-icon">📈</span><div><strong>Recall improved 9%</strong><br><span class="muted small-text">Your quiz accuracy is trending up.</span></div></div>
-              <div class="notif-item"><span class="notif-icon">📖</span><div><strong>Resume your session</strong><br><span class="muted small-text">You left DOM Manipulation at 72%.</span></div></div>
-            </div>
+            <div id="notifList"><div class="muted small-text">No new learning notifications.</div></div>
           </div>
         </div>
         <button class="top-icon" onclick="openPage('settings')">⚙</button><button class="secondary-button btn-sm" id="signOutButton" onclick="signOutLucid()">Sign out</button>
@@ -729,12 +726,13 @@ textarea{min-height:75px;resize:vertical;}
     <section class="page active" id="dashboard">
       <div class="page-heading">
         <div>
-          <div class="kicker" id="dashKicker">Thursday, September 25, 2026</div>
-          <h1 id="dashGreet">Good evening, Rishabh.</h1>
+          <div class="kicker" id="dashKicker">Your learning overview</div>
+          <h1 id="dashGreet">Welcome back.</h1>
         </div>
         <div style="display:flex;gap:9px;">
+          <button class="secondary-button" onclick="openPage('profile')">My profile →</button>
           <button class="secondary-button" onclick="openModal('uploadModal')">＋ Add resource</button>
-          <button class="primary-button" onclick="openPage('reader')">Continue studying →</button>
+          <button class="primary-button" onclick="continueLucidLearning()">Continue studying →</button>
         </div>
       </div>
 
@@ -742,30 +740,30 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid dashboard-hero-grid">
         <article class="hero-card card">
           <div class="kicker">AI recommendation</div>
-          <h2 id="heroTitle">You have 26 minutes. Finish the ML section and do a 5-question recall.</h2>
-          <p id="heroDesc">Based on your weak areas and available time. Your focus is strongest right now.</p>
-          <button class="primary-button" onclick="openPage('reader')">Start session →</button>
+          <h2 id="heroTitle">Your next learning recommendation will appear here.</h2>
+          <p id="heroDesc">Recommendations will be based on your actual resources, goals and recorded learning evidence.</p>
+          <button class="primary-button" onclick="continueLucidLearning()">Start session →</button>
         </article>
         <article class="stat-card card">
-          <div class="stat-top"><span>Weekly focus</span><span id="weeklyPercent">74%</span></div>
+          <div class="stat-top"><span>Weekly focus</span><span id="weeklyPercent">0%</span></div>
           <div>
-            <div class="stat-value"><span id="focusHours">6h 42m</span></div>
+            <div class="stat-value"><span id="focusHours">0m</span></div>
             <p class="muted small-text">active focus this week</p>
           </div>
           <div>
-            <div class="progress-track"><span class="progress-fill" id="weeklyProgress" style="width:74%"></span></div>
-            <div class="progress-label"><span>Goal: 9 hours</span><span id="focusLeft">2h 18m left</span></div>
+            <div class="progress-track"><span class="progress-fill" id="weeklyProgress" style="width:0%"></span></div>
+            <div class="progress-label"><span>Goal: <span id="focusGoalLabel">200 min</span></span><span id="focusLeft">No focus recorded</span></div>
           </div>
         </article>
         <article class="stat-card card">
-          <div class="stat-top"><span>Current streak</span><span>🔥 Active</span></div>
+          <div class="stat-top"><span>Current streak</span><span id="streakStatus">No streak</span></div>
           <div>
-            <div class="stat-value" id="streakValue">7</div>
+            <div class="stat-value" id="streakValue">0</div>
             <p class="muted small-text">days of showing up</p>
           </div>
           <div>
-            <div class="progress-track"><span class="progress-fill gold" style="width:58%"></span></div>
-            <div class="progress-label"><span>Best: 12 days</span><span>5 more to beat it</span></div>
+            <div class="progress-track"><span class="progress-fill gold" id="streakProgress" style="width:0%"></span></div>
+            <div class="progress-label"><span>Recorded active days</span><span id="streakLabel">0 days</span></div>
           </div>
         </article>
       </div>
@@ -774,22 +772,22 @@ textarea{min-height:75px;resize:vertical;}
       <div class="grid four-col" style="margin-top:17px;">
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Pages</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statPages">1,245</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statPages">0</div>
           <div class="muted small-text">this week</div>
         </div>
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Videos</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statVideos">17</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statVideos">0</div>
           <div class="muted small-text">lessons watched</div>
         </div>
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Questions</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statQuestions">327</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statQuestions">0</div>
           <div class="muted small-text">answered</div>
         </div>
         <div class="card card-padding" style="text-align:center;">
           <div class="kicker">Recall</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statRecall">81%</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;margin-top:8px;" id="statRecall">—</div>
           <div class="muted small-text">average accuracy</div>
         </div>
       </div>
@@ -799,95 +797,32 @@ textarea{min-height:75px;resize:vertical;}
         <h2>Continue where you left off</h2>
         <button class="ghost-button" onclick="openPage('library')">View full library →</button>
       </div>
-      <div class="grid library-grid" id="dashboardBooks">
-        <article class="book-card card" data-title="Machine Learning Fundamentals">
-          <div class="book-main">
-            <div class="book-cover cover-blue">ML<br>Fund.</div>
-            <div>
-              <div class="book-title">Machine Learning Fundamentals</div>
-              <div class="book-author">MCA Semester 5</div>
-              <div class="book-author">Page 72 of 180 · DOM Manipulation</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>40% complete</span><span>Recall: 72%</span></div>
-            <div class="progress-track"><span class="progress-fill" style="width:40%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-        <article class="book-card card" data-title="Deep Work">
-          <div class="book-main">
-            <div class="book-cover cover-green">Deep<br>Work</div>
-            <div>
-              <div class="book-title">Deep Work</div>
-              <div class="book-author">Cal Newport</div>
-              <div class="book-author">Page 142 of 304</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>47% complete</span><span>18 min left</span></div>
-            <div class="progress-track"><span class="progress-fill orange" style="width:47%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
-        <article class="book-card card" data-title="Atomic Habits">
-          <div class="book-main">
-            <div class="book-cover cover-orange">Atomic<br>Habits</div>
-            <div>
-              <div class="book-title">Atomic Habits</div>
-              <div class="book-author">James Clear</div>
-              <div class="book-author">Page 86 of 272</div>
-            </div>
-          </div>
-          <div class="book-progress">
-            <div class="progress-label"><span>32% complete</span><span>24 min left</span></div>
-            <div class="progress-track"><span class="progress-fill" style="width:32%"></span></div>
-          </div>
-          <div class="book-footer"><span class="tag blue">Habit building</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-        </article>
+      <div class="grid library-grid" id="dashboardBooks"><p class="muted small-text">Your uploaded resources will appear here after you sign in.</p>
       </div>
-
-      <!-- Activity rhythm -->
-      <div class="section-row"><h2>Your learning rhythm</h2><span class="muted small-text">Last 30 days</span></div>
-      <div class="grid two-col">
-        <article class="rhythm-card card">
-          <div class="kicker">A pattern worth keeping</div>
-          <h3>Your focus is strongest around 8 PM.</h3>
-          <p class="muted small-text">Sessions between 20–30 min have your best recall. Tonight's plan is shaped around that.</p>
-          <div class="week-chart">
-            <div class="week-column"><span class="week-bar" style="height:38%"></span><span>Mon</span></div>
-            <div class="week-column"><span class="week-bar" style="height:60%"></span><span>Tue</span></div>
-            <div class="week-column"><span class="week-bar" style="height:72%"></span><span>Wed</span></div>
-            <div class="week-column"><span class="week-bar" style="height:48%"></span><span>Thu</span></div>
-            <div class="week-column"><span class="week-bar" style="height:80%"></span><span>Fri</span></div>
-            <div class="week-column"><span class="week-bar" style="height:92%"></span><span>Sat</span></div>
-            <div class="week-column"><span class="week-bar today" style="height:35%"></span><span>Today</span></div>
-          </div>
-        </article>
+      <div class="grid two-col" style="margin-top:18px;">
         <article class="reward-card card">
           <div class="kicker">Recent rewards</div>
-          <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">You are collecting momentum.</h3>
-          <div class="badge-row" id="dashBadges">
-            <div class="muted small-text">Sign in to see badges earned from your learning activity.</div>
-          </div>
-          <p class="muted small-text" style="margin-top:14px;"><span id="dashBadgeSummary">Your earned badges will appear here when your learning evidence meets a badge rule.</span></p>
+          <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">Your earned milestones.</h3>
+          <div class="badge-row" id="dashBadges"><div class="muted small-text">Sign in to see achievements earned from your learning activity.</div></div>
+          <p class="muted small-text" style="margin-top:14px;"><span id="dashBadgeSummary">Badges appear when your recorded learning evidence meets their criteria.</span></p>
           <div class="streak-strip">
-            <div class="streak-number" id="streakSmall">7</div>
-            <div><strong style="font-size:12px;">day streak</strong><div class="muted small-text">Consistency beats intensity.</div></div>
+            <div class="streak-number" id="streakSmall">0</div>
+            <div><strong style="font-size:12px;">day streak</strong><div class="muted small-text">Calculated from recorded learning activity.</div></div>
           </div>
         </article>
-      </div>
-
-      <!-- Quick actions -->
-      <div class="section-row"><h2>Quick actions</h2></div>
-      <div class="quick-actions">
-        <button class="quick-action" onclick="openPage('reader')"><span class="qa-icon">◉</span><strong>Start focused reading</strong></button>
-        <button class="quick-action" onclick="openPage('video')"><span class="qa-icon">▶</span><strong>Watch a lecture</strong></button>
-        <button class="quick-action" onclick="openPage('aiGuide')"><span class="qa-icon">✦</span><strong>Ask AI guide</strong></button>
-        <button class="quick-action" onclick="openPage('practice')"><span class="qa-icon">?</span><strong>Practice recall</strong></button>
-        <button class="quick-action" onclick="openPage('catalogues')"><span class="qa-icon">◫</span><strong>My catalogues</strong></button>
-        <button class="quick-action" onclick="openPage('analytics')"><span class="qa-icon">↗</span><strong>View insights</strong></button>
-        <button class="quick-action" onclick="openModal('uploadModal')"><span class="qa-icon">＋</span><strong>Add resource</strong></button>
+        <article class="card card-padding">
+          <div class="kicker">Quick actions</div>
+          <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">Pick up where you need to.</h3>
+          <div class="quick-actions">
+            <button class="quick-action" onclick="continueLucidLearning()"><span class="qa-icon">◉</span><strong>Continue learning</strong></button>
+            <button class="quick-action" onclick="openPage('video')"><span class="qa-icon">▶</span><strong>Video Classroom</strong></button>
+            <button class="quick-action" onclick="openPage('aiGuide')"><span class="qa-icon">✦</span><strong>Ask AI Guide</strong></button>
+            <button class="quick-action" onclick="openPage('practice')"><span class="qa-icon">?</span><strong>Practice recall</strong></button>
+            <button class="quick-action" onclick="openPage('catalogues')"><span class="qa-icon">◫</span><strong>My catalogues</strong></button>
+            <button class="quick-action" onclick="openPage('analytics')"><span class="qa-icon">↗</span><strong>View insights</strong></button>
+            <button class="quick-action" onclick="openModal('uploadModal')"><span class="qa-icon">＋</span><strong>Add resource</strong></button>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -902,7 +837,7 @@ textarea{min-height:75px;resize:vertical;}
           <div><h2>All resources</h2><p class="muted small-text">PDFs, videos, and playlists — all in one place.</p></div>
           <div style="display:flex;gap:9px;align-items:center;">
             <select style="width:150px;" onchange="sortBooks(this.value)">
-              <option value="recent">Recently opened</option>
+              <option value="recent">Recently added</option>
               <option value="progress">Progress</option>
               <option value="title">Title A–Z</option>
             </select>
@@ -914,46 +849,12 @@ textarea{min-height:75px;resize:vertical;}
           <button class="tab-btn" onclick="switchLibTab('video',this)">Videos</button>
           <button class="tab-btn" onclick="switchLibTab('inprogress',this)">In Progress</button>
         </div>
-        <div class="grid library-grid" id="libraryBooks">
-          <article class="book-card card" data-title="Machine Learning Fundamentals" data-progress="40" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-blue">ML</div><div><div class="book-title">Machine Learning Fundamentals</div><div class="book-author">MCA Semester 5</div><div class="book-author">180 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>40%</span><span>Recall 72%</span></div><div class="progress-track"><span class="progress-fill" style="width:40%"></span></div></div>
-            <div class="book-footer"><span class="tag">Reading now</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="Deep Work" data-progress="47" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-green">Deep<br>Work</div><div><div class="book-title">Deep Work</div><div class="book-author">Cal Newport</div><div class="book-author">304 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>47%</span><span>142 pages</span></div><div class="progress-track"><span class="progress-fill orange" style="width:47%"></span></div></div>
-            <div class="book-footer"><span class="tag">In progress</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="Atomic Habits" data-progress="32" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-orange">Atomic<br>Habits</div><div><div class="book-title">Atomic Habits</div><div class="book-author">James Clear</div><div class="book-author">272 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>32%</span><span>86 pages</span></div><div class="progress-track"><span class="progress-fill" style="width:32%"></span></div></div>
-            <div class="book-footer"><span class="tag blue">Habit building</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="MCA Algorithm Lecture Playlist" data-progress="60" data-type="video">
-            <div class="book-main"><div class="book-cover type-video">▶<br>MCA</div><div><div class="book-title">Algorithm Lectures</div><div class="book-author">MCA Semester 5 Playlist</div><div class="book-author">24 videos · 6h 20m</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>60% complete</span><span>14/24 videos</span></div><div class="progress-track"><span class="progress-fill" style="width:60%"></span></div></div>
-            <div class="book-footer"><span class="tag rose">Video playlist</span><button class="ghost-button" onclick="openPage('video')">Watch →</button></div>
-          </article>
-          <article class="book-card card" data-title="The Almanack of Naval Ravikant" data-progress="0" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-purple">The<br>Almanack</div><div><div class="book-title">The Almanack of Naval Ravikant</div><div class="book-author">Eric Jorgenson</div><div class="book-author">242 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>Not started</span><span>242 pages</span></div><div class="progress-track"><span class="progress-fill" style="width:2%"></span></div></div>
-            <div class="book-footer"><span class="tag muted">Saved for later</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
-          <article class="book-card card" data-title="Cyber Security Notes" data-progress="15" data-type="pdf">
-            <div class="book-main"><div class="book-cover cover-red">Cyber<br>Sec.</div><div><div class="book-title">Cyber Security Notes</div><div class="book-author">MCA Semester 5</div><div class="book-author">120 pages</div></div></div>
-            <div class="book-progress"><div class="progress-label"><span>15%</span><span>18 pages</span></div><div class="progress-track"><span class="progress-fill rose" style="width:15%"></span></div></div>
-            <div class="book-footer"><span class="tag">Exam prep</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>
-          </article>
+        <div class="grid library-grid" id="libraryBooks"><p class="muted small-text">Your uploaded resources will appear here after sign in.</p>
         </div>
       </div>
 
       <div class="section-row"><h2>Catalogues</h2><button class="secondary-button" onclick="openPage('catalogues')">Manage →</button></div>
-      <div class="grid three-col">
-        <article class="card card-padding"><div class="kicker">MCA Semester 5</div><h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-top:8px;">MCA 2026</h3><p class="muted small-text">6 resources · 47% average progress</p><div class="progress-track" style="margin-top:12px;"><span class="progress-fill" style="width:47%"></span></div></article>
-        <article class="card card-padding"><div class="kicker">Deep reading</div><h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-top:8px;">Better work</h3><p class="muted small-text">3 books · 40% average completion</p><div class="progress-track" style="margin-top:12px;"><span class="progress-fill orange" style="width:40%"></span></div></article>
-        <article class="card card-padding"><div class="kicker">Revision</div><h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-top:8px;">Exam sprint</h3><p class="muted small-text">8 highlights · 12 annotations</p><div class="progress-track" style="margin-top:12px;"><span class="progress-fill gold" style="width:25%"></span></div></article>
-      </div>
+      <div class="grid three-col" id="libraryCataloguePreview"><p class="muted small-text">Your catalogues will appear here after sign in.</p></div>
     </section>
 
     <!-- ══ CATALOGUES ══ -->
@@ -1074,89 +975,65 @@ textarea{min-height:75px;resize:vertical;}
     <!-- ══ VIDEO CLASSROOM ══ -->
     <section class="page" id="video">
       <div class="page-heading">
-        <div><div class="kicker">MCA Algorithm Lectures</div><h1>Video classroom.</h1></div>
-        <button class="primary-button" onclick="openModal('videoImportModal')">＋ Add playlist</button>
+        <div><div class="kicker">Your imported lessons</div><h1>Video classroom.</h1><p class="muted small-text">Only videos imported into your library appear here. Progress is recorded per video.</p></div>
+        <button class="primary-button" onclick="openModal('videoImportModal')">＋ Import video / playlist</button>
       </div>
-
+      <div class="card card-padding" style="margin-bottom:16px;">
+        <div class="form-row" style="align-items:end;">
+          <label class="form-label" style="flex:1;">YouTube video or playlist URL
+            <input id="videoUrlInput" type="url" placeholder="https://www.youtube.com/watch?v=… or playlist URL">
+          </label>
+          <label class="form-label">Save to catalogue<select id="videoPageCatalogue"><option value="">No catalogue</option></select></label>
+          <button class="primary-button" onclick="loadYoutubeURL(document.getElementById('videoUrlInput').value)">Import</button>
+        </div>
+        <p class="muted small-text" id="videoImportStatus" aria-live="polite">Importing a playlist requires a configured YouTube Data API key. Single videos can be imported using their public metadata.</p>
+      </div>
       <div class="grid reader-layout">
         <div>
-          <!-- Embedded YouTube player area -->
           <div class="card card-padding">
+            <div class="section-row" style="margin-top:0;">
+              <div><div class="kicker">Now selected</div><h2 id="videoCurrentTitle">No video selected</h2><p class="muted small-text" id="videoCurrentMeta">Import a video or playlist to begin</p></div>
+              <span class="tag" id="videoTranscriptStatus">Transcript unavailable</span>
+            </div>
             <div id="youtubePlayerWrapper" style="background:#1a1a2e;border-radius:16px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:rgba(255,255,255,.7);">
-              <div style="font-size:40px;">▶</div>
-              <div style="font-size:14px;text-align:center;max-width:300px;">
-                <strong style="color:white;">DOM Manipulation — Lecture 15</strong><br>
-                <span style="font-size:12px;">Paste a YouTube URL to load a video</span>
-              </div>
-              <button class="primary-button btn-sm" onclick="openModal('videoImportModal')">Load YouTube video</button>
+              <div style="font-size:40px;">▶</div><strong style="color:white;">No video loaded</strong><span class="small-text">Select a lesson from your imported playlist</span>
             </div>
-            <div id="youtubePlayer" style="display:none;border-radius:16px;overflow:hidden;aspect-ratio:16/9;">
-              <iframe id="ytFrame" width="100%" height="100%" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" style="border-radius:16px;display:block;"></iframe>
+            <div id="videoPlayerHost" style="display:none;border-radius:16px;overflow:hidden;aspect-ratio:16/9;background:#000;">
+              <div id="ytPlayerMount" style="width:100%;height:100%;"></div>
             </div>
-
-            <!-- Video controls -->
             <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap;">
-              <button class="secondary-button btn-sm" onclick="videoSpeed(.75)">0.75×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(1)">1×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(1.25)">1.25×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(1.5)">1.5×</button>
-              <button class="secondary-button btn-sm" onclick="videoSpeed(2)">2×</button>
-              <div style="flex:1;"></div>
-              <button class="secondary-button btn-sm" onclick="openModal('aiModal')">✦ Ask AI about this</button>
-              <button class="secondary-button btn-sm" onclick="addTimestampNote()">📌 Timestamp note</button>
-              <button class="secondary-button btn-sm" onclick="openModal('quizModal')">? Quiz this topic</button>
+              <button class="secondary-button btn-sm" onclick="videoSpeed(.75)">0.75×</button><button class="secondary-button btn-sm" onclick="videoSpeed(1)">1×</button><button class="secondary-button btn-sm" onclick="videoSpeed(1.25)">1.25×</button><button class="secondary-button btn-sm" onclick="videoSpeed(1.5)">1.5×</button><button class="secondary-button btn-sm" onclick="videoSpeed(2)">2×</button>
+              <div style="flex:1;"></div><button class="secondary-button btn-sm" onclick="askAboutCurrentVideo('Summarize this video using only its saved transcript.')">✦ Summarize</button><button class="secondary-button btn-sm" onclick="generateVideoQuiz()">? Generate video quiz</button><button class="secondary-button btn-sm" onclick="addTimestampNote()">📌 Add timestamp note</button>
             </div>
           </div>
-
-          <!-- Timestamped notes for video -->
-          <div class="card card-padding" style="margin-top:17px;">
-            <div class="panel-heading"><h3>Timestamped notes</h3><span class="panel-count" id="videoNoteCount">3</span></div>
-            <div id="videoNoteList" style="display:grid;gap:7px;max-height:200px;overflow-y:auto;margin-bottom:10px;">
-              <div class="note blue">🕐 <strong>12:34</strong> — Key concept: event delegation prevents memory leaks <button class="note-del" onclick="delNote(this)">×</button></div>
-              <div class="note yellow">🕐 <strong>18:20</strong> — Important: querySelector vs getElementById performance <button class="note-del" onclick="delNote(this)">×</button></div>
-              <div class="note red">🕐 <strong>24:05</strong> — Confusing: bubbling vs capturing phase <button class="note-del" onclick="delNote(this)">×</button></div>
-            </div>
-            <div style="display:flex;gap:8px;">
-              <input id="videoNoteInput" placeholder="Note at current timestamp…" style="flex:1;" />
-              <button class="primary-button btn-sm" onclick="addTimestampNote()">Save</button>
-            </div>
+          <div class="card card-padding" style="margin-top:16px;">
+            <div class="section-row" style="margin-top:0;"><div><h3>Video transcript</h3><p class="muted small-text">Paste captions or a transcript for this exact video. Lucid will not invent video content when captions are unavailable.</p></div><button class="secondary-button btn-sm" onclick="saveCurrentVideoTranscript()">Save transcript</button></div>
+            <textarea id="videoTranscriptInput" rows="7" maxlength="30000" placeholder="Paste the transcript or captions for the selected video…"></textarea>
+            <p class="muted small-text" id="videoTranscriptSaveStatus" aria-live="polite">No transcript saved for this video.</p>
+          </div>
+          <div class="card card-padding" style="margin-top:16px;">
+            <div class="panel-heading"><h3>Timestamped notes</h3><span class="panel-count" id="videoNoteCount">0</span></div>
+            <div id="videoNoteList" style="display:grid;gap:7px;min-height:36px;margin-bottom:10px;"><p class="muted small-text">Notes you add while watching this video will appear here.</p></div>
+            <div style="display:flex;gap:8px;"><input id="videoNoteInput" placeholder="Add a note at the current playback time…" style="flex:1;"><button class="primary-button btn-sm" onclick="addTimestampNote()">Save note</button></div>
+          </div>
+          <div class="card card-padding" style="margin-top:16px;">
+            <div class="panel-heading"><h3>AI on this video</h3></div>
+            <div class="ai-actions"><button class="ai-action-chip" onclick="askAboutCurrentVideo('Summarize this video in five concise points.')">Summarize</button><button class="ai-action-chip" onclick="askAboutCurrentVideo('Explain the most important concept in this video.')">Explain a concept</button><button class="ai-action-chip" onclick="askAboutCurrentVideo('Create revision notes from this video.')">Revision notes</button></div>
+            <div id="videoAiResponse" class="note" style="display:none;margin-top:10px;white-space:pre-wrap;" aria-live="polite"></div>
           </div>
         </div>
-
-        <!-- Video sidebar -->
         <aside class="reader-sidebar">
           <div class="card side-panel">
-            <div class="panel-heading"><h3>Playlist</h3><span class="panel-count">24</span></div>
-            <div style="display:grid;gap:6px;max-height:280px;overflow-y:auto;">
-              <div style="padding:8px 10px;border-radius:10px;background:var(--forest);color:white;font-size:11px;font-weight:700;">✓ 15. DOM Manipulation <span style="opacity:.7;">(Playing)</span></div>
-              <div style="padding:8px 10px;border-radius:10px;background:var(--sage-2);font-size:11px;cursor:pointer;" onclick="showToast('Video loaded.')">16. Event Listeners</div>
-              <div style="padding:8px 10px;border-radius:10px;font-size:11px;cursor:pointer;">17. Async JavaScript</div>
-              <div style="padding:8px 10px;border-radius:10px;font-size:11px;cursor:pointer;">18. Promises & Async/Await</div>
-              <div style="padding:8px 10px;border-radius:10px;font-size:11px;opacity:.5;cursor:pointer;">19. Fetch API <span style="color:var(--muted);">— not started</span></div>
-            </div>
-            <div class="progress-track" style="margin-top:14px;"><span class="progress-fill" style="width:60%"></span></div>
-            <div class="progress-label"><span>14/24 complete</span><span>60%</span></div>
+            <div class="panel-heading"><h3>Imported playlist</h3><span class="panel-count" id="videoPlaylistCount">0</span></div>
+            <div id="videoPlaylistTitle" class="muted small-text" style="margin-bottom:8px;">No playlist selected</div>
+            <div id="videoPlaylistList" style="display:grid;gap:6px;max-height:340px;overflow-y:auto;"><p class="muted small-text">Your imported lessons will appear here.</p></div>
           </div>
-
           <div class="card side-panel">
-            <div class="kicker">Video progress</div>
-            <div class="analytics-number" style="font-size:28px;">6h 20m</div>
-            <div class="muted small-text">total playlist length</div>
-            <div style="margin-top:14px;">
-              <div class="mastery-bar-row"><span class="label">Watched</span><div class="progress-track"><span class="progress-fill" style="width:60%"></span></div><span class="mastery-pct">60%</span></div>
-              <div class="mastery-bar-row"><span class="label">With notes</span><div class="progress-track"><span class="progress-fill gold" style="width:40%"></span></div><span class="mastery-pct">40%</span></div>
-              <div class="mastery-bar-row"><span class="label">Quiz done</span><div class="progress-track"><span class="progress-fill orange" style="width:25%"></span></div><span class="mastery-pct">25%</span></div>
-            </div>
-          </div>
-
-          <div class="card side-panel">
-            <div class="panel-heading"><h3>AI on this video</h3></div>
-            <div class="ai-actions">
-              <button class="ai-action-chip" onclick="quickAI('Summarize this lecture in 3 bullet points')">📋 Summarize</button>
-              <button class="ai-action-chip" onclick="quickAI('Generate a quiz from this video lesson')">? Quiz me</button>
-              <button class="ai-action-chip" onclick="quickAI('Explain the confusing part at 24:05')">🤔 Explain</button>
-            </div>
-            <div id="videoAiResponse" style="display:none;" class="note green" style="margin-top:8px;"></div>
+            <div class="kicker">Actual watch progress</div>
+            <div class="analytics-number" style="font-size:28px;" id="videoWatchedTime">0m</div>
+            <div class="muted small-text">Recorded watch time for this playlist</div>
+            <div class="progress-track" style="margin-top:14px;"><span class="progress-fill" id="videoProgressBar" style="width:0%"></span></div>
+            <div class="progress-label"><span id="videoProgressLabel">0 of 0 completed</span><span id="videoProgressPercent">0%</span></div>
           </div>
         </aside>
       </div>
@@ -1165,139 +1042,53 @@ textarea{min-height:75px;resize:vertical;}
     <!-- ══ PRACTICE CENTER ══ -->
     <section class="page" id="practice">
       <div class="page-heading">
-        <div><div class="kicker">Active recall & mastery</div><h1>Practice center.</h1></div>
-        <button class="primary-button" onclick="generateAIQuiz()">✦ Generate AI quiz</button>
+        <div><div class="kicker">Source-grounded active recall</div><h1>Practice center.</h1><p class="muted small-text">Choose one or more PDFs, or an entire catalogue. Every generated activity uses the selected source material.</p></div>
+        <button class="primary-button" onclick="generateAIQuiz()">✦ Choose sources & generate quiz</button>
       </div>
-
       <div class="tab-row">
         <button class="tab-btn active" onclick="switchTab('practiceTab','quiz',this)">Quiz</button>
         <button class="tab-btn" onclick="switchTab('practiceTab','flashcards',this)">Flashcards</button>
         <button class="tab-btn" onclick="switchTab('practiceTab','oral',this)">Oral recall</button>
         <button class="tab-btn" onclick="switchTab('practiceTab','weakareas',this)">Weak areas</button>
       </div>
-
-      <!-- Quiz tab -->
       <div class="tab-content active" id="practiceTab-quiz">
         <div class="grid two-col">
           <div class="quiz-card card">
-            <div class="kicker">Machine Learning · Adaptive quiz</div>
-            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-              <span class="tag">Question <span id="qNum">1</span> of <span id="qTotal">5</span></span>
-              <span class="tag gold">Difficulty: Medium</span>
-            </div>
-            <div class="quiz-question" id="quizQuestion">What is overfitting in a machine learning model?</div>
-            <div id="quizOptions">
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the model fails to learn the training data</button>
-              <button class="quiz-option" onclick="answerQuiz(true,this)">When the model learns training data too well and performs poorly on new data</button>
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the model takes too long to train</button>
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the dataset has too many features</button>
-            </div>
+            <div class="kicker" id="quizSourceLabel">No practice source selected</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><span class="tag">Question <span id="qNum">—</span> of <span id="qTotal">—</span></span><span class="tag" id="quizDifficultyTag">AI generated</span></div>
+            <div class="quiz-question" id="quizQuestion">Choose your learning sources to generate a quiz.</div>
+            <div id="quizOptions"><p class="muted small-text">No questions loaded. Select a PDF or catalogue to begin.</p></div>
             <div class="quiz-result" id="quizResult"></div>
-            <div style="display:flex;gap:8px;margin-top:16px;">
-              <button class="secondary-button btn-sm" onclick="skipQuiz()">Skip</button>
-              <button class="primary-button btn-sm" onclick="nextQuestion()" id="nextQBtn" style="display:none;">Next question →</button>
-            </div>
+            <div style="display:flex;gap:8px;margin-top:16px;"><button class="secondary-button btn-sm" onclick="skipQuiz()" id="skipQuizBtn" disabled>Skip</button><button class="primary-button btn-sm" onclick="nextQuestion()" id="nextQBtn" style="display:none;">Next question →</button></div>
           </div>
           <div class="card card-padding">
-            <div class="kicker">Session stats</div>
-            <div class="analytics-number" style="font-size:36px;" id="quizScore">0/0</div>
-            <div class="muted small-text">correct answers</div>
+            <div class="kicker">Session performance</div><div class="analytics-number" style="font-size:36px;" id="quizScore">0/0</div><div class="muted small-text">correct answers</div>
             <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" id="quizScoreBar" style="width:0%"></span></div>
-            <div style="margin-top:20px;display:grid;gap:10px;">
-              <div class="mastery-bar-row"><span class="label">Accuracy</span><div class="progress-track"><span class="progress-fill" id="accuracyBar" style="width:0%"></span></div><span class="mastery-pct" id="accuracyPct">—</span></div>
-              <div class="mastery-bar-row"><span class="label">Speed</span><div class="progress-track"><span class="progress-fill orange" style="width:60%"></span></div><span class="mastery-pct">Good</span></div>
-            </div>
-            <button class="primary-button full-width btn-sm" style="margin-top:16px;" onclick="generateAIQuiz()">✦ Generate new AI quiz</button>
+            <div style="margin-top:20px;display:grid;gap:10px;"><div class="mastery-bar-row"><span class="label">Accuracy</span><div class="progress-track"><span class="progress-fill" id="accuracyBar" style="width:0%"></span></div><span class="mastery-pct" id="accuracyPct">—</span></div></div>
+            <button class="primary-button full-width btn-sm" style="margin-top:16px;" onclick="generateAIQuiz()">✦ Generate source-based quiz</button>
           </div>
         </div>
       </div>
-
-      <!-- Flashcards tab -->
       <div class="tab-content" id="practiceTab-flashcards">
         <div style="max-width:600px;margin:auto;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <span class="kicker">ML Fundamentals flashcards</span>
-            <button class="primary-button btn-sm" onclick="generateFlashcards()">✦ AI generate</button>
-          </div>
-          <div class="flashcard" id="flashcard" onclick="flipCard()">
-            <div class="flashcard-inner">
-              <div class="flashcard-front">
-                <div>
-                  <div style="font-size:10px;opacity:.6;margin-bottom:8px;font-family:'Space Mono',monospace;letter-spacing:1px;">FRONT — Click to flip</div>
-                  <div id="flashFront">What is the bias-variance tradeoff?</div>
-                </div>
-              </div>
-              <div class="flashcard-back">
-                <div>
-                  <div style="font-size:10px;opacity:.6;margin-bottom:8px;font-family:'Space Mono',monospace;letter-spacing:1px;">BACK</div>
-                  <div id="flashBack">The tension between a model's ability to fit training data (low bias) and generalize to new data (low variance). Reducing one typically increases the other.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;gap:10px;margin-top:16px;justify-content:center;">
-            <button class="danger-button btn-sm" onclick="rateCard('hard')">😓 Hard</button>
-            <button class="secondary-button btn-sm" onclick="rateCard('okay')">😐 Okay</button>
-            <button class="success-button btn-sm" onclick="rateCard('easy')">😊 Easy</button>
-          </div>
-          <div style="text-align:center;margin-top:14px;">
-            <span class="muted small-text" id="cardProgress">Card 1 of 8 · Click to flip</span>
-          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><span class="kicker">Your saved practice cards</span><button class="primary-button btn-sm" onclick="generateFlashcards()">✦ Generate from sources</button></div>
+          <div class="flashcard" id="flashcard" onclick="flipCard()"><div class="flashcard-inner"><div class="flashcard-front"><div><div style="font-size:10px;opacity:.6;margin-bottom:8px;font-family:'Space Mono',monospace;letter-spacing:1px;">FRONT — Click to flip</div><div id="flashFront">No card loaded. Generate cards from your material.</div></div></div><div class="flashcard-back"><div><div style="font-size:10px;opacity:.6;margin-bottom:8px;font-family:'Space Mono',monospace;letter-spacing:1px;">BACK</div><div id="flashBack">The answer will appear here.</div></div></div></div></div>
+          <div style="display:flex;gap:10px;margin-top:16px;justify-content:center;"><button class="danger-button btn-sm" onclick="rateCard('hard')">😓 Hard</button><button class="secondary-button btn-sm" onclick="rateCard('okay')">😐 Okay</button><button class="success-button btn-sm" onclick="rateCard('easy')">😊 Easy</button></div>
+          <div style="text-align:center;margin-top:14px;"><span class="muted small-text" id="cardProgress">No flashcards loaded</span></div>
         </div>
       </div>
-
-      <!-- Oral recall tab -->
       <div class="tab-content" id="practiceTab-oral">
-        <div style="max-width:560px;margin:auto;">
-          <div class="card card-padding" style="text-align:center;">
-            <div style="font-size:40px;margin-bottom:16px;">🎙</div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-bottom:8px;">Oral recall</h3>
-            <p class="muted small-text">Explain a concept in your own words. AI will evaluate your coverage, accuracy, and clarity.</p>
-            <div class="card card-padding" style="background:var(--sage-2);margin:16px 0;text-align:left;">
-              <div class="kicker">AI question</div>
-              <p style="margin-top:8px;font-size:14px;font-weight:700;" id="oralQuestion">Explain overfitting and how you would prevent it in a machine learning model.</p>
-            </div>
-            <textarea id="oralAnswer" placeholder="Type your explanation here (or use voice in a supported browser)…" style="min-height:120px;text-align:left;"></textarea>
-            <div style="display:flex;gap:9px;margin-top:12px;">
-              <button class="secondary-button btn-sm full-width" onclick="newOralQuestion()">New question</button>
-              <button class="primary-button btn-sm full-width" onclick="evaluateOral()">✦ Evaluate with AI</button>
-            </div>
-            <div id="oralResult" style="display:none;margin-top:14px;text-align:left;"></div>
-          </div>
-        </div>
+        <div style="max-width:560px;margin:auto;"><div class="card card-padding" style="text-align:center;">
+          <div style="font-size:40px;margin-bottom:16px;">🎙</div><h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-bottom:8px;">Oral recall</h3>
+          <p class="muted small-text">Lucid will generate an open-ended question from the material you select and evaluate your response against that same source.</p>
+          <div class="card card-padding" style="background:var(--sage-2);margin:16px 0;text-align:left;"><div class="kicker">Source-based question</div><p style="margin-top:8px;font-size:14px;font-weight:700;" id="oralQuestion">Choose a source and generate your first question.</p></div>
+          <textarea id="oralAnswer" placeholder="Write your explanation here…" style="min-height:120px;text-align:left;"></textarea>
+          <div style="display:flex;gap:9px;margin-top:12px;"><button class="secondary-button btn-sm full-width" onclick="newOralQuestion()">New source-based question</button><button class="primary-button btn-sm full-width" onclick="evaluateOral()">✦ Evaluate response</button></div>
+          <div id="oralResult" style="display:none;margin-top:14px;text-align:left;"></div>
+        </div></div>
       </div>
-
-      <!-- Weak areas tab -->
       <div class="tab-content" id="practiceTab-weakareas">
-        <div class="card card-padding">
-          <h3 style="margin-bottom:14px;">Areas that need attention</h3>
-          <div style="display:grid;gap:10px;">
-            <div class="goal-item">
-              <div style="flex:1;">
-                <strong>Overfitting</strong>
-                <div class="muted small-text">Recall score: 22% · Last reviewed 3 days ago</div>
-                <div class="progress-track" style="margin-top:6px;"><span class="progress-fill rose" style="width:22%"></span></div>
-              </div>
-              <button class="danger-button btn-sm" onclick="practiceWeak('Overfitting')">Practice now</button>
-            </div>
-            <div class="goal-item">
-              <div style="flex:1;">
-                <strong>Event bubbling & capturing</strong>
-                <div class="muted small-text">Recall score: 38% · Marked confusing</div>
-                <div class="progress-track" style="margin-top:6px;"><span class="progress-fill rose" style="width:38%"></span></div>
-              </div>
-              <button class="secondary-button btn-sm" onclick="practiceWeak('Event bubbling')">Practice</button>
-            </div>
-            <div class="goal-item">
-              <div style="flex:1;">
-                <strong>Gradient descent variations</strong>
-                <div class="muted small-text">Recall score: 45% · Due for spaced review</div>
-                <div class="progress-track" style="margin-top:6px;"><span class="progress-fill orange" style="width:45%"></span></div>
-              </div>
-              <button class="secondary-button btn-sm" onclick="practiceWeak('Gradient descent')">Practice</button>
-            </div>
-          </div>
-        </div>
+        <div class="card card-padding"><h3 style="margin-bottom:14px;">Your measured weak areas</h3><p class="muted small-text">These areas come from recorded concept mastery and practice evidence. Lucid will not invent topics or scores.</p><div id="weakAreaList" style="display:grid;gap:10px;margin-top:14px;"><p class="muted small-text">No mastery evidence loaded yet.</p></div></div>
       </div>
     </section>
 
@@ -1370,13 +1161,13 @@ textarea{min-height:75px;resize:vertical;}
             <h3 style="margin-bottom:12px;">Quick actions</h3>
             <div class="ai-actions" style="flex-wrap:wrap;">
               <button class="ai-action-chip" onclick="quickAI('Explain the current page of my selected resource in simple terms')">📋 Explain page</button>
-              <button class="ai-action-chip" onclick="quickAI('Give me an analogy to understand overfitting better')">🔗 Give analogy</button>
+              <button class="ai-action-chip" onclick="quickAI('Explain a difficult concept from my current learning material using a clear analogy')">🔗 Give analogy</button>
               <button class="ai-action-chip" onclick="quickAI('Summarize my annotations and find patterns')">📝 Summarize notes</button>
               <button class="ai-action-chip" onclick="generateFlashcards()">🃏 Make flashcards</button>
               <button class="ai-action-chip" onclick="quickAI('Create a quiz to test my understanding of this material')">? Generate quiz</button>
               <button class="ai-action-chip" onclick="quickAI('What should I study next based on my weak areas?')">🗺 What next?</button>
-              <button class="ai-action-chip" onclick="quickAI('Create a 7-day study plan for my MCA semester 5 exam')">📅 Study plan</button>
-              <button class="ai-action-chip" onclick="quickAI('Teach me overfitting as if I were a 12-year-old')">🧒 Simplify</button>
+              <button class="ai-action-chip" onclick="quickAI('Create a 7-day study plan based on my current goals, progress and weak areas')">📅 Study plan</button>
+              <button class="ai-action-chip" onclick="quickAI('Simplify the current concept as if I were 12 years old')">🧒 Simplify</button>
             </div>
           </div>
 
@@ -1427,27 +1218,15 @@ textarea{min-height:75px;resize:vertical;}
     <!-- ══ LEADERBOARD ══ -->
     <section class="page" id="leaderboard">
       <div class="page-heading">
-        <div><div class="kicker">Room standings</div><h1>Leaderboard.</h1></div>
-        <span class="tag">Competitive rankings · group data only</span>
+        <div><div class="kicker">Learner rankings</div><h1>Leaderboard.</h1></div>
+        <span class="tag">Community rankings</span>
       </div>
 
       <div class="grid two-col">
         <div>
           <div class="card card-padding">
-            <div class="tab-row">
-              <button class="tab-btn active" onclick="switchTab('lbTab','xp',this)">XP &amp; Level</button>
-              <button class="tab-btn" onclick="switchTab('lbTab','focus',this)">Focus time</button>
-              <button class="tab-btn" onclick="switchTab('lbTab','improvement',this)">Most improved</button>
-            </div>
-            <div class="tab-content active" id="lbTab-xp">
-              <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
-            </div>
-            <div class="tab-content" id="lbTab-focus">
-              <div class="card card-padding"><h3>Your focus evidence</h3><p class="muted small-text" id="lbFocusSummary">Your recorded focus time will appear here. Group comparisons are only shown when a shared room leaderboard is available.</p></div>
-            </div>
-            <div class="tab-content" id="lbTab-improvement">
-              <div class="card card-padding"><h3>Improvement rankings</h3><p class="muted small-text">This view compares measured improvement between learners. No group ranking is shown until shared, permissioned group data is available.</p></div>
-            </div>
+            <div class="kicker">Ranked by recorded XP</div>
+            <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
           </div>
         </div>
 
@@ -1455,7 +1234,7 @@ textarea{min-height:75px;resize:vertical;}
           <div class="card card-padding" style="margin-bottom:17px;">
             <div class="kicker">What the leaderboard measures</div>
             <h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">Comparative performance.</h3>
-            <p class="muted small-text">The XP &amp; Level ranking compares learner profiles. XP is updated from recorded learning activity. Focus time and improvement are personal metrics until a shared group comparison is available.</p>
+            <p class="muted small-text">Learners are ranked by the XP value stored on their profile. XP is updated when the platform records completed learning activities. Focus time is a personal metric and does not change leaderboard rank.</p>
           </div>
           <div class="card card-padding">
             <div class="kicker">How achievements differ</div>
@@ -1476,90 +1255,20 @@ textarea{min-height:75px;resize:vertical;}
 
       <!-- Weekly stat cards -->
       <div class="grid analytics-grid">
-        <article class="analytics-card card">
-          <div class="kicker">Focus time</div>
-          <div class="analytics-number">6h 42m</div>
-          <div class="muted small-text">This week ↑18%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill" style="width:74%"></span></div>
-        </article>
-        <article class="analytics-card card">
-          <div class="kicker">Pages read</div>
-          <div class="analytics-number" id="analyticsPages">1,245</div>
-          <div class="muted small-text">This week ↑14%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill orange" style="width:82%"></span></div>
-        </article>
-        <article class="analytics-card card">
-          <div class="kicker">Avg recall</div>
-          <div class="analytics-number">81%</div>
-          <div class="muted small-text">Across quizzes ↑9%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" style="width:81%"></span></div>
-        </article>
-        <article class="analytics-card card">
-          <div class="kicker">Questions</div>
-          <div class="analytics-number">327</div>
-          <div class="muted small-text">Quiz answers ↑7%</div>
-          <div class="progress-track" style="margin-top:14px;"><span class="progress-fill rose" style="width:65%"></span></div>
-        </article>
+        <article class="analytics-card card"><div class="kicker">Focus time</div><div class="analytics-number" id="analyticsFocus">0m</div><div class="muted small-text">Recorded this week</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill" id="analyticsFocusBar" style="width:0%"></span></div></article>
+        <article class="analytics-card card"><div class="kicker">Pages read</div><div class="analytics-number" id="analyticsPages">0</div><div class="muted small-text">Recorded this week</div></article>
+        <article class="analytics-card card"><div class="kicker">Average recall</div><div class="analytics-number" id="analyticsRecall">—</div><div class="muted small-text">Completed quiz attempts</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" id="analyticsRecallBar" style="width:0%"></span></div></article>
+        <article class="analytics-card card"><div class="kicker">Questions</div><div class="analytics-number" id="analyticsQuestions">0</div><div class="muted small-text">Answered this week</div></article>
       </div>
-
-      <!-- Chart & insight -->
+      <!-- Evidence-backed trends -->
       <div class="section-row"><h2>Weekly focus volume</h2><span class="muted small-text">Minutes per day</span></div>
-      <div class="grid insight-grid">
-        <article class="chart-card card">
-          <div class="bar-chart">
-            <div class="chart-column"><span class="chart-bar" style="height:38%"></span><span>Mon</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:51%"></span><span>Tue</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:72%"></span><span>Wed</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:46%"></span><span>Thu</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:86%"></span><span>Fri</span></div>
-            <div class="chart-column"><span class="chart-bar" style="height:100%"></span><span>Sat</span></div>
-            <div class="chart-column"><span class="chart-bar highlighted" style="height:42%"></span><span>Today</span></div>
-          </div>
-        </article>
-        <article class="insight-card card">
-          <div class="kicker">Lucid noticed</div>
-          <div class="insight-quote">You retain more when you read for 20–30 minutes and write one annotation per chapter.</div>
-          <p class="muted small-text">Recommended: 25 min session tonight at 8 PM. Will adapt as your patterns change.</p>
-          <button class="primary-button btn-sm" style="margin-top:14px;" onclick="openPage('reader')">Start recommended session</button>
-        </article>
-      </div>
-
-      <!-- Mastery breakdown -->
-      <div class="section-row"><h2>Concept mastery</h2><span class="muted small-text">Based on quiz, recall & completion evidence</span></div>
-      <div class="card card-padding">
-        <div class="mastery-bar-row"><span class="label">Deep focus concepts</span><div class="progress-track"><span class="progress-fill" style="width:84%"></span></div><span class="mastery-pct">84%</span></div>
-        <div class="mastery-bar-row"><span class="label">Machine Learning basics</span><div class="progress-track"><span class="progress-fill" style="width:68%"></span></div><span class="mastery-pct">68%</span></div>
-        <div class="mastery-bar-row"><span class="label">DOM Manipulation</span><div class="progress-track"><span class="progress-fill gold" style="width:72%"></span></div><span class="mastery-pct">72%</span></div>
-        <div class="mastery-bar-row"><span class="label">Algorithms</span><div class="progress-track"><span class="progress-fill orange" style="width:55%"></span></div><span class="mastery-pct">55%</span></div>
-        <div class="mastery-bar-row"><span class="label">Overfitting ⚠</span><div class="progress-track"><span class="progress-fill rose" style="width:22%"></span></div><span class="mastery-pct">22%</span></div>
-        <div class="mastery-bar-row"><span class="label">Cyber Security</span><div class="progress-track"><span class="progress-fill rose" style="width:30%"></span></div><span class="mastery-pct">30%</span></div>
-      </div>
-
-      <!-- Learning profile dimensions -->
+      <div class="card card-padding"><div class="bar-chart" id="weeklyFocusChart"><p class="muted small-text">Daily focus data will appear after you record study sessions.</p></div></div>
+      <div class="section-row"><h2>Concept mastery</h2><span class="muted small-text">Calculated from saved quiz and recall evidence</span></div>
+      <div class="card card-padding" id="analyticsMastery"><p class="muted small-text">No concept mastery evidence has been recorded yet.</p></div>
       <div class="section-row"><h2>Learning profile</h2></div>
-      <div class="grid three-col">
-        <div class="card card-padding"><div class="kicker">Best focus window</div><h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">8–10 PM</div><p class="muted small-text">Consistent over last 3 weeks. Plan heavy material here.</p></div>
-        <div class="card card-padding"><div class="kicker">Preferred mode</div><h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">PDF + Quiz</h3><p class="muted small-text">Sessions with active recall have 23% better retention.</p></div>
-        <div class="card card-padding"><div class="kicker">Optimal session</div><h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">28 min</h3><p class="muted small-text">Recall drops after ~42 min. AI recommends 38–45 min max.</p></div>
-      </div>
-
-      <!-- Goals -->
-      <div class="section-row"><h2>Weekly goals</h2></div>
-      <div class="card goal-card">
-        <div class="kicker">Current targets</div>
-        <div class="goal-row">
-          <div><label>Focus hours</label><div class="progress-track large"><span class="progress-fill" style="width:74%"></span></div></div>
-          <input value="6.7/9h" readonly />
-        </div>
-        <div class="goal-row">
-          <div><label>Pages read</label><div class="progress-track large"><span class="progress-fill orange" style="width:82%"></span></div></div>
-          <input value="1245/1500" readonly />
-        </div>
-        <div class="goal-row">
-          <div><label>Recall accuracy</label><div class="progress-track large"><span class="progress-fill gold" style="width:81%"></span></div></div>
-          <input value="81% / 85%" readonly />
-        </div>
-      </div>
+      <div class="grid three-col" id="analyticsLearningProfile"><div class="card card-padding"><div class="kicker">Quiz accuracy</div><h3>—</h3><p class="muted small-text">Not measured yet</p></div><div class="card card-padding"><div class="kicker">Completed quizzes</div><h3>0</h3><p class="muted small-text">Saved attempts</p></div><div class="card card-padding"><div class="kicker">Recorded focus</div><h3>0m</h3><p class="muted small-text">Recent reading sessions</p></div></div>
+      <div class="section-row"><h2>AI recommendation</h2></div>
+      <div class="card card-padding" id="analyticsRecommendation"><p class="muted small-text">Recommendations will appear when sufficient learning evidence is available.</p></div>
     </section>
 
     <!-- ══ ACHIEVEMENTS ══ -->
@@ -1728,7 +1437,7 @@ textarea{min-height:75px;resize:vertical;}
     <div class="tab-content" id="uploadTab-youtube">
       <div class="form-stack">
         <label class="form-label">YouTube video URL<input id="youtubeURL" placeholder="https://youtube.com/watch?v=…" /></label>
-        <label class="form-label">Catalogue<select><option>MCA Semester 5</option><option>Better Work</option></select></label>
+        <label class="form-label">Catalogue<select id="uploadYoutubeCatalogue"><option value="">No catalogue</option></select></label>
         <button class="primary-button full-width" onclick="loadYoutube()">Load video →</button>
       </div>
     </div>
@@ -1767,12 +1476,8 @@ textarea{min-height:75px;resize:vertical;}
   <div class="modal">
     <div class="modal-header"><h2>Quick recall</h2><button class="close-button" onclick="closeModal('quizModal')">×</button></div>
     <p class="muted small-text">Retrieval practice turns reading into something you can use.</p>
-    <div class="quiz-question" id="modalQuizQ">According to the current chapter, what does meaningful work require?</div>
-    <div id="modalQuizOpts">
-      <button class="quiz-option" onclick="answerQuiz(false,this)">More notifications and faster switching</button>
-      <button class="quiz-option" onclick="answerQuiz(true,this)">Sustained attention and deliberate focus</button>
-      <button class="quiz-option" onclick="answerQuiz(false,this)">Reading as quickly as possible</button>
-    </div>
+    <div class="quiz-question" id="modalQuizQ">No quick-recall question is loaded. Generate a quiz from one of your saved resources to practise what you studied.</div>
+    <div id="modalQuizOpts"><p class="muted small-text">Select a PDF or catalogue in Practice Centre to create source-grounded questions.</p></div>
     <div class="quiz-result" id="modalQuizResult"></div>
     <div style="margin-top:14px;display:flex;gap:8px;">
       <button class="secondary-button btn-sm" onclick="closeModal('quizModal')">Skip for now</button>
@@ -1815,9 +1520,9 @@ textarea{min-height:75px;resize:vertical;}
 <div class="modal-backdrop" id="videoImportModal">
   <div class="modal">
     <div class="modal-header"><h2>Load YouTube video</h2><button class="close-button" onclick="closeModal('videoImportModal')">×</button></div>
-    <p class="muted small-text">Paste a YouTube URL to embed it in Lucid's focused learning shell.</p>
+    <p class="muted small-text">Import a video or playlist into your Library. Playlist details are retrieved from YouTube and saved to your account.</p>
     <div class="form-stack">
-      <label class="form-label">YouTube URL<input id="ytURL" placeholder="https://youtube.com/watch?v=dQw4w9WgXcQ" /></label>
+      <label class="form-label">YouTube URL<input id="ytURL" placeholder="https://www.youtube.com/watch?v=VIDEO_ID" /></label>
       <button class="primary-button full-width" onclick="loadYoutubeVideo()">Load in classroom →</button>
     </div>
   </div>
@@ -1855,11 +1560,11 @@ const state = {
   timerSeconds: 1500,
   timerRunning: false,
   timerInterval: null,
-  pagesRead: 136,
+  pagesRead: 0,
   weeklyGoal: 200,
-  streak: 7,
-  xp: 390,
-  level: 16,
+  streak: 0,
+  xp: 0,
+  level: 1,
   annotations: [],
   highlights: [],
   selectedText: '',
@@ -1870,29 +1575,18 @@ const state = {
   currentResourceTitle: null,
   coachMode: 'Gentle',
   currentHL: 'yellow',
-  sessionPagesCompleted: 4,
-  preferences: { focusLength: 25, readingTheme: 'warm', name: 'Rishabh' },
+  sessionPagesCompleted: 0,
+  preferences: { focusLength: 25, readingTheme: 'warm', name: 'Learner' },
   chatMessages: [],
   quizCorrect: 0,
   quizTotal: 0,
   flashcardIndex: 0,
-  flashcards: [
-    { q: 'What is the bias-variance tradeoff?', a: 'The tension between a model\'s ability to fit training data (low bias) and generalize to new data (low variance). Reducing one typically increases the other.' },
-    { q: 'Define overfitting.', a: 'When a model learns the training data too well, including noise, and performs poorly on unseen data.' },
-    { q: 'What is gradient descent?', a: 'An iterative optimization algorithm that minimizes a loss function by moving in the direction of steepest descent.' },
-    { q: 'What is the purpose of a validation set?', a: 'To evaluate model performance during training and tune hyperparameters without touching the test set.' },
-    { q: 'Explain regularization.', a: 'Techniques (L1, L2, dropout) that add a penalty for model complexity to reduce overfitting.' },
-    { q: 'What is cross-validation?', a: 'A technique that divides data into k folds, training on k-1 and testing on 1, repeated k times to get a robust performance estimate.' },
-    { q: 'Define precision and recall.', a: 'Precision = TP/(TP+FP). Recall = TP/(TP+FN). Precision measures correctness of positives; recall measures coverage of actual positives.' },
-    { q: 'What is the difference between supervised and unsupervised learning?', a: 'Supervised uses labeled data to learn a mapping; unsupervised finds patterns in unlabeled data.' }
-  ],
-  oralQuestions: [
-    'Explain overfitting and how you would prevent it in a machine learning model.',
-    'What is the difference between gradient descent and stochastic gradient descent?',
-    'Explain the concept of deep work and why it matters in a knowledge economy.',
-    'What is event delegation in JavaScript and why is it useful?',
-    'Describe the bias-variance tradeoff in your own words.'
-  ]
+  flashcards: [],
+  flashcardRecords: [],
+  oralQuestions: [],
+  currentOralContext: null,
+  currentVideoResourceId: null,
+  currentVideoContext: null
 };
 
 const pageNames = {
@@ -1937,6 +1631,7 @@ function restoreState() {
 
 // ─── Navigation ──────────────────────────────────
 function openPage(pageId) {
+  if(pageId!=='video'&&window.lucidVideoPlayer){try{if(window.lucidVideoPlayer.getPlayerState?.()===1)window.lucidVideoPlayer.pauseVideo();}catch(_){}}
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === pageId));
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.page === pageId));
   state.activePage = pageId;
@@ -1960,27 +1655,35 @@ function showToast(message, icon = '✓') {
 }
 
 // ─── Timer ────────────────────────────────────────
-function toggleTimer() {
+async function toggleTimer() {
   const btn=document.getElementById('timerButton'),status=document.getElementById('timerStatus');
-  state.timerRunning=!state.timerRunning;
   if(state.timerRunning){
-    btn.textContent='Pause session';status.textContent='You are in a focused reading session.';
-    if(!window.currentLucidReadingSessionId&&window.startLucidReadingSession){
-      window.startLucidReadingSession().then(id=>{window.currentLucidReadingSessionId=id;}).catch(error=>console.warn('Could not start saved focus session:',error.message));
+    clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Resume session';status.textContent='Paused. Your progress is saved.';
+    if(window.currentLucidReadingSessionId&&window.saveLucidReadingSessionProgress){
+      try{await window.saveLucidReadingSessionProgress({id:window.currentLucidReadingSessionId,activeSeconds:state.sessionTimerSeconds,pagesCompleted:state.sessionPagesCompleted});}
+      catch(error){showToast('Could not save focus checkpoint: '+error.message,'⚠');}
     }
-    state.timerInterval=setInterval(()=>{
-      if(state.timerSeconds>0){state.timerSeconds-=1;renderTimer();}
-      if(state.timerSeconds===0){
-        clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Session complete';status.textContent='Beautiful work. Take a moment to reflect.';
-        state.xp+=20;updateXP();showToast('Session complete! +20 XP earned. 🎉','🎉');
-        const activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60);
-        if(window.finishLucidReadingSession)Promise.resolve(window.currentLucidReadingSessionId).then(id=>window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:true})).catch(error=>showToast('Session saved locally; cloud sync failed: '+error.message,'⚠'));
-        openModal('quizModal');
-      }
-    },1000);
-  }else{
-    clearInterval(state.timerInterval);btn.textContent='Resume session';status.textContent='Paused. Your progress is safe.';
+    return;
   }
+  if(state.timerSeconds<=0)state.timerSeconds=(Number(state.preferences.focusLength)||25)*60;
+  if(!window.currentLucidReadingSessionId){
+    state.sessionTimerSeconds=0;state.sessionPagesCompleted=0;
+    if(window.startLucidReadingSession){
+      try{window.currentLucidReadingSessionId=await window.startLucidReadingSession();}
+      catch(error){showToast('Could not start a saved focus session: '+error.message,'⚠');}
+    }
+  }
+  state.timerRunning=true;state.sessionStartTime=Date.now();btn.textContent='Pause session';status.textContent='You are in a focused learning session.';
+  state.timerInterval=setInterval(()=>{
+    if(state.timerSeconds>0){state.timerSeconds-=1;state.sessionTimerSeconds=(Number(state.sessionTimerSeconds)||0)+1;renderTimer();}
+    if(state.timerSeconds===0){
+      clearInterval(state.timerInterval);state.timerRunning=false;btn.textContent='Session complete';status.textContent='Beautiful work. Take a moment to reflect.';
+      state.xp+=20;updateXP();showToast('Session complete! +20 XP earned. 🎉','🎉');
+      const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,Number(state.sessionTimerSeconds)||0);window.currentLucidReadingSessionId=null;
+      if(id&&window.finishLucidReadingSession)window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:true}).catch(error=>showToast('Could not save completed session: '+error.message,'⚠'));
+      openModal('quizModal');
+    }
+  },1000);
 }
 function renderTimer() {
   const m = String(Math.floor(state.timerSeconds/60)).padStart(2,'0');
@@ -1988,13 +1691,15 @@ function renderTimer() {
   document.getElementById('timerDisplay').textContent = `${m}:${s}`;
   document.getElementById('focusTimer').textContent = `${m}:${s}`;
 }
-function resetTimer() {
+async function resetTimer() {
   clearInterval(state.timerInterval);state.timerRunning=false;
-  if(window.currentLucidReadingSessionId&&window.finishLucidReadingSession){
-    const id=window.currentLucidReadingSessionId,activeSeconds=Math.max(0,(Number(state.preferences.focusLength)||25)*60-state.timerSeconds);
-    window.finishLucidReadingSession({id,activeSeconds,pagesCompleted:state.sessionPagesCompleted,completed:false}).catch(error=>console.warn('Could not save stopped session:',error.message));
+  const id=window.currentLucidReadingSessionId;window.currentLucidReadingSessionId=null;
+  if(id&&window.finishLucidReadingSession){
+    try{await window.finishLucidReadingSession({id,activeSeconds:Math.max(0,Number(state.sessionTimerSeconds)||0),pagesCompleted:state.sessionPagesCompleted,completed:false});}
+    catch(error){showToast('Could not save stopped session: '+error.message,'⚠');}
   }
-  state.timerSeconds=(state.preferences.focusLength||25)*60;renderTimer();
+  state.sessionTimerSeconds=0;state.sessionPagesCompleted=0;
+  state.timerSeconds=(Number(state.preferences.focusLength)||25)*60;renderTimer();
   document.getElementById('timerButton').textContent='Start session';document.getElementById('timerStatus').textContent='Ready when you are.';
 }
 
@@ -2102,15 +1807,16 @@ async function delNote(btn) {
 }
 
 // ─── Page completion ─────────────────────────────
-function completePage() {
-  if(window.changeLucidReaderPage && (state.resourcePages||[]).length && state.currentResourcePage < state.resourcePages.length) window.changeLucidReaderPage(1);
-  state.pagesRead += 1;
-  state.xp += 12;
-  state.sessionPagesCompleted += 1;
-  saveState();
-  updateXP();
-  updateSessionProgress();
-  showToast(`Page complete! +12 XP earned. Total: ${state.pagesRead} pages.`, '📖');
+async function completePage() {
+  if(!state.currentResourceId||!window.currentPdfUrl){showToast('Open a PDF before marking a page complete.','⚠');return;}
+  const page=Math.max(1,Number(state.currentResourcePage)||1),total=Math.max(1,Number(state.currentResourcePageCount)||1);
+  try{
+    const result=await window.markLucidPdfPageComplete(page);
+    updateSessionProgress();
+    if(result.alreadyCompleted)showToast('Page '+page+' was already marked complete.','ℹ');
+    else showToast('Page '+page+' marked complete. +12 XP earned.','📖');
+    if(page<total)window.changeLucidReaderPage(1);
+  }catch(error){showToast('Could not save page progress: '+error.message,'⚠');}
 }
 function prevPage() { if(window.changeLucidReaderPage)window.changeLucidReaderPage(-1); }
 function updateSessionProgress() {
@@ -2136,13 +1842,6 @@ function updateXP() {
 }
 
 // Focus music controls removed: no ambient-audio state or handlers.
-
-function startRoomTest() {
-  closeModal?.('');
-  openPage('practice');
-  showToast('Room-based tests are not enabled. Use Practice Centre for an individual source-based quiz.', 'ℹ');
-}
-
 
 // ─── Library ──────────────────────────────────────
 async function uploadBook() {
@@ -2170,18 +1869,24 @@ function renderUploadedBooks(){
   const lib=document.getElementById('libraryBooks');if(!lib)return;
   const books=state.uploadedBooks||[];
   lib.innerHTML='';
-  if(!books.length){lib.innerHTML='<div class="card card-padding muted">No uploaded resources yet. Import a PDF to get started.</div>';return;}
+  if(!books.length){lib.innerHTML='<div class="card card-padding muted">No uploaded resources yet. Import a PDF or YouTube video to get started.</div>';return;}
   books.forEach(b=>{
-    const el=document.createElement('article');el.className='book-card card';
+    const progress=Math.max(0,Math.min(100,Number(b.progressPercent)||0));
+    const el=document.createElement('article');el.className='book-card card';el.dataset.title=b.name||'';el.dataset.type=b.type||'';el.dataset.progress=String(progress);
     const main=document.createElement('div');main.className='book-main';
     const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent=(b.type||'PDF').toUpperCase();
     const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
-    const sub=document.createElement('div');sub.className='book-author';sub.textContent=(b.pages||0)+' pages · '+(b.status||'saved');
+    const sub=document.createElement('div');sub.className='book-author';sub.textContent=b.type==='pdf'?(b.pages||0)+' pages · '+(b.completedPages||0)+' completed':b.type==='playlist'?'YouTube playlist':b.type==='video'?'YouTube video':(b.status||'saved');
     info.append(title,sub);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';
-    const tag=document.createElement('span');tag.className='tag';tag.textContent=b.catalogueId?'In catalogue':'Not in a catalogue';
-    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
+    const tag=document.createElement('span');tag.className='tag';tag.textContent=b.catalogueId?'In catalogue':(b.type||'Resource');
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));
     footer.append(tag,open);el.append(main,footer);
+    if(b.type==='pdf'){
+      const progressRow=document.createElement('div');progressRow.className='book-progress';
+      const label=document.createElement('div');label.className='progress-label';const left=document.createElement('span');left.textContent=progress+'% completed';const right=document.createElement('span');right.textContent=(b.completedPages||0)+' / '+(b.pages||0)+' pages';label.append(left,right);
+      const track=document.createElement('div');track.className='progress-track';const fill=document.createElement('span');fill.className='progress-fill';fill.style.width=progress+'%';track.appendChild(fill);progressRow.append(label,track);el.appendChild(progressRow);
+    }
     const move=document.createElement('div');move.style.cssText='display:flex;gap:8px;align-items:center;margin-top:10px;';
     const label=document.createElement('span');label.className='muted small-text';label.textContent='Folder:';
     const select=document.createElement('select');select.style.flex='1';select.add(new Option('Not in a catalogue',''));
@@ -2203,7 +1908,7 @@ function switchLibTab(type, btn) {
   document.querySelectorAll('#libraryBooks .book-card').forEach(card => {
     card.style.display = (type === 'all') ? '' :
       (type === 'inprogress') ? (Number(card.dataset.progress||0) > 0 && Number(card.dataset.progress||0) < 100 ? '' : 'none') :
-      (card.dataset.type === type ? '' : 'none');
+      ((card.dataset.type === type || (type==='video'&&card.dataset.type==='playlist')) ? '' : 'none');
   });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -2224,9 +1929,11 @@ function loadYoutube() {
   loadYoutubeURL(url);
 }
 function loadPlaylist() {
+  const url=document.getElementById('playlistURL').value.trim();
+  if(!url){showToast('Paste a YouTube playlist URL first.','⚠');return;}
   closeModal('uploadModal');
   openPage('video');
-  showToast('Playlist imported! Creating course structure…', '▶');
+  loadYoutubeURL(url);
 }
 function loadYoutubeVideo() {
   const url = document.getElementById('ytURL').value.trim();
@@ -2269,16 +1976,11 @@ function addTimestampNote() {
 }
 
 // ─── Quiz ─────────────────────────────────────────
-const quizBank = [
-  { q: 'What is overfitting in a machine learning model?', opts: ['Model fails to learn training data','Model learns training data too well and performs poorly on new data','Model takes too long to train','Dataset has too many features'], ans: 1 },
-  { q: 'According to Deep Work, what enables high-quality knowledge work?', opts: ['Frequent context-switching','Social media breaks','Sustained concentration without distraction','Multitasking efficiently'], ans: 2 },
-  { q: 'What is gradient descent used for in ML?', opts: ['Data visualization','Feature selection','Minimizing a loss function through iterative updates','Evaluating model accuracy'], ans: 2 },
-  { q: 'What does DOM stand for in web development?', opts: ['Data Object Model','Document Object Model','Dynamic Object Manipulation','Document Operation Module'], ans: 1 },
-  { q: 'In the bias-variance tradeoff, high variance typically means?', opts: ['Underfitting','Good generalization','Overfitting to training data','Low training error and high test error'], ans: 3 }
-];
+const quizBank = [];
 let currentQuizIdx = 0;
 
 function loadQuiz(idx) {
+  if(!quizBank.length){document.getElementById('quizQuestion').textContent='Choose your learning sources to generate a quiz.';document.getElementById('quizOptions').innerHTML='<p class="muted small-text">No questions loaded. Select a PDF or catalogue to begin.</p>';document.getElementById('qNum').textContent='—';document.getElementById('qTotal').textContent='—';document.getElementById('nextQBtn').style.display='none';return;}
   const q = quizBank[idx % quizBank.length];
   document.getElementById('quizQuestion').textContent = q.q;
   document.getElementById('qNum').textContent = idx + 1;
@@ -2297,6 +1999,7 @@ function loadQuiz(idx) {
 }
 
 function answerQuiz(correct, btn) {
+  if(!quizBank.length)return;
   document.querySelectorAll('.quiz-option').forEach(b => b.disabled = true);
   state.quizTotal++;
   const result = document.getElementById('quizResult') || document.getElementById('modalQuizResult');
@@ -2324,6 +2027,7 @@ function answerQuiz(correct, btn) {
   saveState();
 }
 function nextQuestion() {
+  if(!quizBank.length)return;
   if(currentQuizIdx+1>=quizBank.length){window.currentQuizAttemptId=null;state.quizCorrect=0;state.quizTotal=0;document.getElementById('quizScore').textContent='0/0';document.getElementById('quizScoreBar').style.width='0%';document.getElementById('accuracyBar').style.width='0%';document.getElementById('accuracyPct').textContent='—';}
   currentQuizIdx = (currentQuizIdx + 1) % quizBank.length;
   loadQuiz(currentQuizIdx);
@@ -2621,6 +2325,7 @@ function switchTab(groupId, tabId, btn) {
   const row = btn.closest('.tab-row');
   if (row) row.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  if(groupId==='practiceTab'&&tabId==='flashcards'&&window.loadLucidPracticeCards)window.loadLucidPracticeCards().catch(error=>showToast('Could not load due flashcards: '+error.message,'⚠'));
 }
 
 // ─── Dashboard setup ──────────────────────────────

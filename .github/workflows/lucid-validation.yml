@@ -1,0 +1,50 @@
+name: Lucid validation
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  syntax-and-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check integration JavaScript syntax
+        run: node --check lucid-integration.js
+      - name: Check inline JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, subprocess
+          html = pathlib.Path("index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.I | re.S)
+          checked = 0
+          for index, source in enumerate(scripts):
+              if not source.strip():
+                  continue
+              path = pathlib.Path(f"/tmp/lucid-inline-{index}.js")
+              path.write_text(source, encoding="utf-8")
+              subprocess.run(["node", "--check", str(path)], check=True)
+              checked += 1
+          print(f"Validated {checked} inline script block(s).")
+          PY
+      - name: Check that demo learning data and Study Rooms UI are absent
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path("index.html").read_text(encoding="utf-8")
+          integration = Path("lucid-integration.js").read_text(encoding="utf-8")
+          for marker in ["Room standings", "Room weak area", "Room challenge", "startRoomTest", "Study Rooms"]:
+              assert marker.lower() not in html.lower(), f"Obsolete Study Rooms UI found: {marker}"
+          assert "const quizBank = [];" in html, "Practice quiz bank must start empty."
+          assert "flashcards: []" in html, "Flashcards must not start with demo cards."
+          assert "openLucidPracticeSourcePicker" in integration, "Practice source picker is missing."
+          assert "practice_cards" in integration, "Flashcard persistence is missing."
+          assert "startLucidVideoSession" in integration and "video_sessions" in integration, "Video watch tracking is missing."
+          assert "This video has no saved transcript" in integration, "Missing-transcript guard is missing."
+          print("Lucid source-integrity checks passed.")
+          PY

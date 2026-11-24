@@ -11,7 +11,8 @@ const CORS={
   "Content-Type":"application/json"
 };
 
-const MODEL="gemini-3.8-flash";
+const MODEL=Deno.env.get("GEMINI_MODEL")||"gemini-3.8-flash";
+const MODEL_FALLBACKS=[...new Set([MODEL,"gemini-3.6-flash","gemini-3.5-flash-lite"])];
 const GEMINI_KEY=Deno.env.get("GEMINI_API_KEY")||"";
 const URL=Deno.env.get("SUPABASE_URL")||"";
 const ANON=Deno.env.get("SUPABASE_ANON_KEY")||"";
@@ -21,41 +22,30 @@ const toolDefs=[
  {name:"search_resource",description:"Search indexed pages of a user's learning resource for a phrase or concept.",parameters:{type:"object",properties:{resource_id:{type:"string",description:"Resource UUID"},query:{type:"string",description:"Phrase or concept to find"}},required:["resource_id","query"]}},
  {name:"get_due_reviews",description:"Get the learner's learning journeys whose spaced-review time is due or soon due.",parameters:{type:"object",properties:{limit:{type:"integer"}},required:[]}},
  {name:"get_goal_state",description:"Get active goals and deadlines for the learner.",parameters:{type:"object",properties:{limit:{type:"integer"}},required:[]}},
- {name:"get_room_state",description:"Get members, leaderboard and shared knowledge for a study room.",parameters:{type:"object",properties:{room_id:{type:"string"}},required:["room_id"]}},
  {name:"create_recommendation",description:"Persist an AI next-best-action recommendation. Use only when the learner asks to save a plan or recommendation.",parameters:{type:"object",properties:{catalogue_id:{type:"string"},resource_id:{type:"string"},action_type:{type:"string"},reason:{type:"string"},priority:{type:"number"}},required:["action_type","reason"]}},
  {name:"mark_goal_complete",description:"Mark one of the learner's own goals complete. Only use when the learner clearly asks to mark a goal completed.",parameters:{type:"object",properties:{goal_id:{type:"string"}},required:["goal_id"]}},
  {name:"save_learning_pattern",description:"Persist an observed learning pattern and adaptive response in the learner's profile.",parameters:{type:"object",properties:{pattern_key:{type:"string"},dimension:{type:"string"},summary:{type:"string"},confidence:{type:"number"},adaptive_response:{type:"string"}},required:["pattern_key","dimension","summary","confidence","adaptive_response"]}},
- {name:"create_room_knowledge",description:"Save a useful attributed point to a room's shared knowledge layer.",parameters:{type:"object",properties:{room_id:{type:"string"},title:{type:"string"},body:{type:"string"},concept_key:{type:"string"}},required:["room_id","body"]}}
 ];
 
 function clean(s){return (s||"").replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`$/,"").trim();}
 function safeParse(s){try{return JSON.parse(clean(s))}catch{return null}}
 
 async function gemini(contents,availableTools=toolDefs){
- const body={contents,generationConfig:{maxOutputTokens:6000},...(availableTools.length?{tools:[{functionDeclarations:availableTools}]}:{})};
- const endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent";
- let lastError="Gemini API error";
- for(let attempt=0;attempt<4;attempt++){
-  let response;
+ const body={contents,generationConfig:{maxOutputTokens:2500},...(availableTools.length?{tools:[{functionDeclarations:availableTools}]}:{})};
+ let lastError="Gemini API error",lastStatus=503;
+ for(const model of MODEL_FALLBACKS){
+  const endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),16000);
   try{
-   response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body)});
-  }catch(e){
-   lastError=e instanceof Error?e.message:"Network error";
-   if(attempt===3)throw new Error(lastError);
-   await new Promise(resolve=>setTimeout(resolve,800*Math.pow(2,attempt)));
-   continue;
-  }
-  const data=await response.json().catch(()=>({}));
-  if(response.ok)return data;
-  lastError=data?.error?.message||"Gemini API error";
-  if(![429,500,502,503,504].includes(response.status)||attempt===3){
-   const error=new Error(lastError);(error as any).status=response.status;throw error;
-  }
-  const retryAfter=Number(response.headers.get("retry-after")||0);
-  const delay=retryAfter>0?Math.min(retryAfter*1000,10000):800*Math.pow(2,attempt);
-  await new Promise(resolve=>setTimeout(resolve,delay));
+   const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body),signal:controller.signal});
+   const data=await response.json().catch(()=>({}));
+   if(response.ok){data._model=model;return data;}
+   lastStatus=response.status;lastError=data?.error?.message||"Gemini API error";
+   if(![429,500,502,503,504].includes(response.status))break;
+  }catch(e){lastStatus=504;lastError=e instanceof Error&&e.name==="AbortError"?"Gemini request timed out after 16 seconds.":(e instanceof Error?e.message:"Network error");}
+  finally{clearTimeout(timeout);}
  }
- throw new Error(lastError);
+ const error=new Error(lastError);(error as any).status=lastStatus;throw error;
 }
 
 async function toolExec(sb,userId,name,args){
@@ -102,18 +92,6 @@ async function toolExec(sb,userId,name,args){
   const {data,error}=await sb.from("learning_goals").select("*").eq("owner_id",userId).eq("status","active").order("deadline",{ascending:true}).limit(lim);
   if(error)throw error;return {goals:data||[]};
  }
- if(name==="get_room_state"){
-  const rid=args.room_id;
-  const member=await sb.from("room_members").select("role,status,current_mode,commitment_minutes").eq("room_id",rid).eq("user_id",userId).eq("status","active").maybeSingle();
-  if(!member.data)throw new Error("You are not an active member of this room.");
-  const [room,members,board,knowledge]=await Promise.all([
-   sb.from("rooms").select("*").eq("id",rid).maybeSingle(),
-   sb.from("room_members").select("user_id,role,status,current_mode,commitment_minutes,joined_at,profiles(display_name,avatar)").eq("room_id",rid).eq("status","active"),
-   sb.rpc("get_room_leaderboard",{p_room_id:rid}),
-   sb.from("room_knowledge").select("title,body,concept_key,created_at,profiles(display_name,avatar)").eq("room_id",rid).order("created_at",{ascending:false}).limit(30)
-  ]);
-  return {room:room.data||null,members:members.data||[],leaderboard:board.data||[],knowledge:knowledge.data||[]};
- }
  if(name==="create_recommendation"){
   const {data,error}=await sb.from("recommendations").insert({user_id:userId,catalogue_id:args.catalogue_id||null,resource_id:args.resource_id||null,action_type:String(args.action_type),reason:String(args.reason),priority:Number(args.priority||1)}).select().single();
   if(error)throw error;return {created:true,recommendation:data};
@@ -128,12 +106,6 @@ async function toolExec(sb,userId,name,args){
   const {data,error}=await sb.from("learning_patterns").upsert({user_id:userId,pattern_key:String(args.pattern_key),dimension:String(args.dimension),evidence:{summary:String(args.summary),adaptive_response:String(args.adaptive_response)},confidence:Number(args.confidence||0),detected_at:new Date().toISOString(),active:true},{onConflict:"user_id,pattern_key"}).select().single();
   if(error)throw error;return {saved:true,pattern:data};
  }
- if(name==="create_room_knowledge"){
-  const ok=await sb.from("room_members").select("id").eq("room_id",args.room_id).eq("user_id",userId).eq("status","active").maybeSingle();
-  if(!ok.data)throw new Error("Not an active room member.");
-  const {data,error}=await sb.from("room_knowledge").insert({room_id:args.room_id,created_by:userId,source_type:"explanation",title:args.title||null,body:String(args.body),concept_key:args.concept_key||null,attribution:{author_id:userId}}).select().single();
-  if(error)throw error;return {saved:true,knowledge:data};
- }
  throw new Error("Unknown agent tool: "+name);
 }
 
@@ -147,14 +119,14 @@ Deno.serve(async(req)=>{
   const me=await sb.auth.getUser(token);
   if(me.error||!me.data.user)return new Response(JSON.stringify({error:"Not authenticated"}),{status:401,headers:CORS});
   const body=await req.json(),action=String(body.action||"chat"),request=String(body.request||"");
-  const resourceId=body.resource_id||null,page=body.page_number||null,catalogueId=body.catalogue_id||null,roomId=body.room_id||null;
+  const resourceId=body.resource_id||null,page=body.page_number||null,catalogueId=body.catalogue_id||null;
   const decision=routeIntent(request);
   const contextInput=composeContext({
    intent:decision.intent,
    userMessage:request,
    conversation:Array.isArray(body.history)?body.history.slice(-4):[],
    resourceChunks:[],
-   taskData:{action,resourceId,page,catalogueId,roomId}
+   taskData:{action,resourceId,page,catalogueId}
   },decision.level);
   const budgetCheck=enforceContextBudget(contextInput.context,decision.level);
   const selectedContext=budgetCheck.withinBudget?budgetCheck.value:{intent:decision.intent,userMessage:request,action};
@@ -165,11 +137,9 @@ Deno.serve(async(req)=>{
   if(decision.retrieve.agentTools){
    allowedTools.add("get_due_reviews");
    allowedTools.add("get_goal_state");
-   if(roomId)allowedTools.add("get_room_state");
    if(action==="plan")allowedTools.add("create_recommendation");
    if(action==="analyze_pattern")allowedTools.add("save_learning_pattern");
    if(action==="complete_goal")allowedTools.add("mark_goal_complete");
-   if(action==="save_room_knowledge")allowedTools.add("create_room_knowledge");
   }
   const availableTools=toolDefs.filter(tool=>allowedTools.has(tool.name));
   let typeInstruction="Return a normal helpful answer.";
@@ -184,7 +154,7 @@ Deno.serve(async(req)=>{
     "You are Lucid Agent, an AI learning operating system — not a generic chatbot.\n"+
     "Learner request: "+request+"\n"+
     "Action: "+action+"\n"+
-    "Resource ID: "+(resourceId||"none")+" | page: "+(page||"none")+" | catalogue: "+(catalogueId||"none")+" | room: "+(roomId||"none")+"\n\n"+
+    "Resource ID: "+(resourceId||"none")+" | page: "+(page||"none")+" | catalogue: "+(catalogueId||"none")+"\n\n"+
     "Rules:\n"+
     "- Ground explanations, quizzes and teaching in indexed source material whenever available.\n"+
     "- Never fabricate source facts, progress measurements, page details or citations.\n"+
@@ -199,12 +169,12 @@ Deno.serve(async(req)=>{
 
   let contents=[{role:"user",parts:[{text:userPrompt}]}];
   const trace=[];
-  for(let round=0;round<6;round++){
+  for(let round=0;round<3;round++){
    const d=await gemini(contents,availableTools),candidate=d.candidates?.[0],parts=candidate?.content?.parts||[];
    const calls=parts.filter(p=>p.functionCall).map(p=>p.functionCall);
    if(!calls.length){
     const raw=parts.filter(p=>p.text).map(p=>p.text).join("\n").trim(),parsed=safeParse(raw);
-    return new Response(JSON.stringify({ok:true,action,text:parsed?null:raw,result:parsed||{text:raw},toolTrace:trace,model:MODEL}),{headers:CORS});
+    return new Response(JSON.stringify({ok:true,action,text:parsed?null:raw,result:parsed||{text:raw},toolTrace:trace,model:d._model||MODEL}),{headers:CORS});
    }
    contents.push(candidate.content);
    const functionParts=[];

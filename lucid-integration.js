@@ -104,6 +104,29 @@ window.recordLucidQuizAnswer = async function(answer){
   if(error)throw error;return true;
 };
 
+window.startLucidReadingSession = async function(){
+  if(!lucidSession?.user)return null;
+  const {data,error}=await lucidSupabase.from('reading_sessions').insert({
+    user_id:lucidSession.user.id,resource_id:state.currentResourceId||null,
+    planned_seconds:(Number(state.preferences.focusLength)||25)*60,
+    pages_started:Math.max(0,Number(state.sessionPagesCompleted)||0),
+    pages_completed:0,objective:state.currentResourceTitle||'Focused study session'
+  }).select('id').single();
+  if(error)throw error;return data.id;
+};
+window.finishLucidReadingSession = async function(input){
+  if(!lucidSession?.user||!input?.id)return false;
+  const {error}=await lucidSupabase.from('reading_sessions').update({
+    ended_at:new Date().toISOString(),active_seconds:Math.max(0,Number(input.activeSeconds)||0),
+    pages_completed:Math.max(0,Number(input.pagesCompleted)||0),
+    result:{completed:Boolean(input.completed),source:'reader_focus_timer'}
+  }).eq('id',input.id).eq('user_id',lucidSession.user.id);
+  if(error)throw error;
+  await lucidSupabase.rpc('track_learning_event',{p_event_type:input.completed?'focus_session_completed':'focus_session_stopped',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:state.currentResourceId||null,p_session_id:input.id,p_payload:{active_seconds:Math.max(0,Number(input.activeSeconds)||0),pages_completed:Math.max(0,Number(input.pagesCompleted)||0)}});
+  window.currentLucidReadingSessionId=null;
+  try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(error){console.warn('Could not refresh learning achievements:',error.message);}
+  return true;
+};
 window.syncLucidXP = async function(xp,level){
   if(!lucidSession?.user)return false;
   const {error}=await lucidSupabase.from('profiles').update({xp:Math.max(0,Math.floor(Number(xp)||0)),level:Math.max(1,Math.floor(Number(level)||1)),updated_at:new Date().toISOString()}).eq('id',lucidSession.user.id);

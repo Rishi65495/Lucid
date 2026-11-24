@@ -20,16 +20,26 @@ window.invokeLucidFunction = async function(name,body){
   const {data:{session},error:sessionError}=await lucidSupabase.auth.getSession();
   if(sessionError)throw new Error('Could not refresh your sign-in session: '+sessionError.message);
   if(!session?.access_token)throw new Error('Your sign-in session expired. Sign in again.');
-  const response=await fetch(LUCID_SUPABASE_URL+'/functions/v1/'+encodeURIComponent(name),{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+session.access_token,'apikey':LUCID_SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify(body||{})
-  });
-  const raw=await response.text();
-  let payload={};try{payload=raw?JSON.parse(raw):{};}catch(_){payload={error:raw||'The server returned an unreadable response.'};}
-  if(!response.ok)throw new Error('HTTP '+response.status+' · '+(payload.error||payload.message||payload.msg||raw||'Edge Function request failed'));
-  if(payload&&payload.error)throw new Error(payload.error);
-  return payload;
+  async function send(accessToken){
+    const response=await fetch(LUCID_SUPABASE_URL+'/functions/v1/'+encodeURIComponent(name),{
+      method:'POST',headers:{'Authorization':'Bearer '+accessToken,'apikey':LUCID_SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify(body||{})
+    });
+    const raw=await response.text();let payload={};try{payload=raw?JSON.parse(raw):{};}catch(_){payload={error:raw||'The server returned an unreadable response.'};}
+    return {response,payload,raw};
+  }
+  let result=await send(session.access_token);
+  if(result.response.status===401){
+    const refreshed=await lucidSupabase.auth.refreshSession();
+    if(!refreshed.error&&refreshed.data?.session?.access_token){
+      lucidSession=refreshed.data.session;
+      result=await send(refreshed.data.session.access_token);
+      await window.updateLucidAuthUI(refreshed.data.session);
+    }
+  }
+  if(!result.response.ok)throw new Error('HTTP '+result.response.status+' · '+(result.payload.error||result.payload.message||result.payload.msg||result.raw||'Edge Function request failed'));
+  if(result.payload?.error)throw new Error(result.payload.error);
+  return result.payload;
 };
 window.callAIGuide = async function(prompt,style){
   try{
@@ -40,7 +50,14 @@ window.callAIGuide = async function(prompt,style){
       question:prompt,
       style:style||'',
       history,
-      resource_id:typeof state!=='undefined'?state.currentResourceId:null
+      resource_id:typeof state!=='undefined'?state.currentResourceId:null,
+      context:typeof state!=='undefined'?[
+        'Current resource: '+(state.currentResourceTitle||''),
+        'Current page: '+(state.currentResourcePage||1),
+        'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
+        'Selected passage: '+(state.selectedText||''),
+        'Annotations: '+(state.annotations||[]).slice(-8).map(x=>typeof x==='string'?x:x.text||x.note||'').join('; ')
+      ].join('\\n'): ''
     });
     return data.text||'The AI Guide returned an empty response.';
   }catch(error){return 'AI Guide error: '+(error&&error.message||'Unknown error');}
@@ -52,7 +69,7 @@ window.callLucidAgent = async function(prompt){
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
 window.generateAIQuiz = async function(){showToast('Generating an AI quiz…','✦');const prompt='Create one multiple-choice question about Machine Learning and overfitting.';try{const data=await window.callLearningEngine('quiz',prompt,{subject:'Machine Learning',topic:'overfitting'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);openPage('practice');showToast(qs.length+' AI question(s) added to Practice Center.','✦');}else{showToast('AI returned no valid quiz questions.','⚠');}}catch(error){showToast('AI quiz failed: '+error.message,'⚠');}};
-window.generateFlashcards = async function(){showToast('Generating flashcards from your notes…','✦');const notes=state.annotations.slice(0,3);const prompt='Create three concise flashcards from these notes: '+(notes.join('. ')||'Machine Learning fundamentals, overfitting, bias-variance tradeoff');try{const data=await window.callLearningEngine('flashcards',prompt,{annotations:notes});const cards=data.result?.cards||[];if(cards.length){state.flashcards=cards.map(c=>({q:c.front,a:c.back}));state.flashcardIndex=0;document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';}console.log('Lucid flashcards:',data.result);showToast(cards.length?cards.length+' flashcards generated.':'No flashcards returned.','✦');}catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}};
+window.generateFlashcards = async function(){showToast('Generating flashcards from your notes…','✦');const notes=state.annotations.slice(0,3).map(x=>typeof x==='string'?x:(x.text||x.note||''));const prompt='Create three concise flashcards from these notes: '+(notes.join('. ')||'Machine Learning fundamentals, overfitting, bias-variance tradeoff');try{const data=await window.callLearningEngine('flashcards',prompt,{annotations:notes});const cards=data.result?.cards||[];if(cards.length){state.flashcards=cards.map(c=>({q:c.front,a:c.back}));state.flashcardIndex=0;document.getElementById('flashFront').textContent=state.flashcards[0].q;document.getElementById('flashBack').textContent=state.flashcards[0].a;document.getElementById('cardProgress').textContent='Card 1 of '+cards.length+' · Click to flip';}console.log('Lucid flashcards:',data.result);showToast(cards.length?cards.length+' flashcards generated.':'No flashcards returned.','✦');}catch(error){showToast('Flashcard generation failed: '+error.message,'⚠');}};
 window.evaluateOral = async function(){const q=document.getElementById('oralQuestion').textContent;const a=document.getElementById('oralAnswer').value.trim();if(!a){showToast('Write your explanation first.','⚠');return;}const resultEl=document.getElementById('oralResult');resultEl.style.display='block';resultEl.textContent='Evaluating your answer…';try{const data=await window.callLearningEngine('evaluate_recall','Evaluate coverage, accuracy and clarity. Question: '+q+' Student answer: '+a,{question:q,answer:a});const text=window.formatLearningResult(data.result);resultEl.innerHTML='<div class="note green"><strong>AI evaluation:</strong><br>'+escapeHTML(text).replace(/\n/g,'<br>')+'</div>';state.xp+=15;updateXP();showToast('Oral recall evaluated! +15 XP','🎙');}catch(error){resultEl.textContent='Evaluation failed: '+error.message;showToast('Evaluation failed.','⚠');}};
 window.practiceWeak = async function(topic){openPage('practice');showToast('Preparing targeted practice for '+topic+'…','📝');try{const data=await window.callLearningEngine('quiz','Create one remedial MCQ about '+topic+' with four options, answer and explanation.',{weak_topic:topic,practice_mode:'remedial'});const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0}));if(qs.length){quizBank.unshift(...qs);currentQuizIdx=0;loadQuiz(0);showToast('Targeted AI practice ready for '+topic+'.','✦');}else{showToast('AI returned no valid practice question.','⚠');}}catch(error){showToast('Practice generation failed: '+error.message,'⚠');}};
 window.askGuide = async function(){const q=document.getElementById('aiQuestion').value.trim();const el=document.getElementById('aiAnswer');if(!q){el.style.display='block';el.textContent='Ask a question first.';return;}el.style.display='block';el.textContent='Thinking…';const selected=(state.selectedText||'').trim();const context='Current resource: '+(state.currentResourceTitle||'Reading Room document')+'. '+(selected?'SELECTED PASSAGE (answer specifically about this text):\n'+selected:'No passage is currently selected. Use the current resource and notes only.')+'\nSaved annotations: '+state.annotations.slice(-5).join('; ');const answer=await window.callAIGuide('Learning context:\n'+context+'\n\nStudent question: '+q,systemInstructions[state.coachMode]||systemInstructions.Gentle);el.innerHTML='<strong>Guide ('+escapeHTML(state.coachMode)+'):</strong><br>'+escapeHTML(answer).replace(/\n/g,'<br>');};
@@ -233,6 +250,30 @@ window.uploadLucidPdf = async function(file,catalogueId){
     throw error;
   }
 };
+window.getLucidResourcePages = async function(resourceId,options={}){
+  if(!lucidSession?.user||!resourceId)throw new Error('Sign in and choose a source PDF.');
+  let query=lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',resourceId).order('page_number',{ascending:true});
+  if(options.page)query=query.eq('page_number',Number(options.page));
+  else query=query.range(0,499);
+  const {data,error}=await query;if(error)throw error;return data||[];
+};
+window.loadLucidAnnotations = async function(resourceId){
+  if(!lucidSession?.user||!resourceId)return [];
+  const {data,error}=await lucidSupabase.from('annotations').select('id,text,note,color,page,created_at').eq('user_id',lucidSession.user.id).eq('book_id',String(resourceId)).order('created_at',{ascending:true});
+  if(error)throw error;return data||[];
+};
+window.saveLucidAnnotation = async function(input){
+  if(!lucidSession?.user)throw new Error('Sign in to save annotations.');
+  if(!input?.resourceId)throw new Error('Open a PDF before saving a page annotation.');
+  const row={id:crypto.randomUUID(),user_id:lucidSession.user.id,book_id:String(input.resourceId),text:String(input.text||''),note:String(input.text||''),color:String(input.color||'yellow'),page:Math.max(1,Number(input.page)||1)};
+  const {data,error}=await lucidSupabase.from('annotations').insert(row).select('id,text,note,color,page,created_at').single();
+  if(error)throw error;return data;
+};
+window.deleteLucidAnnotation = async function(id){
+  if(!lucidSession?.user||!id)return;
+  const {error}=await lucidSupabase.from('annotations').delete().eq('id',id).eq('user_id',lucidSession.user.id);
+  if(error)throw error;
+};
 window.createLucidCatalogue = async function(input){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {data,error}=await lucidSupabase.from('catalogues').insert({owner_id:lucidSession.user.id,title:input.title,description:input.description||null,icon:input.icon||'📁'}).select('id,title,description,icon').single();
@@ -344,24 +385,47 @@ window.openLucidCatalogue = async function(id){
   if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
   return rows.length;
 };
-window.renderLucidReaderPage = function(){
-  const title=state.currentResourceTitle||'Selected resource';
-  const pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
-  const page=Math.max(1,Math.min(pageCount||1,Number(state.currentResourcePage)||1));
-  const meta=document.getElementById('docMeta'),heading=document.getElementById('docTitle'),content=document.getElementById('readerPageContent'),empty=document.getElementById('readerEmptyState'),footer=document.getElementById('readerDocumentFooter'),tag=document.getElementById('pageTag'),kicker=document.getElementById('readerKicker'),status=document.getElementById('readerPageStatus'),panel=document.getElementById('pdfViewerPanel'),frame=document.getElementById('originalPdfViewer'),label=document.getElementById('pdfViewerTitle');
+window.renderLucidReaderPage = async function(){
+  const title=state.currentResourceTitle||'Selected resource',pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
+  const pageNumber=Math.max(1,Math.min(pageCount||1,Number(state.currentResourcePage)||1));
+  const meta=document.getElementById('docMeta'),heading=document.getElementById('docTitle'),content=document.getElementById('readerPageContent'),empty=document.getElementById('readerEmptyState'),footer=document.getElementById('readerDocumentFooter'),tag=document.getElementById('pageTag'),kicker=document.getElementById('readerKicker'),status=document.getElementById('readerPageStatus'),panel=document.getElementById('pdfViewerPanel'),label=document.getElementById('pdfViewerTitle'),pageInput=document.getElementById('pdfPageInput'),pageTotal=document.getElementById('pdfPageTotal');
   const hasPdf=Boolean(window.currentPdfUrl);
-  if(meta)meta.textContent=title+' · Original PDF';
-  if(heading)heading.textContent=title;
-  if(kicker)kicker.textContent=title;
-  if(label)label.textContent=title;
-  if(content){content.innerHTML='';content.style.display='none';}
-  if(empty)empty.style.display=hasPdf?'none':'block';
-  if(panel)panel.style.display=hasPdf?'block':'none';
+  if(meta)meta.textContent=title+' · Original PDF';if(heading)heading.textContent=title;if(kicker)kicker.textContent=title;if(label)label.textContent=title;
+  if(content){content.innerHTML='';content.style.display='none';}if(empty)empty.style.display=hasPdf?'none':'block';if(panel)panel.style.display=hasPdf?'block':'none';
   if(tag)tag.textContent=hasPdf?(pageCount?'PDF · '+pageCount+' pages':'Original PDF'):'No page';
-  if(status)status.textContent=hasPdf?'PDF page '+page+(pageCount?' of '+pageCount:''):'No PDF selected';
-  if(footer)footer.style.display=hasPdf?'flex':'none';
-  if(frame&&hasPdf&&window.currentPdfUrl)frame.src=window.currentPdfUrl+'#page='+page+'&toolbar=1&navpanes=1&view=FitH';
+  if(status)status.textContent=hasPdf?'PDF page '+pageNumber+(pageCount?' of '+pageCount:''):'No PDF selected';if(footer)footer.style.display=hasPdf?'flex':'none';
+  if(pageInput)pageInput.value=String(pageNumber);if(pageTotal)pageTotal.textContent='/ '+(pageCount||'—');
+  const stage=document.getElementById('pdfCanvasStage'),canvas=document.getElementById('pdfPageCanvas'),textLayer=document.getElementById('pdfTextLayer'),viewport=document.getElementById('pdfCanvasViewport');
+  if(!hasPdf||!stage||!canvas||!viewport)return;
+  try{
+    if(!window.pdfjsLib)throw new Error('PDF.js did not load. Refresh the page and try again.');
+    if(!window.currentPdfDocument||window.currentPdfDocumentUrl!==window.currentPdfUrl){
+      window.currentPdfDocument=await window.pdfjsLib.getDocument({url:window.currentPdfUrl}).promise;window.currentPdfDocumentUrl=window.currentPdfUrl;
+      state.currentResourcePageCount=window.currentPdfDocument.numPages;if(pageTotal)pageTotal.textContent='/ '+window.currentPdfDocument.numPages;
+    }
+    const pdfPage=await window.currentPdfDocument.getPage(pageNumber),base=pdfPage.getViewport({scale:1});
+    const fitScale=Math.max(.35,(viewport.clientWidth-28)/base.width),scale=fitScale*(Number(state.pdfZoom)||1),pdfViewport=pdfPage.getViewport({scale}),dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.floor(pdfViewport.width*dpr);canvas.height=Math.floor(pdfViewport.height*dpr);canvas.style.width=pdfViewport.width+'px';canvas.style.height=pdfViewport.height+'px';
+    stage.style.width=pdfViewport.width+'px';stage.style.height=pdfViewport.height+'px';textLayer.innerHTML='';textLayer.style.width=pdfViewport.width+'px';textLayer.style.height=pdfViewport.height+'px';
+    const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);
+    if(window.lucidPdfRenderTask)try{window.lucidPdfRenderTask.cancel();}catch(_){}
+    window.lucidPdfRenderTask=pdfPage.render({canvasContext:context,viewport:pdfViewport});await window.lucidPdfRenderTask.promise;
+    const textContent=await pdfPage.getTextContent();
+    if(window.pdfjsLib.renderTextLayer){const task=window.pdfjsLib.renderTextLayer({textContent,container:textLayer,viewport:pdfViewport,textDivs:[]});if(task?.promise)await task.promise;}
+    const zoomLabel=document.getElementById('pdfZoomLabel');if(zoomLabel)zoomLabel.textContent=Math.round((Number(state.pdfZoom)||1)*100)+'%';
+  }catch(error){
+    if(error?.name==='RenderingCancelledException')return;
+    let errorNode=stage.querySelector('.pdf-render-error');
+    if(!errorNode){errorNode=document.createElement('p');errorNode.className='pdf-render-error';errorNode.style.cssText='padding:24px;color:#9b3d38';stage.appendChild(errorNode);}
+    errorNode.textContent='Could not render this PDF page: '+String(error.message||error);
+  }
 };
+window.goLucidPdfPage=function(value){
+  const max=Number(state.currentResourcePageCount||state.resourcePages?.length||1);state.currentResourcePage=Math.max(1,Math.min(max,Number(value)||1));
+  saveState();window.renderLucidReaderPage();if(typeof renderAnnotations==='function')renderAnnotations();
+};
+window.changeLucidPdfZoom=function(delta){state.pdfZoom=Math.max(.5,Math.min(3,(Number(state.pdfZoom)||1)+delta));window.renderLucidReaderPage();};
+window.resetLucidPdfZoom=function(){state.pdfZoom=1;window.renderLucidReaderPage();};
 window.openLucidResource = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata').eq('id',id).eq('owner_id',lucidSession.user.id).single();
@@ -382,6 +446,12 @@ window.openLucidResource = async function(id){
   state.currentResourcePageCount=Number(resource.metadata?.page_count||pages?.length||0);
   window.currentPdfUrl=signed.signedUrl;
   state.resourcePages=pages||[];
+  try{
+    const saved=await window.loadLucidAnnotations(id);
+    state.highlights=(state.highlights||[]).filter(row=>row.resourceId!==id);
+    state.annotations=saved.map(row=>({id:row.id,text:row.note||row.text||'',page:row.page||1,color:row.color||'yellow',resourceId:id}));
+    renderAnnotations();
+  }catch(annotationError){console.warn('Could not load page annotations:',annotationError.message);}
   saveState();
   const openLink=document.getElementById('pdfOpenNewTab');if(openLink)openLink.href=signed.signedUrl;
   openPage('reader');window.renderLucidReaderPage();
@@ -392,7 +462,7 @@ window.changeLucidReaderPage = function(delta){
   const pageCount=Number(state.currentResourcePageCount||state.resourcePages?.length||0);
   if(!window.currentPdfUrl||!pageCount)return;
   state.currentResourcePage=Math.max(1,Math.min(pageCount,(state.currentResourcePage||1)+delta));
-  saveState();window.renderLucidReaderPage();
+  saveState();window.renderLucidReaderPage();if(typeof renderAnnotations==='function')renderAnnotations();
 };
 window.selectLucidResource = function(id){
   state.currentResourceId=id;

@@ -42,7 +42,7 @@ window.invokeLucidFunction = async function(name,body){
       result=await send(session.access_token);
     }
   }
-  if(!result.response.ok){if(result.response.status===429)throw new Error('AI request quota reached. Lucid tried the configured backup provider too, if one is available. Add billing to the Gemini API project or configure OPENAI_API_KEY / OPENROUTER_API_KEY in Supabase secrets.');throw new Error('HTTP '+result.response.status+' · '+(result.payload.error||result.payload.message||result.payload.msg||result.raw||'Edge Function request failed'));}
+  if(!result.response.ok){if(result.response.status===429)throw new Error(result.payload.error||'AI provider quota reached. Configured fallback providers could not complete this request.');throw new Error('HTTP '+result.response.status+' · '+(result.payload.error||result.payload.message||result.payload.msg||result.raw||'Edge Function request failed'));}
   if(result.payload?.error)throw new Error(result.payload.error);
   return result.payload;
 };

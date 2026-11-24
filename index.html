@@ -741,7 +741,7 @@ textarea{min-height:75px;resize:vertical;}
           <div class="kicker">AI recommendation</div>
           <h2 id="heroTitle">Your next learning recommendation will appear here.</h2>
           <p id="heroDesc">Recommendations will be based on your actual resources, goals and recorded learning evidence.</p>
-          <button class="primary-button" onclick="openPage('reader')">Start session →</button>
+          <button class="primary-button" onclick="continueLucidLearning()">Start session →</button>
         </article>
         <article class="stat-card card">
           <div class="stat-top"><span>Weekly focus</span><span id="weeklyPercent">0%</span></div>
@@ -1275,58 +1275,19 @@ textarea{min-height:75px;resize:vertical;}
       <!-- Weekly stat cards -->
       <div class="grid analytics-grid">
         <article class="analytics-card card"><div class="kicker">Focus time</div><div class="analytics-number" id="analyticsFocus">0m</div><div class="muted small-text">Recorded this week</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill" id="analyticsFocusBar" style="width:0%"></span></div></article>
-        <article class="analytics-card card"><div class="kicker">Pages read</div><div class="analytics-number" id="analyticsPages">0</div><div class="muted small-text">Recorded this week</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill orange" id="analyticsPagesBar" style="width:0%"></span></div></article>
+        <article class="analytics-card card"><div class="kicker">Pages read</div><div class="analytics-number" id="analyticsPages">0</div><div class="muted small-text">Recorded this week</div></article>
         <article class="analytics-card card"><div class="kicker">Average recall</div><div class="analytics-number" id="analyticsRecall">—</div><div class="muted small-text">Completed quiz attempts</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" id="analyticsRecallBar" style="width:0%"></span></div></article>
-        <article class="analytics-card card"><div class="kicker">Questions</div><div class="analytics-number" id="analyticsQuestions">0</div><div class="muted small-text">Answered this week</div><div class="progress-track" style="margin-top:14px;"><span class="progress-fill rose" id="analyticsQuestionsBar" style="width:0%"></span></div></article>
+        <article class="analytics-card card"><div class="kicker">Questions</div><div class="analytics-number" id="analyticsQuestions">0</div><div class="muted small-text">Answered this week</div></article>
       </div>
-      <!-- Chart & insight -->
+      <!-- Evidence-backed trends -->
       <div class="section-row"><h2>Weekly focus volume</h2><span class="muted small-text">Minutes per day</span></div>
-      <div class="grid insight-grid">
-        <article class="chart-card card"><div class="bar-chart" id="weeklyFocusChart"><p class="muted small-text">Daily focus data will appear after you record study sessions.</p></div></article>
-        <article class="insight-card card">
-          <div class="kicker">Lucid noticed</div>
-          <div class="insight-quote">You retain more when you read for 20–30 minutes and write one annotation per chapter.</div>
-          <p class="muted small-text">Recommended: 25 min session tonight at 8 PM. Will adapt as your patterns change.</p>
-          <button class="primary-button btn-sm" style="margin-top:14px;" onclick="openPage('reader')">Start recommended session</button>
-        </article>
-      </div>
-
-      <!-- Mastery breakdown -->
-      <div class="section-row"><h2>Concept mastery</h2><span class="muted small-text">Based on quiz, recall & completion evidence</span></div>
-      <div class="card card-padding">
-        <div class="mastery-bar-row"><span class="label">Deep focus concepts</span><div class="progress-track"><span class="progress-fill" style="width:84%"></span></div><span class="mastery-pct">84%</span></div>
-        <div class="mastery-bar-row"><span class="label">Machine Learning basics</span><div class="progress-track"><span class="progress-fill" style="width:68%"></span></div><span class="mastery-pct">68%</span></div>
-        <div class="mastery-bar-row"><span class="label">DOM Manipulation</span><div class="progress-track"><span class="progress-fill gold" style="width:72%"></span></div><span class="mastery-pct">72%</span></div>
-        <div class="mastery-bar-row"><span class="label">Algorithms</span><div class="progress-track"><span class="progress-fill orange" style="width:55%"></span></div><span class="mastery-pct">55%</span></div>
-        <div class="mastery-bar-row"><span class="label">Overfitting ⚠</span><div class="progress-track"><span class="progress-fill rose" style="width:22%"></span></div><span class="mastery-pct">22%</span></div>
-        <div class="mastery-bar-row"><span class="label">Cyber Security</span><div class="progress-track"><span class="progress-fill rose" style="width:30%"></span></div><span class="mastery-pct">30%</span></div>
-      </div>
-
-      <!-- Learning profile dimensions -->
+      <div class="card card-padding"><div class="bar-chart" id="weeklyFocusChart"><p class="muted small-text">Daily focus data will appear after you record study sessions.</p></div></div>
+      <div class="section-row"><h2>Concept mastery</h2><span class="muted small-text">Calculated from saved quiz and recall evidence</span></div>
+      <div class="card card-padding" id="analyticsMastery"><p class="muted small-text">No concept mastery evidence has been recorded yet.</p></div>
       <div class="section-row"><h2>Learning profile</h2></div>
-      <div class="grid three-col">
-        <div class="card card-padding"><div class="kicker">Best focus window</div><h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">8–10 PM</div><p class="muted small-text">Consistent over last 3 weeks. Plan heavy material here.</p></div>
-        <div class="card card-padding"><div class="kicker">Preferred mode</div><h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">PDF + Quiz</h3><p class="muted small-text">Sessions with active recall have 23% better retention.</p></div>
-        <div class="card card-padding"><div class="kicker">Optimal session</div><h3 style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-top:8px;">28 min</h3><p class="muted small-text">Recall drops after ~42 min. AI recommends 38–45 min max.</p></div>
-      </div>
-
-      <!-- Goals -->
-      <div class="section-row"><h2>Weekly goals</h2></div>
-      <div class="card goal-card">
-        <div class="kicker">Current targets</div>
-        <div class="goal-row">
-          <div><label>Focus hours</label><div class="progress-track large"><span class="progress-fill" style="width:74%"></span></div></div>
-          <input value="6.7/9h" readonly />
-        </div>
-        <div class="goal-row">
-          <div><label>Pages read</label><div class="progress-track large"><span class="progress-fill orange" style="width:82%"></span></div></div>
-          <input value="1245/1500" readonly />
-        </div>
-        <div class="goal-row">
-          <div><label>Recall accuracy</label><div class="progress-track large"><span class="progress-fill gold" style="width:81%"></span></div></div>
-          <input value="81% / 85%" readonly />
-        </div>
-      </div>
+      <div class="grid three-col" id="analyticsLearningProfile"><div class="card card-padding"><div class="kicker">Quiz accuracy</div><h3>—</h3><p class="muted small-text">Not measured yet</p></div><div class="card card-padding"><div class="kicker">Completed quizzes</div><h3>0</h3><p class="muted small-text">Saved attempts</p></div><div class="card card-padding"><div class="kicker">Recorded focus</div><h3>0m</h3><p class="muted small-text">Recent reading sessions</p></div></div>
+      <div class="section-row"><h2>AI recommendation</h2></div>
+      <div class="card card-padding" id="analyticsRecommendation"><p class="muted small-text">Recommendations will appear when sufficient learning evidence is available.</p></div>
     </section>
 
     <!-- ══ ACHIEVEMENTS ══ -->

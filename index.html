@@ -2191,6 +2191,7 @@ function highlightSelection(color) {
   if (!sel) { showToast('Select text in the document first.', '⚠'); return; }
   const chosenColor = color || state.currentHL || 'yellow';
   state.selectedText = sel;
+  if(window.renderLucidAIContext)window.renderLucidAIContext();
   state.highlights.push({ id: String(Date.now()) + '-' + String(state.highlights.length), text: sel, color: chosenColor, createdAt: new Date().toISOString() });
   // Keep the passage in the legacy notes array until all existing study tools use highlight records.
   if (!state.annotations.includes(sel)) state.annotations.push(sel);
@@ -2217,6 +2218,7 @@ function highlightSelection(color) {
 function openReaderAI() {
   const selection = window.getSelection()?.toString().trim();
   if (selection) state.selectedText = selection;
+  if(window.renderLucidAIContext)window.renderLucidAIContext();
   const status = document.getElementById('aiContextStatus');
   if (status) status.textContent = state.selectedText
     ? 'Selected passage will be included: “' + state.selectedText.slice(0, 180) + (state.selectedText.length > 180 ? '…' : '') + '”'
@@ -2643,7 +2645,7 @@ async function askGuide() {
   const ansEl = document.getElementById('aiAnswer');
   if (!q) { ansEl.style.display='block'; ansEl.textContent='Ask a question first.'; return; }
   ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student annotations: ${state.annotations.slice(0,3).join('; ')}. Student weak areas: Overfitting (22%). Recall: 81%.`;
+  const context = `Current resource: ${state.currentResourceTitle||'None selected'}. Current page: ${state.currentResourcePage||'Not selected'}. Selected passage: ${state.selectedText||'None selected'}. Student annotations: ${state.annotations.slice(0,3).join('; ')}.`;
   const prompt = `Context: ${context}\n\nStudent question: ${q}`;
   const resp = await callGemini(prompt, systemInstructions[state.coachMode] || systemInstructions.Gentle);
   ansEl.innerHTML = `<strong>Guide (${state.coachMode}):</strong><br>${resp.replace(/\n/g,'<br>')}`;
@@ -2653,7 +2655,7 @@ async function quickAIModal(prompt) {
   const ansEl = document.getElementById('aiAnswer');
   document.getElementById('aiQuestion').value = prompt;
   ansEl.style.display='block'; ansEl.textContent='✦ Thinking…';
-  const context = `Current resource: Deep Work Chapter 4. Student notes: ${state.annotations.slice(0,2).join('; ')}.`;
+  const context = `Current resource: ${state.currentResourceTitle||'None selected'}. Selected passage: ${state.selectedText||'None selected'}. Student notes: ${state.annotations.slice(0,2).join('; ')}.`;
   const resp = await callGemini(`Context: ${context}\n\n${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
   ansEl.innerHTML = `<strong>Guide:</strong><br>${resp.replace(/\n/g,'<br>')}`;
 }
@@ -2692,7 +2694,7 @@ async function sendAIChatWithPrompt(prompt) {
 
   document.getElementById('chatCount').textContent = state.chatMessages.length;
 
-  const context = `Learner: ${state.preferences.name}. Current study: Deep Work Ch.4 + MCA Semester 5 ML. Weak areas: Overfitting (22%), Algorithms (55%). Recall: 81%. Streak: ${state.streak} days. Coach mode: ${state.coachMode}. Recent annotations: ${state.annotations.slice(0,2).join('; ')}.`;
+  const context = `Learner: ${state.preferences.name}. Current resource: ${state.currentResourceTitle||'None selected'}. Current page: ${state.currentResourcePage||'Not selected'}. Selected passage: ${state.selectedText||'None selected'}. Streak: ${state.streak} days. Coach mode: ${state.coachMode}. Recent annotations: ${state.annotations.slice(0,2).join('; ')}.`;
   const resp = await callGemini(`Learning context: ${context}\n\nStudent: ${prompt}`, systemInstructions[state.coachMode] || systemInstructions.Gentle);
 
   // Replace thinking with real response

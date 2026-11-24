@@ -338,7 +338,7 @@ window.loadLucidVideoLibrary=async function(preferredPlaylistId){
   const videoById=new Map(videos.map(x=>[x.id,x])),videoMeta=new Map(videoRows.map(x=>[x.resource_id,x]));
   const sessionById=new Map();
   sessions.forEach(s=>{const item=sessionById.get(s.resource_id)||{active:0,completed:false,last:0};item.active+=Number(s.active_seconds)||0;item.completed=item.completed||!!s.completed;item.last=Math.max(item.last,Number(s.last_timestamp_seconds)||0);sessionById.set(s.resource_id,item);});
-  const chosen=playlists.find(x=>x.id===preferredPlaylistId)||playlists[0]||null;
+  const chosen=preferredPlaylistId==='__standalone__'?null:(playlists.find(x=>x.id===preferredPlaylistId)||playlists[0]||null);
   let items=[];
   if(chosen){
     items=(chosen.metadata?.items||[]).map(item=>({...item,resource:videoById.get(item.resource_id),video:videoMeta.get(item.resource_id),progress:sessionById.get(item.resource_id)||{active:0,completed:false,last:0}})).filter(item=>item.resource);
@@ -479,7 +479,7 @@ window.loadYoutubeURL=async function(url){
     const saved=await window.persistLucidYouTubeImport(imported,input);
     if(status)status.textContent='Imported and saved to your Library.';
     openPage('video');
-    const items=await window.loadLucidVideoLibrary(saved.playlistResourceId||null);
+    const items=await window.loadLucidVideoLibrary(saved.playlistResourceId||'__standalone__');
     const first=saved.items?.[0]?.resource_id||items[0]?.resource_id;
     if(first)await window.selectLucidVideo(first);
     const urlInput=document.getElementById('videoUrlInput');if(urlInput)urlInput.value='';
@@ -1088,7 +1088,14 @@ window.openLucidResource = async function(id){
   if(!lucidSession?.user)throw new Error('Sign in first.');
   const {data:resource,error}=await lucidSupabase.from('lucid_resources').select('id,title,type,processing_status,metadata').eq('id',id).eq('owner_id',lucidSession.user.id).single();
   if(error)throw error;
-  if(resource.type!=='pdf')throw new Error('This reader currently opens PDF resources. Use the matching classroom for videos.');
+  if(resource.type==='video'){
+    await window.persistLucidVideoProgress(true);openPage('video');await window.loadLucidVideoLibrary('__standalone__');await window.selectLucidVideo(id);return resource;
+  }
+  if(resource.type==='playlist'){
+    await window.persistLucidVideoProgress(true);openPage('video');const items=await window.loadLucidVideoLibrary(id);if(items.length)await window.selectLucidVideo(items[0].resource_id);return resource;
+  }
+  if(resource.type!=='pdf')throw new Error('This resource type cannot be opened in the PDF reader.');
+  await window.persistLucidVideoProgress(true);state.currentVideoContext=null;state.currentVideoResourceId=null;window.currentLucidVideoResourceId=null;
   const {data:fileRow,error:fileError}=await lucidSupabase.from('resource_files').select('storage_bucket,storage_path,original_name').eq('resource_id',id).maybeSingle();
   if(fileError)throw fileError;
   if(!fileRow?.storage_path)throw new Error('The original PDF file link is missing. Re-upload this PDF to restore the document viewer.');

@@ -613,8 +613,9 @@ window.loadLucidProfile = async function(){
   }
   const name=profile.display_name||fallback;
   if(typeof state!=='undefined'){
-    state.xp=Math.max(Number(state.xp)||0,Number(profile.xp)||0);
-    state.level=Math.max(Number(state.level)||1,Number(profile.level)||1);
+    state.xp=Math.max(0,Number(profile.xp)||0);
+    state.level=Math.max(1,Number(profile.level)||1);
+    state.weeklyGoal=Math.max(1,Number(profile.weekly_goal)||200);
     if(typeof updateXP==='function')updateXP();
     if(window.syncLucidXP)await window.syncLucidXP(state.xp,state.level);
   }
@@ -1054,7 +1055,7 @@ window.loadLucidDashboardMetrics=async function(){
   const watchedVideos=new Set(videos.filter(x=>(Number(x.active_seconds)||0)>0).map(x=>x.resource_id).filter(Boolean)).size;
   const recall=attempts.length?Math.round(attempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/attempts.length):null;
   const goalMinutes=Math.max(1,Number(profileResult.data?.weekly_goal)||200),percent=Math.max(0,Math.min(100,Math.round(focusMinutes/goalMinutes*100)));
-  const streak=Math.max(0,Number(xpResult.data?.streak_days)||0);
+  const streak=Math.max(0,Number(xpResult.data?.streak_days)||0);state.streak=streak;state.pagesRead=pages;state.weeklyGoal=goalMinutes;
   const formatMinutes=value=>{const n=Math.max(0,Math.round(value)),h=Math.floor(n/60),m=n%60;return h?h+'h '+m+'m':n+'m';};
   const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   const setWidth=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=Math.max(0,Math.min(100,Number(value)||0))+'%';};

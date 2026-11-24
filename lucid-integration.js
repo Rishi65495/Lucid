@@ -101,7 +101,11 @@ window.recordLucidQuizAnswer = async function(answer){
     if(updateError)throw updateError;
   }
   const {error}=await lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:window.currentQuizSourceId||state.currentResourceId||null,p_session_id:null,p_payload:payload});
-  if(error)throw error;return true;
+  if(error)throw error;
+  if(answer.quizId&&Number(answer.quizIndex)+1>=Number(answer.totalQuestions)){
+    try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
+  }
+  return true;
 };
 
 window.startLucidReadingSession = async function(){

@@ -58,13 +58,15 @@ window.callAIGuide = async function(prompt,style){
       resource_id:typeof state!=='undefined'&&state.currentVideoContext?null:(typeof state!=='undefined'?state.currentResourceId:null),
       video_context:typeof state!=='undefined'&&state.currentVideoContext?{title:state.currentVideoContext.title,transcript:state.currentVideoContext.transcript}:null,
       current_page:typeof state!=='undefined'?Number(state.currentResourcePage)||1:1,
-      context:typeof state!=='undefined'?[
-        'Current resource: '+(state.currentResourceTitle||''),
-        'Current page: '+(state.currentResourcePage||1),
-        'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
-        'Selected passage: '+(state.selectedText||''),
-        'Annotations: '+(state.annotations||[]).slice(-8).map(x=>typeof x==='string'?x:x.text||x.note||'').join('; ')
-      ].join('\\n'): ''
+      context:typeof state!=='undefined'?(state.currentVideoContext
+        ? 'Selected YouTube video: '+(state.currentVideoContext.title||'')+'\\nTranscript length: '+String(state.currentVideoContext.transcript||'').length+' characters.'
+        : [
+          'Current resource: '+(state.currentResourceTitle||''),
+          'Current page: '+(state.currentResourcePage||1),
+          'Page text: '+((state.resourcePages||[]).find(p=>Number(p.page_number)===Number(state.currentResourcePage))?.text_content||'').slice(0,7000),
+          'Selected passage: '+(state.selectedText||''),
+          'Annotations: '+(state.annotations||[]).slice(-8).map(x=>typeof x==='string'?x:x.text||x.note||'').join('; ')
+        ].join('\\n')): ''
     });
     return data.text||'The AI Guide returned an empty response.';
   }catch(error){return 'AI Guide error: '+(error&&error.message||'Unknown error');}
@@ -72,6 +74,7 @@ window.callAIGuide = async function(prompt,style){
 window.callLearningEngine = async function(action,request,context){return await window.invokeLucidFunction('ai-learning',{action,request,context:context||{}});};
 window.formatLearningResult = function(result){if(!result)return 'No learning result was returned.';if(result.feedback)return 'Score: '+(result.score??'—')+'\nCoverage: '+(result.coverage??'—')+'\nAccuracy: '+(result.accuracy??'—')+'\nClarity: '+(result.clarity??'—')+'\nFeedback: '+result.feedback+(result.missing?.length?'\nReview: '+result.missing.join(', '):'');if(result.questions?.length)return result.questions.map((q,i)=>(i+1)+'. '+q.prompt+'\n'+(q.options||[]).map((o,j)=>String.fromCharCode(65+j)+'. '+o).join('\n')+'\nAnswer: '+(q.options?.[q.answer_index]||'Not provided')+'\n'+(q.explanation||'')).join('\n\n');if(result.cards?.length)return result.cards.map((c,i)=>(i+1)+'. '+c.front+'\n'+c.back).join('\n\n');return result.lesson||result.text||JSON.stringify(result,null,2);};
 window.callLucidAgent = async function(prompt){
+  if(typeof state!=='undefined'&&state.currentVideoContext)return await window.callAIGuide(prompt,state.coachMode||'Gentle');
   const data=await window.invokeLucidFunction('lucid-agent',{action:'chat',request:prompt,resource_id:typeof state!=='undefined'?state.currentResourceId:null});
   return data.text||data.result&&data.result.text||(typeof data.result==='string'?data.result:JSON.stringify(data.result||data,null,2));
 };
@@ -275,7 +278,7 @@ window.persistLucidYouTubeImport=async function(imported,url){
   if(imported.type==='playlist'&&!imported.api_key_configured)throw new Error('Playlist import needs a configured YouTube Data API key. No placeholder playlist was saved.');
   const owner=lucidSession.user.id,catalogueId=state.selectedCatalogueId||document.getElementById('uploadCatalogue')?.value||null;
   const saveResource=async(row)=>{
-    const existing=await lucidSupabase.from('lucid_resources').select('id').eq('owner_id',owner).eq('source_url',row.source_url).maybeSingle();
+    const existing=await lucidSupabase.from('lucid_resources').select('id').eq('owner_id',owner).eq('source_url',row.source_url).limit(1).maybeSingle();
     if(existing.error&&existing.error.code!=='PGRST116')throw existing.error;
     if(existing.data?.id){
       const updated=await lucidSupabase.from('lucid_resources').update({...row,updated_at:new Date().toISOString()}).eq('id',existing.data.id).eq('owner_id',owner).select('id').single();

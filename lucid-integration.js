@@ -433,7 +433,7 @@ window.selectLucidVideo=async function(resourceId){
     const transcriptStatus=document.getElementById('videoTranscriptSaveStatus');
     if(transcriptStatus)transcriptStatus.textContent='Finding available captions for this video automatically…';
     try{
-      const fetched=await window.invokeLucidFunction('youtube-transcript',{video_id:videoId});
+      const fetched=await window.invokeLucidFunction('youtube-transcript',{video_id:videoId,resource_id:resourceId});
       const transcript=String(fetched.transcript||'').trim();
       if(!transcript)throw new Error('YouTube returned no transcript text.');
       const saved=await lucidSupabase.from('resource_videos').update({transcript}).eq('resource_id',resourceId);
@@ -510,9 +510,25 @@ window.askAboutCurrentVideo=async function(prompt){
 };
 window.generateVideoQuiz=async function(){
   if(!state.currentVideoContext?.resource_id){showToast('Select a video first.','⚠');return;}
-  if(!String(state.currentVideoContext.transcript||'').trim()){showToast('Save the selected video transcript before generating a quiz.','⚠');return;}
+  const resourceId=state.currentVideoContext.resource_id;
   try{
-    const data=await window.callLearningEngine('quiz','Create five multiple-choice questions using only this video transcript. Include explanations.',{video_title:state.currentVideoContext.title,video_transcript:state.currentVideoContext.transcript,question_count:5,question_format:'mcq'});
+    let transcript=String(state.currentVideoContext.transcript||'').trim();
+    if(!transcript){
+      showToast('Loading captions for this video…','✦');
+      const item=await lucidSupabase.from('resource_videos').select('youtube_video_id').eq('resource_id',resourceId).single();
+      if(item.error)throw item.error;
+      const videoId=item.data?.youtube_video_id;
+      if(!videoId)throw new Error('This saved video has no YouTube video ID.');
+      const fetched=await window.invokeLucidFunction('youtube-transcript',{video_id:videoId,resource_id:resourceId});
+      transcript=String(fetched.transcript||'').trim();
+      if(!transcript)throw new Error('No public captions are available for this video.');
+      const saved=await lucidSupabase.from('resource_videos').update({transcript}).eq('resource_id',resourceId);
+      if(saved.error)throw saved.error;
+      state.currentVideoContext={...state.currentVideoContext,transcript};
+      const preview=document.getElementById('videoTranscriptInput');if(preview)preview.value=transcript;
+      const label=document.getElementById('videoTranscriptStatus');if(label)label.textContent='Transcript loaded automatically';
+    }
+    const data=await window.callLearningEngine('quiz','Create five multiple-choice questions using only this video transcript. Include explanations.',{video_title:state.currentVideoContext.title,video_transcript:transcript,question_count:5,question_format:'mcq'});
     const qs=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
     if(!qs.length)throw new Error('No valid questions were returned from the transcript.');
     let quizId=null;window.currentGeneratedQuestionIds=[];try{quizId=await window.saveLucidQuiz({resourceId:state.currentVideoContext.resource_id,sourceTitle:state.currentVideoContext.title,format:'mcq',difficulty:'Balanced',coverage:'video_transcript',questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(e){console.warn('Video quiz history save failed:',e.message);}
@@ -1507,3 +1523,36 @@ window.generateFlashcards = async function(){
     if(heading==='secure ai connection')card.remove();
   });
 })();
+
+/* Home: progress-aware LucId Agent query interface. */
+window.askLucidAgentHome=async function(preset){
+  const input=document.getElementById('lucidHomeQuery');
+  const query=String(preset||input?.value||'').trim();
+  const status=document.getElementById('lucidHomeAgentStatus');
+  const answer=document.getElementById('lucidHomeAgentAnswer');
+  const button=document.getElementById('lucidHomeAskButton');
+  if(!query){if(status)status.textContent='Enter a question about your learning progress.';input?.focus();return;}
+  if(!lucidSession?.user){if(status)status.textContent='Sign in to let Lucid Agent securely access your learning profile.';return;}
+  if(input)input.value=query;
+  if(button){button.disabled=true;button.textContent='Analysing…';}
+  if(answer){answer.hidden=true;answer.textContent='';}
+  if(status)status.textContent='Reviewing your saved resources, learning activity, quiz history and mastery evidence…';
+  try{
+    const data=await window.invokeLucidFunction('lucid-agent',{action:'home_chat',request:query});
+    const result=data.text||data.result?.text||(typeof data.result==='string'?data.result:'');
+    if(!result)throw new Error('Lucid Agent returned an empty answer.');
+    if(answer){answer.textContent=result;answer.hidden=false;}
+    if(status)status.textContent='Answer based on your saved learning data. Any unmeasured areas are identified explicitly.';
+  }catch(error){
+    const message=String(error.message||error);
+    if(answer){
+      answer.textContent=/429|quota|rate.?limit/i.test(message)
+        ?'Lucid Agent is temporarily out of AI requests for the connected provider. Your learning data is safe. Configure a paid Gemini quota or an alternate provider key in Supabase to resume AI answers. No progress data was changed.'
+        :'Lucid Agent could not complete this request: '+message;
+      answer.hidden=false;
+    }
+    if(status)status.textContent='Request could not be completed.';
+  }finally{
+    if(button){button.disabled=false;button.textContent='Ask Lucid →';}
+  }
+};

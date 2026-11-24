@@ -1047,7 +1047,7 @@ window.renderLucidDashboardBooks=function(){
     const main=document.createElement('div');main.className='book-main';
     const cover=document.createElement('div');cover.className='book-cover '+(resource.type==='video'?'cover-orange':resource.type==='playlist'?'cover-green':'cover-blue');cover.textContent=resource.type==='pdf'?'PDF':resource.type==='playlist'?'LIST':'▶';
     const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=resource.name||'Untitled resource';
-    const meta=document.createElement('div');meta.className='book-author';meta.textContent=resource.type==='pdf'?(resource.pages?resource.pages+' pages · ':'')+(resource.status||'saved'):resource.type==='playlist'?'YouTube playlist':'YouTube video';
+    const meta=document.createElement('div');meta.className='book-author';meta.textContent=resource.type==='pdf'?(resource.pages?resource.pages+' pages · '+(resource.completedPages||0)+' completed ('+(resource.progressPercent||0)+'%)':(resource.status||'saved')):resource.type==='playlist'?'YouTube playlist':'YouTube video';
     info.append(title,meta);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';const tag=document.createElement('span');tag.className='tag';tag.textContent=resource.status||resource.type;
     const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(resource.resourceId||resource.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));

@@ -934,66 +934,77 @@ window.completeLucidGoal = async function(id){
 window.loadLucidAchievements = async function(){
   if(!lucidSession?.user)return [];
   const uid=lucidSession.user.id;
-  const {data:badges,error:badgeError}=await lucidSupabase.from('badges').select('id,slug,name,family,description,rule').order('family').order('name');
+  const {data:allBadges,error:badgeError}=await lucidSupabase.from('badges').select('id,slug,name,family,description,rule').order('family').order('name');
   if(badgeError)throw badgeError;
-  const [xp,sessions,resourceProgress,resources,videoSessions,answerCount]=await Promise.all([
+  const badges=(allBadges||[]).filter(b=>b.family!=='collaboration'&&b.slug!=='streak-100');
+  const [xp,sessions,resourceProgress,resources,videoSessions,attempts]=await Promise.all([
     lucidSupabase.from('user_xp').select('streak_days').eq('user_id',uid).maybeSingle(),
     lucidSupabase.from('reading_sessions').select('id,active_seconds,pages_completed').eq('user_id',uid).limit(1000),
-    lucidSupabase.from('resource_item_progress').select('resource_id').eq('user_id',uid).eq('completed',true).limit(5000),
+    lucidSupabase.from('resource_item_progress').select('resource_id,item_key').eq('user_id',uid).eq('completed',true).limit(5000),
     lucidSupabase.from('lucid_resources').select('id,type,metadata').eq('owner_id',uid).limit(2000),
     lucidSupabase.from('video_sessions').select('resource_id,completed').eq('user_id',uid).eq('completed',true).limit(2000),
-    lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true})
+    lucidSupabase.from('quiz_attempts').select('id').eq('user_id',uid).limit(5000)
   ]);
-  const sessionsRows=sessions.error?[]:(sessions.data||[]);
-  const resourcesRows=resourceProgress.error?[]:(resourceProgress.data||[]);
-  const progressCounts=new Map();resourcesRows.filter(x=>String(x.item_key||'').startsWith('page:')).forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
+  for(const result of [sessions,resourceProgress,resources,videoSessions,attempts])if(result.error)throw result.error;
+  const attemptIds=(attempts.data||[]).map(x=>x.id);
+  let answerCount=0;
+  if(attemptIds.length){
+    const {count,error}=await lucidSupabase.from('quiz_answers').select('id',{count:'exact',head:true}).in('attempt_id',attemptIds);
+    if(error)throw error;
+    answerCount=Number(count||0);
+  }
+  const sessionsRows=sessions.data||[];
+  const progressRows=resourceProgress.data||[];
+  const progressCounts=new Map();
+  progressRows.filter(x=>String(x.item_key||'').startsWith('page:')).forEach(x=>progressCounts.set(x.resource_id,(progressCounts.get(x.resource_id)||0)+1));
   const completedPdfs=(resources.data||[]).filter(r=>r.type==='pdf'&&Number(r.metadata?.page_count)>0&&(progressCounts.get(r.id)||0)>=Number(r.metadata.page_count)).length;
   const completedVideos=new Set((videoSessions.data||[]).map(x=>x.resource_id).filter(Boolean)).size;
   const evidence={
-    collaboration:0,
     completion:completedPdfs+completedVideos,
     consistency:Number(xp.data?.streak_days||0),
     deep_work:sessionsRows.filter(x=>Number(x.active_seconds)>=1500).length,
-    practice:answerCount.error?0:Number(answerCount.count||0),
+    practice:answerCount,
     reading:sessionsRows.reduce((sum,x)=>sum+(Number(x.pages_completed)||0),0)
   };
   const {data:earnedBefore,error:earnedError}=await lucidSupabase.from('user_badges').select('badge_id,awarded_at,metadata').eq('user_id',uid).order('awarded_at',{ascending:false});
   if(earnedError)throw earnedError;
   const already=new Set((earnedBefore||[]).map(x=>x.badge_id));
-  const newAwards=(badges||[]).filter(b=>!already.has(b.id)).filter(b=>{
-    const rule=b.rule||{},entry=Object.entries(rule)[0];if(!entry)return false;
-    const threshold=Number(entry[1])||0;return threshold>0&&Number(evidence[b.family]||0)>=threshold;
+  const newAwards=badges.filter(b=>!already.has(b.id)).filter(b=>{
+    const threshold=Number(Object.values(b.rule||{})[0])||0;
+    return threshold>0&&Number(evidence[b.family]||0)>=threshold;
   }).map(b=>({user_id:uid,badge_id:b.id,metadata:{evidence:Number(evidence[b.family]||0),rule:b.rule||{},source:'learning_activity'}}));
   if(newAwards.length){
     const awardResult=await lucidSupabase.from('user_badges').upsert(newAwards,{onConflict:'user_id,badge_id',ignoreDuplicates:true});
-    if(awardResult.error)console.warn('Could not award achievement badges:',awardResult.error.message);
+    if(awardResult.error)throw awardResult.error;
   }
   const {data:earned,error}=await lucidSupabase.from('user_badges').select('badge_id,awarded_at,metadata').eq('user_id',uid).order('awarded_at',{ascending:false});
   if(error)throw error;
   const earnedMap=new Map((earned||[]).map(x=>[x.badge_id,x]));
-  const visibleBadges=(badges||[]).filter(b=>b.family!=='collaboration'||earnedMap.has(b.id));
-  const icon={collaboration:'🤝',completion:'📚',consistency:'🔥',deep_work:'⚡',practice:'🧠',reading:'📖'};
-  const grid=document.getElementById('rewardGrid'),dash=document.getElementById('dashBadges');
-  const render=(target,compact)=>{
-    if(!target)return;target.innerHTML='';
-    visibleBadges.forEach(badge=>{
-      const record=earnedMap.get(badge.id),card=document.createElement(compact?'div':'article');
-      card.className=compact?'reward-badge'+(record?'':' locked'):'card card-padding';
-      if(compact){card.textContent=icon[badge.family]||'✦';card.title=badge.name+(record?' · Earned':' · Not earned yet');}
-      else{
-        const emblem=document.createElement('div');emblem.className='reward-badge'+(record?'':' locked');emblem.textContent=icon[badge.family]||'✦';
+  const earnedBadges=badges.filter(b=>earnedMap.has(b.id));
+  const icon={completion:'📚',consistency:'🔥',deep_work:'⚡',practice:'🧠',reading:'📖'};
+  const grid=document.getElementById('rewardGrid');
+  if(grid){
+    grid.innerHTML='';
+    if(!earnedBadges.length){
+      const empty=document.createElement('p');
+      empty.className='muted small-text';
+      empty.textContent='No milestones earned yet. Keep learning; badges unlock automatically from your recorded activity.';
+      grid.appendChild(empty);
+    }else{
+      earnedBadges.forEach(badge=>{
+        const record=earnedMap.get(badge.id),card=document.createElement('article');
+        card.className='card card-padding';
+        const emblem=document.createElement('div');emblem.className='reward-badge';emblem.textContent=icon[badge.family]||'✦';
         const title=document.createElement('h3');title.style.marginTop='13px';title.textContent=badge.name;
         const desc=document.createElement('p');desc.className='muted small-text';desc.textContent=badge.description;
-        const tag=document.createElement('span');tag.className='tag';tag.style.marginTop='8px';tag.textContent=record?'Earned '+new Date(record.awarded_at).toLocaleDateString():'Not earned yet';
-        card.append(emblem,title,desc,tag);
-      }
-      target.appendChild(card);
-    });
-  };
-  render(grid,false);render(dash,true);
-  const earnedCount=document.getElementById('earnedBadgeCount');if(earnedCount)earnedCount.textContent=(earned||[]).length+' earned · '+visibleBadges.length+' available';
-  const dashSummary=document.getElementById('dashBadgeSummary');if(dashSummary)dashSummary.textContent=(earned||[]).length+' badges earned. Badges unlock when your recorded learning activity meets their criteria.';
-  return {earned:earned||[],badges:badges||[],evidence};
+        const tag=document.createElement('span');tag.className='tag';tag.style.marginTop='8px';tag.textContent='Earned '+new Date(record.awarded_at).toLocaleDateString();
+        card.append(emblem,title,desc,tag);grid.appendChild(card);
+      });
+    }
+  }
+  const earnedCount=document.getElementById('earnedBadgeCount');
+  if(earnedCount)earnedCount.textContent=earnedBadges.length+' earned';
+  return {earned:earned||[],badges,evidence};
 };
 window.saveLucidQuiz = async function(input){
   if(!lucidSession?.user)throw new Error('Sign in to save quiz history.');

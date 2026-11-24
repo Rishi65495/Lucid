@@ -336,6 +336,22 @@ h3{font-size:15px;font-weight:700;}
 .pdf-page-control input{width:58px;padding:6px;text-align:center;}
 .pdf-toolbar-spacer{flex:1;}.pdf-zoom-label{min-width:48px;text-align:center;font:10px "Space Mono",monospace;color:var(--muted);}
 .pdf-canvas-viewport{width:100%;max-height:78vh;overflow:auto;padding:14px;background:#303631;border-radius:10px;}
+#documentText.pdf-document{width:100%;max-width:none;min-height:0;margin:0;padding:clamp(12px,2vw,24px);background:transparent;border:0;border-radius:0;box-shadow:none;color:var(--ink);}
+#documentText.pdf-document #docTitle{font-size:clamp(20px,2.2vw,30px);margin:0 0 14px;}
+#pdfViewerPanel{width:100%;max-width:none;}
+.pdf-viewer-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 12px;}
+.pdf-canvas-viewport{width:100%;max-height:none;overflow:auto;padding:12px;background:#303631;border-radius:10px;}
+.pdf-canvas-stage{position:relative;margin:0 auto;max-width:100%;background:white;box-shadow:0 8px 30px rgba(0,0,0,.25);}
+#pdfPageCanvas{display:block;max-width:100%;height:auto;}
+.reader-layout{grid-template-columns:minmax(0,1fr) minmax(260px,320px);align-items:start;}
+.reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr)!important;}
+.reader-layout.sidebar-hidden>.reader-sidebar{display:none!important;}
+.reader-stage{width:100%;min-width:0;}
+.pdf-document .document-meta{margin-bottom:8px;}
+.pdf-document .pdf-viewer-hint{margin:10px 0 0;}
+@media(max-width:900px){.reader-layout{grid-template-columns:minmax(0,1fr)!important;}.reader-layout>.reader-sidebar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}.reader-layout.sidebar-hidden>.reader-sidebar{display:none!important;}}
+@media(max-width:600px){.reader-layout>.reader-sidebar{grid-template-columns:1fr;}.lucid-pdf-toolbar{position:sticky;top:0;z-index:3;}}
+
 .pdf-canvas-stage{position:relative;margin:0 auto;background:white;box-shadow:0 8px 30px rgba(0,0,0,.25);}
 #pdfPageCanvas{display:block;}.pdf-text-layer{position:absolute;inset:0;overflow:hidden;line-height:1;opacity:.22;user-select:text;}
 .pdf-text-layer span{position:absolute;color:transparent;white-space:pre;transform-origin:0 0;cursor:text;}
@@ -1400,13 +1416,12 @@ textarea{min-height:75px;resize:vertical;}
             <div class="muted small-text" id="aiConnectionStatus" style="margin-top:9px;">Checking secure session…</div>
           </div>
           <div class="card card-padding">
-            <h3 style="margin-bottom:10px;">Learning profile summary</h3>
-            <div style="font-size:12px;display:grid;gap:8px;">
-              <div class="mastery-bar-row"><span class="label">Focus quality</span><div class="progress-track"><span class="progress-fill" style="width:82%"></span></div><span class="mastery-pct">82%</span></div>
-              <div class="mastery-bar-row"><span class="label">Recall</span><div class="progress-track"><span class="progress-fill gold" style="width:81%"></span></div><span class="mastery-pct">81%</span></div>
-              <div class="mastery-bar-row"><span class="label">Consistency</span><div class="progress-track"><span class="progress-fill orange" style="width:70%"></span></div><span class="mastery-pct">70%</span></div>
-            </div>
-            <p class="muted small-text" style="margin-top:12px;">Best focus window: 8–10 PM. Strongest mode: PDF reading. Typical session: 28 min.</p>
+            <h3 style="margin-bottom:8px;">Learning improvement coach</h3>
+            <p class="muted small-text">Recommendations are based on your saved concept mastery, quiz attempts and reading sessions—not sample percentages.</p>
+            <div id="aiImprovementPanel" style="display:grid;gap:9px;margin-top:12px;"><p class="muted small-text">Loading your learning evidence…</p></div>
+            <button class="primary-button btn-sm full-width" style="margin-top:12px;" onclick="generateLucidImprovementPlan()">Suggest improvements</button>
+            <p class="muted small-text" id="aiImprovementStatus" style="margin-top:8px;" aria-live="polite">Ready to analyse your progress.</p>
+            <div id="aiImprovementPlan" style="display:grid;gap:8px;margin-top:10px;"></div>
           </div>
         </div>
       </div>
@@ -1416,7 +1431,7 @@ textarea{min-height:75px;resize:vertical;}
     <section class="page" id="leaderboard">
       <div class="page-heading">
         <div><div class="kicker">Room standings</div><h1>Leaderboard.</h1></div>
-        <span class="tag gold">MCA Semester Group</span>
+        <span class="tag">Competitive rankings · group data only</span>
       </div>
 
       <div class="grid two-col">
@@ -1431,18 +1446,10 @@ textarea{min-height:75px;resize:vertical;}
               <div style="display:grid;gap:6px;" id="lbList"><div class="muted small-text">Sign in to load learner standings.</div></div>
             </div>
             <div class="tab-content" id="lbTab-focus">
-              <div style="display:grid;gap:6px;">
-                <div class="leaderboard-row gold-row"><div class="rank-num">🥇</div><div class="mini-avatar">R</div><div class="lb-info"><div class="lb-name">Rishabh (You)</div><div class="lb-sub">18h 22m this week</div></div><div class="lb-xp">18h</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥈</div><div class="mini-avatar blue">M</div><div class="lb-info"><div class="lb-name">Maya</div><div class="lb-sub">16h 45m</div></div><div class="lb-xp">17h</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥉</div><div class="mini-avatar green">A</div><div class="lb-info"><div class="lb-name">Arjun</div><div class="lb-sub">14h 30m</div></div><div class="lb-xp">15h</div></div>
-              </div>
+              <div class="card card-padding"><h3>Your focus evidence</h3><p class="muted small-text" id="lbFocusSummary">Your recorded focus time will appear here. Group comparisons are only shown when a shared room leaderboard is available.</p></div>
             </div>
             <div class="tab-content" id="lbTab-improvement">
-              <div style="display:grid;gap:6px;">
-                <div class="leaderboard-row gold-row"><div class="rank-num">🥇</div><div class="mini-avatar">R</div><div class="lb-info"><div class="lb-name">Rishabh (You)</div><div class="lb-sub">Recall +14% · Focus +18%</div></div><div class="lb-xp">+14%</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥈</div><div class="mini-avatar green">A</div><div class="lb-info"><div class="lb-name">Arjun</div><div class="lb-sub">Quiz accuracy +9%</div></div><div class="lb-xp">+9%</div></div>
-                <div class="leaderboard-row"><div class="rank-num">🥉</div><div class="mini-avatar blue">M</div><div class="lb-info"><div class="lb-name">Maya</div><div class="lb-sub">Completion +7%</div></div><div class="lb-xp">+7%</div></div>
-              </div>
+              <div class="card card-padding"><h3>Improvement rankings</h3><p class="muted small-text">This view compares measured improvement between learners. No group ranking is shown until shared, permissioned group data is available.</p></div>
             </div>
           </div>
         </div>
@@ -1564,95 +1571,19 @@ textarea{min-height:75px;resize:vertical;}
     <!-- ══ ACHIEVEMENTS ══ -->
     <section class="page" id="rewards">
       <div class="page-heading">
-        <div><div class="kicker">Small rewards, lasting rhythm</div><h1>Achievements.</h1></div>
-        <span class="tag gold">Level 16 · 390 XP · Scholar</span>
+        <div><div class="kicker">Milestones earned through learning evidence</div><h1>Achievements.</h1></div>
+        <span class="tag" id="earnedBadgeCount">Loading achievements…</span>
       </div>
-
-      <!-- Level progression -->
-      <div class="card hero-card" style="margin-bottom:17px;">
-        <div class="kicker">Next milestone</div>
-        <h2>Reach Level 17 — Master</h2>
-        <p>110 XP to go. Keep completing sessions, quizzes, and study goals.</p>
-        <div class="progress-track" style="max-width:400px;background:rgba(255,255,255,.23);">
-          <span class="progress-fill" style="width:72%;background:var(--lime);"></span>
-        </div>
+      <div class="card card-padding" style="margin-bottom:17px;">
+        <h3>Achievements are earned, not assigned</h3>
+        <p class="muted small-text" style="margin-top:7px;">Lucid awards a badge when your recorded learning activity meets its rule—for example, completing resources, building a streak, finishing focus sessions or answering practice questions. Your personal goals are separate targets that you set yourself.</p>
       </div>
-
-      <!-- Level map -->
-      <div class="section-row"><h2>Level journey</h2></div>
-      <div class="grid four-col">
-        <div class="card card-padding" style="background:var(--sage-2);">
-          <div style="font-weight:800;font-size:11px;color:var(--forest);">Lv.1–5 ✓</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Curious → Focused</div>
-          <div class="muted small-text">Foundation complete</div>
-        </div>
-        <div class="card card-padding" style="background:var(--sage-2);">
-          <div style="font-weight:800;font-size:11px;color:var(--forest);">Lv.6–10 ✓ (partially)</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Consistent → Master</div>
-          <div class="muted small-text">Currently: Lv.16 Scholar</div>
-        </div>
-        <div class="card card-padding">
-          <div style="font-weight:800;font-size:11px;color:var(--muted);">Lv.17–20</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Master → Expert</div>
-          <div class="muted small-text">110 XP to next level</div>
-        </div>
-        <div class="card card-padding" style="opacity:.5;">
-          <div style="font-weight:800;font-size:11px;color:var(--muted);">Lv.21+</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-top:6px;">Mentor</div>
-          <div class="muted small-text">Unlocked by helping others</div>
-        </div>
-      </div>
-
-      <!-- Badge shelf -->
-      <div class="section-row"><h2>Badge shelf</h2></div>
-      <div class="grid library-grid">
-        <div class="card card-padding" onclick="showToast('🌱 First Seed earned on Sept 1.')">
-          <div class="reward-badge">🌱</div>
-          <h3 style="margin-top:13px;">First Seed</h3>
-          <p class="muted small-text">Completed your first reading session.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge">🔥</div>
-          <h3 style="margin-top:13px;">Seven Strong</h3>
-          <p class="muted small-text">7-day learning streak.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge">📚</div>
-          <h3 style="margin-top:13px;">Book Builder</h3>
-          <p class="muted small-text">3 different resources in one week.</p>
-          <span class="tag" style="margin-top:8px;">Earned</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">✦</div>
-          <h3 style="margin-top:13px;">Page Turner</h3>
-          <p class="muted small-text">Read 200 pages in one week.</p>
-          <span class="tag muted" style="margin-top:8px;">64 pages left</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">🧠</div>
-          <h3 style="margin-top:13px;">Clear Recall</h3>
-          <p class="muted small-text">Score 90%+ on 5 quizzes.</p>
-          <span class="tag muted" style="margin-top:8px;">3 of 5 done</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">🏆</div>
-          <h3 style="margin-top:13px;">Library Builder</h3>
-          <p class="muted small-text">Complete 10 resources.</p>
-          <span class="tag muted" style="margin-top:8px;">4 of 10 done</span>
-        </div>
-        <div class="card card-padding">
-          <div class="reward-badge locked">⚡</div>
-          <h3 style="margin-top:13px;">Deep Worker</h3>
-          <p class="muted small-text">Complete 50 focused sessions.</p>
-          <span class="tag muted" style="margin-top:8px;">34 of 50</span>
-        </div>
-      </div>
+      <div class="section-row"><h2>Badge collection</h2></div>
+      <div class="grid library-grid" id="rewardGrid"><div class="card card-padding muted">Sign in to load your earned and available badges.</div></div>
     </section>
 
     <!-- ══ GOALS ══ -->
-    <section class="page" id="goals">
+    id="goals">
       <div class="page-heading">
         <div><div class="kicker">What you're working toward</div><h1>Goals.</h1></div>
         <button class="primary-button" onclick="openModal('goalModal')">＋ Add goal</button>
@@ -1662,63 +1593,22 @@ textarea{min-height:75px;resize:vertical;}
         <div>
           <div class="card card-padding" style="margin-bottom:17px;">
             <div class="kicker">Active goals</div>
-            <div style="display:grid;gap:9px;margin-top:14px;" id="goalList">
-              <div class="goal-item">
-                <div class="goal-check checked" onclick="toggleGoal(this)">✓</div>
-                <div style="flex:1;">
-                  <strong>Complete MCA Semester 5 by December</strong>
-                  <div class="muted small-text">6 resources · 47% done</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill" style="width:47%"></span></div>
-                </div>
-                <span class="tag">Active</span>
-              </div>
-              <div class="goal-item">
-                <div class="goal-check" onclick="toggleGoal(this)"></div>
-                <div style="flex:1;">
-                  <strong>Read 1 book per month</strong>
-                  <div class="muted small-text">Currently: Atomic Habits (32%)</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill orange" style="width:32%"></span></div>
-                </div>
-                <span class="tag blue">Monthly</span>
-              </div>
-              <div class="goal-item">
-                <div class="goal-check" onclick="toggleGoal(this)"></div>
-                <div style="flex:1;">
-                  <strong>Improve ML recall to 85%</strong>
-                  <div class="muted small-text">Current: 72% · Target: 85%</div>
-                  <div class="progress-track" style="margin-top:6px;"><span class="progress-fill gold" style="width:72%"></span></div>
-                </div>
-                <span class="tag gold">Mastery</span>
-              </div>
-              <div class="goal-item done">
-                <div class="goal-check checked" style="background:var(--muted);">✓</div>
-                <div style="flex:1;">
-                  <strong>Complete 7-day study streak</strong>
-                  <div class="muted small-text">Completed Sept 18</div>
-                </div>
-                <span class="tag">✓ Done</span>
-              </div>
-            </div>
+            <div style="display:grid;gap:9px;margin-top:14px;" id="goalList"><p class="muted small-text">Loading your saved goals…</p></div>
           </div>
         </div>
         <div>
           <div class="card card-padding">
-            <div class="kicker">AI goal recommendation</div>
-            <div class="insight-quote" style="font-size:18px;margin:14px 0;">Focus on Overfitting before your next ML quiz. 3 sessions should lift recall from 22% to 60%.</div>
-            <button class="primary-button btn-sm full-width" onclick="openModal('goalModal')">Add this goal</button>
+            <div class="kicker">How goals and achievements differ</div>
+            <h3 style="margin:10px 0 6px;">Goals are targets you choose.</h3>
+            <p class="muted small-text">Examples: finish a resource, practise 30 minutes daily, or reach a mastery target. Lucid tracks the goal status and deadline.</p>
+            <h3 style="margin:14px 0 6px;">Achievements are milestones you earn.</h3>
+            <p class="muted small-text">Badges are awarded when recorded learning evidence meets a defined rule. They are not goals and cannot be manually checked off.</p>
+            <button class="secondary-button btn-sm full-width" onclick="openPage('rewards')">View earned achievements →</button>
           </div>
           <div class="card card-padding" style="margin-top:17px;">
-            <div class="kicker">Upcoming deadlines</div>
-            <div style="display:grid;gap:10px;margin-top:12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                <span>MCA Semester Exam</span>
-                <span class="tag rose">Dec 15</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                <span>Algorithm assignment</span>
-                <span class="tag gold">Oct 5</span>
-              </div>
-            </div>
+            <div class="kicker">AI improvement suggestions</div>
+            <p class="muted small-text" style="margin:9px 0;">Use your saved quiz and concept-mastery evidence to generate a practical next-step plan in AI Guide.</p>
+            <button class="primary-button btn-sm full-width" onclick="openPage('aiGuide');generateLucidImprovementPlan()">Analyse my progress →</button>
           </div>
         </div>
       </div>
@@ -2634,24 +2524,19 @@ async function createCatalogue() {
 }
 
 // ─── Goals ────────────────────────────────────────
-function addGoal() {
-  const desc = document.getElementById('goalDesc').value.trim();
-  const deadline = document.getElementById('goalDeadline').value;
-  if (!desc) { showToast('Enter a goal description.', '⚠'); return; }
-  const list = document.getElementById('goalList');
-  const el = document.createElement('div');
-  el.className = 'goal-item';
-  el.innerHTML = `<div class="goal-check" onclick="toggleGoal(this)"></div><div style="flex:1;"><strong>${escapeHTML(desc)}</strong><div class="muted small-text">${deadline ? `Deadline: ${deadline}` : 'No deadline set'}</div></div><span class="tag">New</span>`;
-  list.insertBefore(el, list.firstChild);
-  closeModal('goalModal');
-  showToast(`Goal added: "${desc}"`, '◎');
+async function addGoal() {
+  const desc=document.getElementById('goalDesc').value.trim(),deadline=document.getElementById('goalDeadline').value,type=document.getElementById('goalType').value;
+  if(!desc){showToast('Enter a goal description.','⚠');return;}
+  try{
+    await window.createLucidGoal({title:desc,target_type:type.toLowerCase().replace(/[^a-z0-9]+/g,'_'),deadline});
+    document.getElementById('goalDesc').value='';document.getElementById('goalDeadline').value='';
+    closeModal('goalModal');showToast('Goal saved to your account.','✓');
+  }catch(error){showToast('Could not save goal: '+error.message,'⚠');}
 }
-function toggleGoal(el) {
-  el.classList.toggle('checked');
-  el.textContent = el.classList.contains('checked') ? '✓' : '';
-  const item = el.closest('.goal-item');
-  item.classList.toggle('done', el.classList.contains('checked'));
-  if (el.classList.contains('checked')) { state.xp += 100; updateXP(); showToast('Goal completed! +100 XP 🏆', '🏆'); }
+async function toggleGoal(el) {
+  const id=el?.dataset?.goalId;if(!id)return;
+  try{await window.completeLucidGoal(id);showToast('Goal marked complete.','✓');}
+  catch(error){showToast('Could not update goal: '+error.message,'⚠');}
 }
 
 // ─── Notifications ────────────────────────────────
@@ -2727,8 +2612,9 @@ function toggleReaderSidebar(){
   if(!layout||!button)return;
   const hidden=layout.classList.toggle('sidebar-hidden');
   button.textContent=hidden?'Show panel ▸':'Hide panel ◂';button.setAttribute('aria-expanded',String(!hidden));
-  localStorage.setItem('lucid-reader-sidebar-hidden',hidden?'1':'0');
+  try{localStorage.setItem('lucid-reader-sidebar-hidden',hidden?'1':'0');}catch(_){}
 }
+window.toggleReaderSidebar=toggleReaderSidebar;
 function toggleMobileDrawer() {
   document.getElementById('mobileDrawer').classList.toggle('open');
 }
@@ -2779,7 +2665,7 @@ document.addEventListener('click', e => {
 localStorage.removeItem('leafline-gemini-key');
 localStorage.removeItem('leafline-gemini-model');
 restoreState();
-if(localStorage.getItem('lucid-reader-sidebar-hidden')==='1'){
+if(localStorage.getItem('lucid-reader-sidebar-hidden')!=='0'){
   const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
   layout?.classList.add('sidebar-hidden');if(button){button.textContent='Show panel ▸';button.setAttribute('aria-expanded','false');}
 }

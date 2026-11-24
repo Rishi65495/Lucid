@@ -690,6 +690,7 @@ window.openLucidResource = async function(id){
   const {data:pages,error:pageError}=await lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',id).order('page_number',{ascending:true});
   if(pageError)throw pageError;
   state.currentResourceId=id;
+  state.selectedText='';
   state.currentResourceTitle=resource.title;
   state.currentResourcePage=1;
   state.currentResourcePageCount=Number(resource.metadata?.page_count||pages?.length||0);

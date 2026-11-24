@@ -1123,7 +1123,7 @@ window.loadLucidDashboardMetrics=async function(){
   const setWidth=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=Math.max(0,Math.min(100,Number(value)||0))+'%';};
   set('focusHours',formatMinutes(focusMinutes));set('weeklyPercent',percent+'%');setWidth('weeklyProgress',percent);set('focusGoalLabel',goalMinutes+' min');
   set('focusLeft',focusMinutes>=goalMinutes?'Weekly target reached':formatMinutes(goalMinutes-focusMinutes)+' left');
-  set('streakValue',streak);set('streakStatus',streak?'🔥 Active':'No streak');set('streakLabel',streak+' day'+(streak===1?'':'s'));setWidth('streakProgress',Math.min(100,streak/7*100));
+  set('streakValue',streak);set('streakSmall',streak);set('streakStatus',streak?'🔥 Active':'No streak');set('streakLabel',streak+' day'+(streak===1?'':'s'));setWidth('streakProgress',Math.min(100,streak/7*100));
   set('statPages',pages.toLocaleString());set('statVideos',watchedVideos.toLocaleString());set('statQuestions',answerCount.toLocaleString());set('statRecall',recall===null?'—':recall+'%');
   set('analyticsFocus',formatMinutes(focusMinutes));set('analyticsPages',pages.toLocaleString());set('analyticsQuestions',answerCount.toLocaleString());set('analyticsRecall',recall===null?'—':recall+'%');
   setWidth('analyticsFocusBar',percent);setWidth('analyticsRecallBar',recall||0);

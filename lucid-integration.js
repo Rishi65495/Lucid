@@ -351,7 +351,8 @@ window.loadLucidLearningProfile = async function(){
   let concepts=[];
   if(conceptIds.length){const result=await lucidSupabase.from('concepts').select('id,title,normalized_key').in('id',conceptIds);if(!result.error)concepts=result.data||[];}
   const names=new Map(concepts.map(x=>[x.id,x.title||x.name||'Concept']));
-  const toPct=value=>{const n=Number(value)||0;return Math.max(0,Math.min(100,n<=1?n*100:n));};\n  const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:toPct(x.mastery),recall:toPct(x.recall),application:toPct(x.application),updated_at:x.updated_at}));
+  const toPct=value=>{const n=Number(value)||0;return Math.max(0,Math.min(100,n<=1?n*100:n));};
+  const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:toPct(x.mastery),recall:toPct(x.recall),application:toPct(x.application),updated_at:x.updated_at}));
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
   const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};

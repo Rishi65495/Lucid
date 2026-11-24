@@ -326,6 +326,13 @@ h3{font-size:15px;font-weight:700;}
   background:linear-gradient(135deg,rgba(233,229,216,.93),rgba(225,232,221,.92)),
     repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(36,79,58,.04) 9px);
 }
+.pdf-document{max-width:none;min-height:0;padding:26px 30px;}
+.pdf-viewer-panel{margin-top:18px;}
+.pdf-viewer-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;font-family:"DM Sans",sans-serif;font-size:12px;font-weight:700;}
+.pdf-viewer-heading a{color:var(--forest-2);text-decoration:underline;}
+#originalPdfViewer{display:block;width:100%;height:min(78vh,980px);min-height:620px;border:1px solid var(--line);border-radius:10px;background:#e9ece8;}
+.pdf-viewer-hint{margin-top:10px;color:var(--muted);font-family:"DM Sans",sans-serif;font-size:11px;}
+@media(max-width:700px){.pdf-document{padding:18px 12px;}#originalPdfViewer{height:72vh;min-height:480px;}}
 .document{
   max-width:760px;min-height:860px;margin:auto;padding:60px 70px;
   border:1px solid #e8e3d7;border-radius:4px;background:#fffdf6;
@@ -646,8 +653,7 @@ textarea{min-height:75px;resize:vertical;}
         <button class="nav-item" data-page="aiGuide"><span class="nav-icon">✦</span><span>AI Guide</span><span class="nav-badge" id="aiBadge" style="display:none">AI</span></button>
       </div>
       <div class="nav-section">
-        <div class="nav-label">Collaborate</div>
-        <button class="nav-item" data-page="rooms"><span class="nav-icon">♧</span><span>Study rooms</span></button>
+        <div class="nav-label">Community</div>
         <button class="nav-item" data-page="leaderboard"><span class="nav-icon">↑</span><span>Leaderboard</span></button>
       </div>
       <div class="nav-section">
@@ -876,7 +882,6 @@ textarea{min-height:75px;resize:vertical;}
         <button class="quick-action" onclick="openPage('video')"><span class="qa-icon">▶</span><strong>Watch a lecture</strong></button>
         <button class="quick-action" onclick="openPage('aiGuide')"><span class="qa-icon">✦</span><strong>Ask AI guide</strong></button>
         <button class="quick-action" onclick="openPage('practice')"><span class="qa-icon">?</span><strong>Practice recall</strong></button>
-        <button class="quick-action" onclick="openPage('rooms')"><span class="qa-icon">♧</span><strong>Join study room</strong></button>
         <button class="quick-action" onclick="openPage('catalogues')"><span class="qa-icon">◫</span><strong>My catalogues</strong></button>
         <button class="quick-action" onclick="openPage('analytics')"><span class="qa-icon">↗</span><strong>View insights</strong></button>
         <button class="quick-action" onclick="openModal('uploadModal')"><span class="qa-icon">＋</span><strong>Add resource</strong></button>
@@ -974,11 +979,6 @@ textarea{min-height:75px;resize:vertical;}
 
       <div class="reader-toolbar">
         <button class="secondary-button btn-sm" onclick="openPage('library')">← Back</button>
-        <button class="secondary-button btn-sm" onclick="highlightSelection('yellow')">🟨 Highlight</button>
-        <button class="secondary-button btn-sm" onclick="highlightSelection('green')">🟩 Key insight</button>
-        <button class="secondary-button btn-sm" onclick="highlightSelection('blue')">🟦 Definition</button>
-        <button class="secondary-button btn-sm" onclick="highlightSelection('red')">🟥 Review</button>
-        <button class="secondary-button btn-sm" onclick="focusAnnotation()">✎ Annotate</button>
         <button class="secondary-button btn-sm" onclick="openReaderAI()">✦ Ask AI</button>
         <button class="secondary-button btn-sm" onclick="openModal('quizModal')">? Quick quiz</button>
         <button class="secondary-button btn-sm" onclick="listenAI()">🎧 AI Teach</button>
@@ -987,16 +987,24 @@ textarea{min-height:75px;resize:vertical;}
       <div class="reader-layout">
         <div>
           <div class="reader-stage">
-            <article class="document" id="documentText">
-              <div class="document-meta" id="docMeta">No document selected</div>
+            <article class="document pdf-document" id="documentText">
+              <div class="document-meta" id="docMeta">Original uploaded document</div>
               <h2 id="docTitle">Choose a resource to begin reading</h2>
               <div id="readerEmptyState" style="padding:28px 0;">
-                <p>Select a PDF from <strong>Library</strong> or open one from a Catalogue. The selected document will appear here.</p>
+                <p>Select a PDF from <strong>Library</strong> or open one from a Catalogue. Lucid will display the original PDF, preserving its layout, images, tables and diagrams.</p>
                 <button class="primary-button btn-sm" onclick="openPage('catalogues')">Browse catalogues</button>
               </div>
-              <div id="readerPageContent"></div>
+              <div id="pdfViewerPanel" class="pdf-viewer-panel" style="display:none;">
+                <div class="pdf-viewer-heading">
+                  <span id="pdfViewerTitle">Uploaded PDF</span>
+                  <a id="pdfOpenNewTab" href="#" target="_blank" rel="noopener noreferrer">Open in new tab ↗</a>
+                </div>
+                <iframe id="originalPdfViewer" title="Original uploaded PDF" loading="lazy"></iframe>
+                <p class="pdf-viewer-hint">This is your original uploaded file. Extracted text is kept separately for Lucid AI and is not used as a replacement for the PDF.</p>
+              </div>
+              <div id="readerPageContent" style="display:none;" aria-hidden="true"></div>
               <div class="document-footer" id="readerDocumentFooter" style="display:none;">
-                <span id="readerPageStatus">Page 1</span>
+                <span id="readerPageStatus">PDF page 1</span>
                 <div style="display:flex;gap:8px;">
                   <button class="secondary-button btn-sm" onclick="prevPage()">← Prev</button>
                   <button class="primary-button btn-sm" onclick="completePage()">Next page →</button>
@@ -1419,104 +1427,6 @@ textarea{min-height:75px;resize:vertical;}
       </div>
     </section>
 
-    <!-- ══ STUDY ROOMS ══ -->
-    <section class="page" id="rooms">
-      <div class="page-heading">
-        <div><div class="kicker">Collaborative learning</div><h1>Study rooms.</h1></div>
-        <button class="primary-button" onclick="openModal('roomModal')">＋ Create room</button>
-      </div>
-
-      <div class="grid room-grid">
-        <div class="card card-padding">
-          <div class="section-row" style="margin-top:0;">
-            <div><h2>Active rooms</h2><p class="muted small-text">Real-time presence and shared goals.</p></div>
-            <span class="tag">14 online now</span>
-          </div>
-          <div class="room-list">
-            <article class="room-card card">
-              <div class="room-icon">🎓</div>
-              <div class="room-details">
-                <h3>MCA Semester Group</h3>
-                <p><span class="online-dot"></span>7 studying · 2 on break · 3 discussing</p>
-                <div class="presence-row">
-                  <span class="presence-chip">🟢 7 Studying</span>
-                  <span class="presence-chip">🟡 2 Break</span>
-                  <span class="presence-chip">🟠 3 Discussion</span>
-                  <span class="presence-chip">⚪ 2 Offline</span>
-                </div>
-                <div class="room-members" style="margin-top:8px;">
-                  <div class="mini-avatar">R</div>
-                  <div class="mini-avatar blue">M</div>
-                  <div class="mini-avatar green">A</div>
-                  <div class="mini-avatar purple">S</div>
-                  <div class="mini-avatar orange">+10</div>
-                </div>
-              </div>
-              <button class="primary-button btn-sm" onclick="joinRoom(this)">Join</button>
-            </article>
-            <article class="room-card card">
-              <div class="room-icon" style="background:#f9e4c2;">☕</div>
-              <div class="room-details">
-                <h3>Quiet Minds · Deep Work</h3>
-                <p><span class="online-dot"></span>4 reading together</p>
-                <div class="room-members" style="margin-top:8px;">
-                  <div class="mini-avatar">AS</div>
-                  <div class="mini-avatar blue">JM</div>
-                  <div class="mini-avatar green">RK</div>
-                </div>
-              </div>
-              <button class="secondary-button btn-sm" onclick="joinRoom(this)">Join</button>
-            </article>
-            <article class="room-card card">
-              <div class="room-icon" style="background:#eadff5;">◎</div>
-              <div class="room-details">
-                <h3>Algorithm Challenge</h3>
-                <p>Challenge mode · Room test in 20 min</p>
-                <div class="room-members" style="margin-top:8px;">
-                  <div class="mini-avatar purple">NV</div>
-                  <div class="mini-avatar">AR</div>
-                </div>
-              </div>
-              <button class="secondary-button btn-sm" onclick="joinRoom(this)">Join</button>
-            </article>
-          </div>
-        </div>
-
-        <!-- Active room panel -->
-        <div>
-          <div class="card invite-card">
-            <div class="kicker">Your active room</div>
-            <h2 style="margin-top:9px;">MCA Semester Group</h2>
-            <p class="muted small-text">Collective focus: 18h 22m · Goal completion: 74% · Avg recall: 79%</p>
-            <div class="invite-link">
-              <input id="inviteInput" value="leafline.app/room/mca-2026-7H4K" readonly />
-              <button class="secondary-button btn-sm" onclick="copyInvite()">Copy</button>
-            </div>
-            <button class="primary-button full-width btn-sm" onclick="showToast('✅ Invite link copied!')">Invite member</button>
-            <div style="margin-top:20px;">
-              <div class="kicker" style="margin-bottom:10px;">Room modes</div>
-              <div style="display:grid;gap:8px;">
-                <button class="secondary-button btn-sm full-width" style="text-align:left;" onclick="setRoomMode('Synchronized')">⚡ Synchronized — same resource</button>
-                <button class="secondary-button btn-sm full-width" style="text-align:left;background:var(--sage-2);border-color:var(--forest-2);" onclick="setRoomMode('Parallel')">◇ Parallel — own resources ✓</button>
-                <button class="secondary-button btn-sm full-width" style="text-align:left;" onclick="setRoomMode('Challenge')">🏆 Challenge mode</button>
-              </div>
-            </div>
-            <div style="margin-top:20px;">
-              <div class="kicker" style="margin-bottom:10px;">Members (14)</div>
-              <div class="room-member-row"><div class="member-info"><div class="mini-avatar">R</div><span>You (Rishabh)</span></div><span class="tag">🟢 Studying</span></div>
-              <div class="room-member-row"><div class="member-info"><div class="mini-avatar blue">M</div><span>Maya</span></div><span class="tag gold">🥇 420 XP</span></div>
-              <div class="room-member-row"><div class="member-info"><div class="mini-avatar green">A</div><span>Arjun</span></div><span class="tag">🟠 Discussion</span></div>
-              <div class="room-member-row"><div class="member-info"><div class="mini-avatar purple">S</div><span>Sneha</span></div><span class="muted small-text">🟡 Break</span></div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:16px;">
-              <button class="secondary-button btn-sm full-width" onclick="suggestBreak()">☕ Suggest break</button>
-              <button class="primary-button btn-sm full-width" onclick="startDiscussion()">🗣 Start discussion</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- ══ LEADERBOARD ══ -->
     <section class="page" id="leaderboard">
       <div class="page-heading">
@@ -1929,8 +1839,7 @@ textarea{min-height:75px;resize:vertical;}
       <button class="nav-item" onclick="openPage('video');toggleMobileDrawer()"><span class="nav-icon">▶</span><span>Video classroom</span></button>
       <button class="nav-item" onclick="openPage('practice');toggleMobileDrawer()"><span class="nav-icon">?</span><span>Practice center</span></button>
       <button class="nav-item" onclick="openPage('aiGuide');toggleMobileDrawer()"><span class="nav-icon">✦</span><span>AI Guide</span></button>
-      <div class="nav-label">Collaborate</div>
-      <button class="nav-item" onclick="openPage('rooms');toggleMobileDrawer()"><span class="nav-icon">♧</span><span>Study rooms</span></button>
+      <div class="nav-label">Community</div>
       <button class="nav-item" onclick="openPage('leaderboard');toggleMobileDrawer()"><span class="nav-icon">↑</span><span>Leaderboard</span></button>
       <div class="nav-label">Reflect</div>
       <button class="nav-item" onclick="openPage('analytics');toggleMobileDrawer()"><span class="nav-icon">↗</span><span>Insights</span></button>

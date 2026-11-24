@@ -283,6 +283,7 @@ window.loadLucidCatalogues = async function(){
       select.value=cats.some(cat=>cat.id===chosen)?chosen:cats[0].id;
     }
   }
+  if(window.renderLucidAIContext)window.renderLucidAIContext();
   return cats||[];
 };
 window.moveLucidResourceToCatalogue = async function(resourceId,catalogueId){
@@ -390,7 +391,7 @@ window.openLucidResource = async function(id){
   // never leave an unrelated PDF visible as if it were the selected resource.
   state.currentResourceId=null;state.currentResourceTitle=null;
   state.currentResourcePage=1;state.resourcePages=[];
-  saveState();openPage('reader');
+  saveState();if(window.renderLucidAIContext)window.renderLucidAIContext();openPage('reader');
   const meta=document.getElementById('docMeta'),heading=document.getElementById('docTitle');
   const content=document.getElementById('readerPageContent'),empty=document.getElementById('readerEmptyState');
   const footer=document.getElementById('readerDocumentFooter'),tag=document.getElementById('pageTag');
@@ -415,14 +416,14 @@ window.openLucidResource = async function(id){
     if(pageError)throw pageError;
     state.currentResourceId=resource.id;state.currentResourceTitle=resource.title;
     state.currentResourcePage=1;state.resourcePages=pages||[];
-    saveState();window.renderLucidReaderPage();
+    saveState();if(window.renderLucidAIContext)window.renderLucidAIContext();window.renderLucidReaderPage();
     if(!pages?.length)showToast('This PDF has no extracted text yet; OCR may be needed.','⚠');
     else showToast('Opened '+resource.title+' in Reading Room.','📖');
     return true;
   }catch(error){
     state.currentResourceId=null;state.currentResourceTitle=null;
     state.currentResourcePage=1;state.resourcePages=[];
-    saveState();
+    saveState();if(window.renderLucidAIContext)window.renderLucidAIContext();
     if(meta)meta.textContent='No document selected';
     if(heading)heading.textContent='Could not open this PDF';
     if(kicker)kicker.textContent='Open failed';

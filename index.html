@@ -2169,6 +2169,7 @@ const state = {
   xp: 390,
   level: 16,
   annotations: ['Clarity about what deserves your attention.', 'Tools should serve values, not replace them.'],
+  highlights: [],
   selectedText: '',
   uploadedBooks: [],
   currentResourceId: null,
@@ -2211,7 +2212,7 @@ const pageNames = {
 function saveState() {
   localStorage.setItem('leafline-state-v2', JSON.stringify({
     pagesRead: state.pagesRead, streak: state.streak, xp: state.xp,
-    annotations: state.annotations, selectedText: state.selectedText, uploadedBooks: state.uploadedBooks,
+    annotations: state.annotations, highlights: state.highlights, selectedText: state.selectedText, uploadedBooks: state.uploadedBooks,
     preferences: state.preferences, quizCorrect: state.quizCorrect,
     quizTotal: state.quizTotal, chatMessages: state.chatMessages,
     coachMode: state.coachMode, selectedText: state.selectedText
@@ -2225,6 +2226,7 @@ function restoreState() {
     if (s.streak !== undefined) state.streak = s.streak;
     if (s.xp !== undefined) state.xp = s.xp;
     if (s.annotations) state.annotations = s.annotations;
+    if (Array.isArray(s.highlights)) state.highlights = s.highlights;
     if (typeof s.selectedText === 'string') state.selectedText = s.selectedText;
     if (s.uploadedBooks) state.uploadedBooks = s.uploadedBooks;
     if (s.preferences) Object.assign(state.preferences, s.preferences);
@@ -2305,14 +2307,33 @@ function setHL(color, el) {
   el.classList.add('active');
 }
 function highlightSelection(color) {
-  const sel = window.getSelection()?.toString().trim();
+  const selection = window.getSelection();
+  const sel = selection?.toString().trim();
   if (!sel) { showToast('Select text in the document first.', '⚠'); return; }
+  const chosenColor = color || state.currentHL || 'yellow';
   state.selectedText = sel;
-  state.annotations.push(sel);
+  state.highlights.push({ id: String(Date.now()) + '-' + String(state.highlights.length), text: sel, color: chosenColor, createdAt: new Date().toISOString() });
+  // Keep the passage in the legacy notes array until all existing study tools use highlight records.
+  if (!state.annotations.includes(sel)) state.annotations.push(sel);
   document.getElementById('annotationInput').value = sel;
+  // Apply the color to the selected passage when it belongs to the reader document.
+  const article = document.getElementById('documentText');
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+  if (article && range && article.contains(range.commonAncestorContainer)) {
+    try {
+      const mark = document.createElement('span');
+      mark.className = 'highlight hl-' + chosenColor;
+      mark.dataset.highlightId = state.highlights[state.highlights.length - 1].id;
+      mark.appendChild(range.extractContents());
+      range.insertNode(mark);
+      selection.removeAllRanges();
+    } catch (error) {
+      console.warn('Could not paint selected passage; saved it to annotations instead.', error);
+    }
+  }
   renderAnnotations();
   saveState();
-  showToast(`Highlighted as ${color || state.currentHL}. Saved to annotations.`);
+  showToast(`Saved as ${chosenColor === 'blue' ? 'Definition' : chosenColor === 'green' ? 'Key insight' : chosenColor === 'red' ? 'Review' : chosenColor === 'purple' ? 'Exam point' : 'Important'}.`);
 }
 function openReaderAI() {
   const selection = window.getSelection()?.toString().trim();
@@ -2338,24 +2359,32 @@ function saveAnnotation() {
 function renderAnnotations() {
   const list = document.getElementById('noteList');
   const count = document.getElementById('annotationCount');
-  const colors = ['', 'green', 'blue', 'red'];
+  if (!list || !count) return;
   list.innerHTML = '';
   state.annotations.forEach((a, i) => {
     const d = document.createElement('div');
-    d.className = `note ${colors[i % colors.length]}`;
-    d.innerHTML = `<span>${escapeHTML(a)}</span><button class="note-del" onclick="delNote(this)">×</button>`;
+    d.className = 'note';
+    d.innerHTML = `<div><small class="note-kind">NOTE</small><span>${escapeHTML(a)}</span></div><button class="note-del" data-kind="note" data-index="${i}" onclick="delNote(this)">×</button>`;
     list.appendChild(d);
   });
-  count.textContent = state.annotations.length;
+  const labels = { yellow: 'IMPORTANT', green: 'KEY INSIGHT', blue: 'DEFINITION', red: 'REVIEW', purple: 'EXAM POINT' };
+  state.highlights.forEach((h, i) => {
+    const d = document.createElement('div');
+    d.className = 'note ' + (h.color || 'yellow');
+    d.style.borderLeftColor = 'var(--' + ({yellow:'gold',green:'forest-2',blue:'blue',red:'rose',purple:'violet'}[h.color] || 'gold') + ')';
+    d.innerHTML = `<div><small class="note-kind">${labels[h.color] || 'HIGHLIGHT'}</small><span>${escapeHTML(h.text || '')}</span></div><button class="note-del" data-kind="highlight" data-index="${i}" onclick="delNote(this)">×</button>`;
+    list.appendChild(d);
+  });
+  count.textContent = state.annotations.length + state.highlights.length;
 }
 function delNote(btn) {
-  const note = btn.closest('.note');
-  const notes = [...document.getElementById('noteList').children];
-  const idx = notes.indexOf(note);
-  state.annotations.splice(idx, 1);
+  const kind = btn.dataset.kind || 'note';
+  const idx = Number(btn.dataset.index);
+  if (kind === 'highlight') state.highlights.splice(idx, 1);
+  else state.annotations.splice(idx, 1);
   renderAnnotations();
   saveState();
-  showToast('Annotation removed.');
+  showToast('Saved item removed.');
 }
 
 // ─── Page completion ─────────────────────────────

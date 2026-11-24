@@ -650,6 +650,13 @@ textarea{min-height:75px;resize:vertical;}
 .shortcut-card{display:grid;gap:7px;text-align:left;padding:18px;cursor:pointer;color:var(--ink)}.shortcut-card>span{font-size:22px;color:var(--forest-2)}.shortcut-card small{font-size:11px}
 #dashboard .grid.two-col[style*="margin-top:18px"]{display:none}
 @media(max-width:760px){.agent-search-form{flex-direction:column}.home-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Focused video classroom */
+#video .form-row label:has(#videoPageCatalogue),#video .reader-sidebar .card:has(#videoPlaylistList),#video .card:has(#videoTranscriptInput),#video .card:has(#videoNoteList),#video .reader-sidebar{display:none!important}
+#video .grid.reader-layout{grid-template-columns:minmax(0,1fr)!important}
+#video .video-learning-clock{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;padding:10px 13px;border:1px solid var(--line);border-radius:12px;background:var(--paper-2);font-size:12px;color:var(--muted)}
+#video .video-learning-clock strong{color:var(--forest);font-family:'Space Mono',monospace}
+#video .video-topic-input{width:100%;margin:12px 0 8px;padding:11px;border:1px solid var(--line);border-radius:10px;background:white;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -1921,7 +1928,7 @@ function renderUploadedBooks(){
     const footer=document.createElement('div');footer.className='book-footer';
     const tag=document.createElement('span');tag.className='tag';tag.textContent=b.catalogueId?'In catalogue':(b.type||'Resource');
     const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));
-    footer.append(tag,open);el.append(main,footer);
+    footer.append(tag,open);const remove=document.createElement('button');remove.className='danger-button btn-sm';remove.textContent='Remove';remove.title='Permanently remove this resource from your library';remove.onclick=async()=>{if(!confirm('Permanently remove '+(b.name||'this resource')+' from your Library? Its stored source file and linked catalogue entries will be deleted. This cannot be undone.'))return;remove.disabled=true;try{const result=await window.deleteLucidResource(b.resourceId||b.id);showToast(result.storageWarning?'Resource removed. Storage cleanup warning: '+result.storageWarning:'Resource removed from your Library.','✓');}catch(error){showToast('Could not remove resource: '+error.message,'⚠');remove.disabled=false;}};footer.append(remove);el.append(main,footer);
     if(b.type==='pdf'){
       const progressRow=document.createElement('div');progressRow.className='book-progress';
       const label=document.createElement('div');label.className='progress-label';const left=document.createElement('span');left.textContent=progress+'% completed';const right=document.createElement('span');right.textContent=(b.completedPages||0)+' / '+(b.pages||0)+' pages';label.append(left,right);

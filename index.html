@@ -331,6 +331,15 @@ h3{font-size:15px;font-weight:700;}
 .pdf-viewer-heading a{color:var(--forest-2);text-decoration:underline;}
 #originalPdfViewer{display:block;width:100%;height:min(78vh,980px);min-height:620px;border:1px solid var(--line);border-radius:10px;background:#e9ece8;}
 .pdf-viewer-hint{margin-top:10px;color:var(--muted);font-family:"DM Sans",sans-serif;font-size:11px;}
+.lucid-pdf-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px;margin:0 0 10px;background:var(--paper-2);border:1px solid var(--line);border-radius:12px;}
+.pdf-page-control{display:flex;align-items:center;gap:5px;font:12px "Space Mono",monospace;color:var(--muted);}
+.pdf-page-control input{width:58px;padding:6px;text-align:center;}
+.pdf-toolbar-spacer{flex:1;}.pdf-zoom-label{min-width:48px;text-align:center;font:10px "Space Mono",monospace;color:var(--muted);}
+.pdf-canvas-viewport{width:100%;max-height:78vh;overflow:auto;padding:14px;background:#303631;border-radius:10px;}
+.pdf-canvas-stage{position:relative;margin:0 auto;background:white;box-shadow:0 8px 30px rgba(0,0,0,.25);}
+#pdfPageCanvas{display:block;}.pdf-text-layer{position:absolute;inset:0;overflow:hidden;line-height:1;opacity:.22;user-select:text;}
+.pdf-text-layer span{position:absolute;color:transparent;white-space:pre;transform-origin:0 0;cursor:text;}
+
 .reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr);}
 .reader-layout.sidebar-hidden>.reader-sidebar{display:none;}
 .annotation-open:hover span{text-decoration:underline;}
@@ -988,8 +997,15 @@ textarea{min-height:75px;resize:vertical;}
                   <span id="pdfViewerTitle">Uploaded PDF</span>
                   <a id="pdfOpenNewTab" href="#" target="_blank" rel="noopener noreferrer">Open in new tab ↗</a>
                 </div>
-                <iframe id="originalPdfViewer" title="Original uploaded PDF" loading="lazy"></iframe>
-                <p class="pdf-viewer-hint">This is your original uploaded file. Extracted text is kept separately for Lucid AI and is not used as a replacement for the PDF.</p>
+                <div class="lucid-pdf-toolbar" role="toolbar" aria-label="PDF controls">
+                  <button class="secondary-button btn-sm" onclick="changeLucidReaderPage(-1)">←</button>
+                  <label class="pdf-page-control"><input id="pdfPageInput" type="number" min="1" value="1" onchange="goLucidPdfPage(this.value)" aria-label="Current PDF page"><span id="pdfPageTotal">/ 1</span></label>
+                  <button class="secondary-button btn-sm" onclick="changeLucidReaderPage(1)">→</button><span class="pdf-toolbar-spacer"></span>
+                  <button class="secondary-button btn-sm" onclick="changeLucidPdfZoom(-0.15)">−</button><span id="pdfZoomLabel" class="pdf-zoom-label">100%</span>
+                  <button class="secondary-button btn-sm" onclick="changeLucidPdfZoom(0.15)">+</button><button class="secondary-button btn-sm" onclick="resetLucidPdfZoom()">Fit width</button>
+                </div>
+                <div id="pdfCanvasViewport" class="pdf-canvas-viewport"><div id="pdfCanvasStage" class="pdf-canvas-stage"><canvas id="pdfPageCanvas"></canvas><div id="pdfTextLayer" class="pdf-text-layer"></div></div></div>
+                <p class="pdf-viewer-hint">Original PDF page rendering. Page text is indexed separately for page-aware AI explanations and quiz generation.</p>
               </div>
               <div id="readerPageContent" style="display:none;" aria-hidden="true"></div>
               <div class="document-footer" id="readerDocumentFooter" style="display:none;">

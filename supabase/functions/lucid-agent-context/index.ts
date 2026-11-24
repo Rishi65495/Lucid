@@ -12,7 +12,7 @@ async function getLearnerOverview(sb: any, user: any) {
   const userId = user.id;
   const [profile, resources, catalogues, catalogueLinks, journeys, mastery, attempts, xp, earnedBadges] = await Promise.all([
     sb.from("profiles").select("display_name,bio,level,xp,weekly_goal").eq("id", userId).maybeSingle(),
-    sb.from("lucid_resources").select("id,title,type,processing_status,created_at").eq("owner_id", userId).order("created_at", { ascending: false }).limit(500),
+    sb.from("lucid_resources").select("id,title,type,processing_status,created_at", { count: "exact" }).eq("owner_id", userId).order("created_at", { ascending: false }).limit(500),
     sb.from("catalogues").select("id,title,description,created_at").eq("owner_id", userId).order("created_at", { ascending: false }).limit(200),
     Promise.resolve({ data: [], error: null }),
     sb.from("learning_journeys").select("completion,exposure,understanding,recall,application,last_activity_at,resource_id,catalogue_id,lucid_resources(title,type)").eq("owner_id", userId).order("last_activity_at", { ascending: false }).limit(100),
@@ -38,7 +38,7 @@ async function getLearnerOverview(sb: any, user: any) {
   return {
     learner_profile: { display_name: displayName, bio: profile.data?.bio || null, level: xp.data?.level ?? profile.data?.level ?? null, xp: xp.data?.xp ?? profile.data?.xp ?? null, streak_days: xp.data?.streak_days ?? null, weekly_goal: profile.data?.weekly_goal ?? null },
     resource_library: {
-      total_resources: resourceRows.length,
+      total_resources: resources.count ?? resourceRows.length,
       by_type: resourceRows.reduce((counts: Record<string, number>, row: any) => { const type = String(row.type || "other"); counts[type] = (counts[type] || 0) + 1; return counts; }, {}),
       linked_to_catalogue: linkedResourceIds.size,
       not_linked_to_catalogue: resourceRows.filter((x: any) => !linkedResourceIds.has(x.id)).length,

@@ -64,6 +64,8 @@ h3{font-size:15px;font-weight:700;}
 
 /* ─── App Shell ───────────────────────────────────── */
 .app-shell{min-height:100vh;}
+.app-shell.nav-collapsed .sidebar{transform:translateX(-100%);}
+.app-shell.nav-collapsed .main{width:100%;margin-left:0;}
 
 /* ─── Sidebar ─────────────────────────────────────── */
 .sidebar{
@@ -357,7 +359,7 @@ h3{font-size:15px;font-weight:700;}
 .pdf-text-layer span{position:absolute;color:transparent;white-space:pre;transform-origin:0 0;cursor:text;}
 
 .reader-layout.sidebar-hidden{grid-template-columns:minmax(0,1fr);}
-.reader-layout.sidebar-hidden>.reader-sidebar{display:none;}
+.reader-layout.sidebar-hidden>.reader-sidebar{display:none!important;}
 .annotation-open:hover span{text-decoration:underline;}
 #originalPdfViewer{width:100%;height:min(82vh,1100px);min-height:680px;}
 @media(max-width:780px){#originalPdfViewer{height:74vh;min-height:520px;}}
@@ -681,13 +683,6 @@ textarea{min-height:75px;resize:vertical;}
         </div>
         <div class="xp-track"><div class="xp-fill" id="sideXPFill" style="width:72%"></div></div>
       </div>
-      <div class="user-profile" role="button" tabindex="0" onclick="openPage('profile')" style="cursor:pointer;">
-        <div class="avatar" id="sideAvatar">R</div>
-        <div>
-          <div class="profile-name" id="sideProfileName">Rishabh</div>
-          <span class="profile-role" id="sideProfileRole">MCA Semester · Level 16</span>
-        </div>
-      </div>
     </div>
   </aside>
 
@@ -702,6 +697,7 @@ textarea{min-height:75px;resize:vertical;}
         </div>
       </div>
       <div class="topbar-actions">
+        <button class="top-icon" id="sidebarCollapseButton" onclick="toggleAppSidebar()" title="Hide navigation" aria-label="Toggle navigation">☰</button>
         <button class="mobile-menu" onclick="toggleMobileDrawer()">☰</button>
         <label class="search-box">
           <span>⌕</span>
@@ -737,6 +733,13 @@ textarea{min-height:75px;resize:vertical;}
           <button class="primary-button" onclick="openPage('reader')">Continue studying →</button>
         </div>
       </div>
+
+      <article class="card card-padding" style="display:flex;align-items:center;gap:16px;margin-bottom:17px;">
+        <div class="avatar" id="dashboardProfileAvatar" style="width:54px;height:54px;font-size:20px;">L</div>
+        <div style="flex:1;min-width:0;"><div class="kicker">Your profile</div><h3 id="dashboardProfileName" style="font-size:17px;">Learner</h3><p class="muted small-text" id="dashboardProfileBio">Your learning identity and progress.</p></div>
+        <div style="text-align:right;"><div class="tag" id="dashboardProfileLevel">Level 1</div><div class="muted small-text" id="dashboardProfileXP" style="margin-top:6px;">0 XP</div></div>
+        <button class="secondary-button btn-sm" onclick="openPage('profile')">Edit profile →</button>
+      </article>
 
       <!-- Hero grid -->
       <div class="grid dashboard-hero-grid">
@@ -1130,6 +1133,12 @@ textarea{min-height:75px;resize:vertical;}
         <button class="primary-button" onclick="generateAIQuiz()">✦ Generate AI quiz</button>
       </div>
 
+      <div class="card card-padding" style="margin-bottom:18px;">
+        <div class="panel-heading"><div><div class="kicker">Practice source</div><h3>Choose what Lucid should use</h3></div><span class="tag" id="practiceSourceStatus">No source selected</span></div>
+        <p class="muted small-text">Select one resource or an entire catalogue. Every quiz, flashcard, oral-recall question and weak-area exercise will be generated from this selection—not from sample topics.</p>
+        <div class="form-row" style="align-items:end;"><label class="form-label" style="flex:1;">Catalogue or resource<select id="practiceSourceSelect" onchange="setPracticeSource(this.value)"><option value="">Choose a catalogue or resource…</option></select></label><button class="secondary-button" onclick="refreshPracticeSources()">↻ Refresh sources</button></div>
+        <div class="muted small-text" id="practiceSourceDescription">Choose a source to enable practice activities.</div>
+      </div>
       <div class="tab-row">
         <button class="tab-btn active" onclick="switchTab('practiceTab','quiz',this)">Quiz</button>
         <button class="tab-btn" onclick="switchTab('practiceTab','flashcards',this)">Flashcards</button>
@@ -1141,18 +1150,13 @@ textarea{min-height:75px;resize:vertical;}
       <div class="tab-content active" id="practiceTab-quiz">
         <div class="grid two-col">
           <div class="quiz-card card">
-            <div class="kicker">Machine Learning · Adaptive quiz</div>
+            <div class="kicker" id="practiceQuizKicker">Source-based quiz</div>
             <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-              <span class="tag">Question <span id="qNum">1</span> of <span id="qTotal">5</span></span>
-              <span class="tag gold">Difficulty: Medium</span>
+              <span class="tag">Question <span id="qNum">0</span> of <span id="qTotal">0</span></span>
+              <span class="tag gold" id="practiceDifficultyTag">Difficulty: —</span>
             </div>
-            <div class="quiz-question" id="quizQuestion">What is overfitting in a machine learning model?</div>
-            <div id="quizOptions">
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the model fails to learn the training data</button>
-              <button class="quiz-option" onclick="answerQuiz(true,this)">When the model learns training data too well and performs poorly on new data</button>
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the model takes too long to train</button>
-              <button class="quiz-option" onclick="answerQuiz(false,this)">When the dataset has too many features</button>
-            </div>
+            <div class="quiz-question" id="quizQuestion">Choose a catalogue or resource above, then generate a quiz.</div>
+            <div id="quizOptions"><p class="muted small-text">Questions generated from your selected source will appear here.</p></div>
             <div class="quiz-result" id="quizResult"></div>
             <div style="display:flex;gap:8px;margin-top:16px;">
               <button class="secondary-button btn-sm" onclick="skipQuiz()">Skip</button>
@@ -1166,7 +1170,7 @@ textarea{min-height:75px;resize:vertical;}
             <div class="progress-track" style="margin-top:14px;"><span class="progress-fill gold" id="quizScoreBar" style="width:0%"></span></div>
             <div style="margin-top:20px;display:grid;gap:10px;">
               <div class="mastery-bar-row"><span class="label">Accuracy</span><div class="progress-track"><span class="progress-fill" id="accuracyBar" style="width:0%"></span></div><span class="mastery-pct" id="accuracyPct">—</span></div>
-              <div class="mastery-bar-row"><span class="label">Speed</span><div class="progress-track"><span class="progress-fill orange" style="width:60%"></span></div><span class="mastery-pct">Good</span></div>
+              <div class="mastery-bar-row"><span class="label">Speed</span><div class="progress-track"><span class="progress-fill orange" id="quizSpeedBar" style="width:0%"></span></div><span class="mastery-pct" id="quizSpeedLabel">—</span></div>
             </div>
             <button class="primary-button full-width btn-sm" style="margin-top:16px;" onclick="generateAIQuiz()">✦ Generate new AI quiz</button>
           </div>
@@ -1177,7 +1181,7 @@ textarea{min-height:75px;resize:vertical;}
       <div class="tab-content" id="practiceTab-flashcards">
         <div style="max-width:600px;margin:auto;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <span class="kicker">ML Fundamentals flashcards</span>
+            <span class="kicker" id="flashcardSourceLabel">Source-based flashcards</span>
             <button class="primary-button btn-sm" onclick="generateFlashcards()">✦ AI generate</button>
           </div>
           <div class="flashcard" id="flashcard" onclick="flipCard()">
@@ -1185,7 +1189,7 @@ textarea{min-height:75px;resize:vertical;}
               <div class="flashcard-front">
                 <div>
                   <div style="font-size:10px;opacity:.6;margin-bottom:8px;font-family:'Space Mono',monospace;letter-spacing:1px;">FRONT — Click to flip</div>
-                  <div id="flashFront">What is the bias-variance tradeoff?</div>
+                  <div id="flashFront">Select a source and generate flashcards.</div>
                 </div>
               </div>
               <div class="flashcard-back">
@@ -1202,7 +1206,7 @@ textarea{min-height:75px;resize:vertical;}
             <button class="success-button btn-sm" onclick="rateCard('easy')">😊 Easy</button>
           </div>
           <div style="text-align:center;margin-top:14px;">
-            <span class="muted small-text" id="cardProgress">Card 1 of 8 · Click to flip</span>
+            <span class="muted small-text" id="cardProgress">No cards generated yet</span>
           </div>
         </div>
       </div>
@@ -1216,7 +1220,7 @@ textarea{min-height:75px;resize:vertical;}
             <p class="muted small-text">Explain a concept in your own words. AI will evaluate your coverage, accuracy, and clarity.</p>
             <div class="card card-padding" style="background:var(--sage-2);margin:16px 0;text-align:left;">
               <div class="kicker">AI question</div>
-              <p style="margin-top:8px;font-size:14px;font-weight:700;" id="oralQuestion">Explain overfitting and how you would prevent it in a machine learning model.</p>
+              <p style="margin-top:8px;font-size:14px;font-weight:700;" id="oralQuestion">Generate a question from your selected source.</p>
             </div>
             <textarea id="oralAnswer" placeholder="Type your explanation here (or use voice in a supported browser)…" style="min-height:120px;text-align:left;"></textarea>
             <div style="display:flex;gap:9px;margin-top:12px;">
@@ -1232,31 +1236,7 @@ textarea{min-height:75px;resize:vertical;}
       <div class="tab-content" id="practiceTab-weakareas">
         <div class="card card-padding">
           <h3 style="margin-bottom:14px;">Areas that need attention</h3>
-          <div style="display:grid;gap:10px;">
-            <div class="goal-item">
-              <div style="flex:1;">
-                <strong>Overfitting</strong>
-                <div class="muted small-text">Recall score: 22% · Last reviewed 3 days ago</div>
-                <div class="progress-track" style="margin-top:6px;"><span class="progress-fill rose" style="width:22%"></span></div>
-              </div>
-              <button class="danger-button btn-sm" onclick="practiceWeak('Overfitting')">Practice now</button>
-            </div>
-            <div class="goal-item">
-              <div style="flex:1;">
-                <strong>Event bubbling & capturing</strong>
-                <div class="muted small-text">Recall score: 38% · Marked confusing</div>
-                <div class="progress-track" style="margin-top:6px;"><span class="progress-fill rose" style="width:38%"></span></div>
-              </div>
-              <button class="secondary-button btn-sm" onclick="practiceWeak('Event bubbling')">Practice</button>
-            </div>
-            <div class="goal-item">
-              <div style="flex:1;">
-                <strong>Gradient descent variations</strong>
-                <div class="muted small-text">Recall score: 45% · Due for spaced review</div>
-                <div class="progress-track" style="margin-top:6px;"><span class="progress-fill orange" style="width:45%"></span></div>
-              </div>
-              <button class="secondary-button btn-sm" onclick="practiceWeak('Gradient descent')">Practice</button>
-            </div>
+          <div id="weakAreaList" style="display:grid;gap:10px;"><p class="muted small-text">Your recorded learning evidence will appear here.</p></div>
           </div>
         </div>
       </div>
@@ -1778,8 +1758,9 @@ textarea{min-height:75px;resize:vertical;}
     <div class="modal-header"><h2>Load YouTube video</h2><button class="close-button" onclick="closeModal('videoImportModal')">×</button></div>
     <p class="muted small-text">Paste a YouTube URL to embed it in Lucid's focused learning shell.</p>
     <div class="form-stack">
-      <label class="form-label">YouTube URL<input id="ytURL" placeholder="https://youtube.com/watch?v=dQw4w9WgXcQ" /></label>
-      <button class="primary-button full-width" onclick="loadYoutubeVideo()">Load in classroom →</button>
+      <label class="form-label">YouTube video or playlist URL<input id="ytURL" placeholder="https://youtube.com/watch?v=… or https://youtube.com/playlist?list=…" /></label>
+      <label class="form-label">Add to catalogue<select id="videoImportCatalogue"><option value="">No catalogue (keep in Library)</option></select></label>
+      <button class="primary-button full-width" onclick="loadYoutubeVideo()">Import into my Library →</button>
     </div>
   </div>
 </div>
@@ -1804,6 +1785,7 @@ textarea{min-height:75px;resize:vertical;}
 
 <!-- Supabase JS client (pinned release) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 <!-- ══════════════════ SCRIPT ══════════════════ -->

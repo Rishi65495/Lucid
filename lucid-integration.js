@@ -1533,8 +1533,8 @@ window.askLucidAgentHome=async function(preset){
   }catch(error){
     const message=String(error.message||error);
     if(answer){
-      answer.textContent=/429|quota|rate.?limit/i.test(message)
-        ?'Lucid Agent is temporarily out of AI requests for the connected provider. Your learning data is safe. Configure a paid Gemini quota or an alternate provider key in Supabase to resume AI answers. No progress data was changed.'
+      answer.textContent=(/429|quota|rate.?limit/i.test(message)&&!/Mistral:|OpenRouter:|OpenAI:|Backup providers:|not configured|No secondary/i.test(message))
+        ?'Lucid Agent is temporarily out of AI requests for the connected provider. Your learning data is safe. Check the provider quota and Supabase secret configuration. No progress data was changed.'
         :'Lucid Agent could not complete this request: '+message;
       answer.hidden=false;
     }

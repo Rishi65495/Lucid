@@ -563,6 +563,15 @@ window.startLucidReadingSession = async function(){
   }).select('id').single();
   if(error)throw error;return data.id;
 };
+window.saveLucidReadingSessionProgress=async function(input){
+  if(!lucidSession?.user||!input?.id)return false;
+  const {error}=await lucidSupabase.from('reading_sessions').update({
+    active_seconds:Math.max(0,Number(input.activeSeconds)||0),
+    pages_completed:Math.max(0,Number(input.pagesCompleted)||0),
+    result:{completed:false,source:'reader_focus_timer',checkpoint:true}
+  }).eq('id',input.id).eq('user_id',lucidSession.user.id);
+  if(error)throw error;return true;
+};
 window.finishLucidReadingSession = async function(input){
   if(!lucidSession?.user||!input?.id)return false;
   const {error}=await lucidSupabase.from('reading_sessions').update({

@@ -220,7 +220,9 @@ window.practiceWeak = async function(topic){
     const data=await window.callLearningEngine('quiz','Create five remedial multiple-choice questions about the learner weak area "'+topic+'". Use only the selected source material and explain each answer.',{...context,learner_evidence:profile,topic,question_count:5,question_format:'mcq'});
     const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
     if(!questions.length)throw new Error('No source-grounded remedial questions were returned.');
-    quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentGeneratedQuizId=null;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;loadQuiz(0);openPage('practice');showToast('Remedial practice generated for '+topic+'.','✦');
+    let quizId=null;
+    try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty:'Balanced',coverage:'weak_area',instructions:'Remedial practice for '+topic,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(saveError){console.warn('Remedial quiz history could not be saved:',saveError.message);}
+    quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;window.currentGeneratedQuestionIds=window.currentGeneratedQuestionIds||[];const sourceLabel=document.getElementById('quizSourceLabel');if(sourceLabel)sourceLabel.textContent='Weak area: '+topic+' · '+context.source_titles.join(', ');loadQuiz(0);openPage('practice');showToast('Remedial practice generated from selected sources for '+topic+'.','✦');
   }catch(error){showToast('Weak-area practice failed: '+error.message,'⚠');}
 };
 window.renderLucidWeakAreas = function(profile){
@@ -432,6 +434,7 @@ window.persistLucidVideoProgress=async function(endSession){
   if(error)console.warn('Could not persist video progress:',error.message);
   if(endSession||completed){window.currentLucidVideoSessionId=null;window.lucidVideoLastTick=null;try{await window.loadLucidVideoLibrary(window.currentLucidPlaylistResourceId);}catch(_){}}
 };
+document.addEventListener('visibilitychange',()=>{if(document.hidden)window.persistLucidVideoProgress(false);});
 window.saveCurrentVideoTranscript=async function(){
   const transcript=document.getElementById('videoTranscriptInput').value.trim();
   if(!window.currentLucidVideoResourceId){showToast('Select a saved video first.','⚠');return;}

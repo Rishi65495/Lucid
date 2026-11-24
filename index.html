@@ -710,10 +710,7 @@ textarea{min-height:75px;resize:vertical;}
               <strong style="font-size:13px;">Notifications</strong>
               <button class="ghost-button btn-xs" onclick="clearNotifs()">Clear all</button>
             </div>
-            <div id="notifList">
-              <div class="notif-item"><span class="notif-icon">📈</span><div><strong>Recall improved 9%</strong><br><span class="muted small-text">Your quiz accuracy is trending up.</span></div></div>
-              <div class="notif-item"><span class="notif-icon">📖</span><div><strong>Resume your session</strong><br><span class="muted small-text">You left DOM Manipulation at 72%.</span></div></div>
-            </div>
+            <div id="notifList"><p class="muted small-text">No new notifications.</p>
           </div>
         </div>
         <button class="top-icon" onclick="openPage('settings')">⚙</button><button class="secondary-button btn-sm" id="signOutButton" onclick="signOutLucid()">Sign out</button>
@@ -757,18 +754,18 @@ textarea{min-height:75px;resize:vertical;}
           </div>
           <div>
             <div class="progress-track"><span class="progress-fill" id="weeklyProgress" style="width:0%"></span></div>
-            <div class="progress-label"><span>Goal: 9 hours</span><span id="focusLeft">No data yet</span></div>
+            <div class="progress-label"><span>Recorded this week</span><span id="focusLeft">No data yet</span></div>
           </div>
         </article>
         <article class="stat-card card">
-          <div class="stat-top"><span>Current streak</span><span>🔥 Active</span></div>
+          <div class="stat-top"><span>Current streak</span><span id="streakStatus">No streak recorded</span></div>
           <div>
             <div class="stat-value" id="streakValue">0</div>
             <p class="muted small-text">days of showing up</p>
           </div>
           <div>
             <div class="progress-track"><span class="progress-fill gold" style="width:58%"></span></div>
-            <div class="progress-label"><span>Best: 12 days</span><span>5 more to beat it</span></div>
+            <div class="progress-label"><span>Best streak</span><span id="streakBest">—</span></div>
           </div>
         </article>
       </div>
@@ -817,22 +814,8 @@ textarea{min-height:75px;resize:vertical;}
       <div class="card card-padding"><p class="muted small-text">Lucid will summarize your focus patterns and preferred learning methods after enough real study-session data has been recorded.</p></div>
 
       <!-- Goals -->
-      <div class="section-row"><h2>Weekly goals</h2></div>
-      <div class="card goal-card">
-        <div class="kicker">Current targets</div>
-        <div class="goal-row">
-          <div><label>Focus hours</label><div class="progress-track large"><span class="progress-fill" style="width:74%"></span></div></div>
-          <input value="6.7/9h" readonly />
-        </div>
-        <div class="goal-row">
-          <div><label>Pages read</label><div class="progress-track large"><span class="progress-fill orange" style="width:82%"></span></div></div>
-          <input value="1245/1500" readonly />
-        </div>
-        <div class="goal-row">
-          <div><label>Recall accuracy</label><div class="progress-track large"><span class="progress-fill gold" style="width:81%"></span></div></div>
-          <input value="81% / 85%" readonly />
-        </div>
-      </div>
+      <div class="section-row"><h2>Your goals</h2><button class="secondary-button btn-sm" onclick="openPage('goals')">Manage goals →</button></div>
+      <div class="card card-padding" id="dashboardGoalsSummary"><p class="muted small-text">Your saved goals will appear here when you create them. Lucid will calculate progress from your recorded activity.</p></div>
     </section>
 
     <!-- ══ ACHIEVEMENTS ══ -->

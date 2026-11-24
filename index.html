@@ -1135,13 +1135,13 @@ textarea{min-height:75px;resize:vertical;}
             <h3 style="margin-bottom:12px;">Quick actions</h3>
             <div class="ai-actions" style="flex-wrap:wrap;">
               <button class="ai-action-chip" onclick="quickAI('Explain the current page of my selected resource in simple terms')">📋 Explain page</button>
-              <button class="ai-action-chip" onclick="quickAI('Give me an analogy to understand overfitting better')">🔗 Give analogy</button>
+              <button class="ai-action-chip" onclick="quickAI('Explain a difficult concept from my current learning material using a clear analogy')">🔗 Give analogy</button>
               <button class="ai-action-chip" onclick="quickAI('Summarize my annotations and find patterns')">📝 Summarize notes</button>
               <button class="ai-action-chip" onclick="generateFlashcards()">🃏 Make flashcards</button>
               <button class="ai-action-chip" onclick="quickAI('Create a quiz to test my understanding of this material')">? Generate quiz</button>
               <button class="ai-action-chip" onclick="quickAI('What should I study next based on my weak areas?')">🗺 What next?</button>
-              <button class="ai-action-chip" onclick="quickAI('Create a 7-day study plan for my MCA semester 5 exam')">📅 Study plan</button>
-              <button class="ai-action-chip" onclick="quickAI('Teach me overfitting as if I were a 12-year-old')">🧒 Simplify</button>
+              <button class="ai-action-chip" onclick="quickAI('Create a 7-day study plan based on my current goals, progress and weak areas')">📅 Study plan</button>
+              <button class="ai-action-chip" onclick="quickAI('Simplify the current concept as if I were 12 years old')">🧒 Simplify</button>
             </div>
           </div>
 
@@ -1411,7 +1411,7 @@ textarea{min-height:75px;resize:vertical;}
     <div class="tab-content" id="uploadTab-youtube">
       <div class="form-stack">
         <label class="form-label">YouTube video URL<input id="youtubeURL" placeholder="https://youtube.com/watch?v=…" /></label>
-        <label class="form-label">Catalogue<select><option>MCA Semester 5</option><option>Better Work</option></select></label>
+        <label class="form-label">Catalogue<select id="uploadYoutubeCatalogue"><option value="">No catalogue</option></select></label>
         <button class="primary-button full-width" onclick="loadYoutube()">Load video →</button>
       </div>
     </div>

@@ -11,7 +11,8 @@ const CORS={
   "Content-Type":"application/json"
 };
 
-const MODEL="gemini-3.8-flash";
+const MODEL=Deno.env.get("GEMINI_MODEL")||"gemini-3.8-flash";
+const MODEL_FALLBACKS=[...new Set([MODEL,"gemini-3.6-flash","gemini-3.5-flash-lite"])];
 const GEMINI_KEY=Deno.env.get("GEMINI_API_KEY")||"";
 const URL=Deno.env.get("SUPABASE_URL")||"";
 const ANON=Deno.env.get("SUPABASE_ANON_KEY")||"";
@@ -32,30 +33,21 @@ function clean(s){return (s||"").replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`
 function safeParse(s){try{return JSON.parse(clean(s))}catch{return null}}
 
 async function gemini(contents,availableTools=toolDefs){
- const body={contents,generationConfig:{maxOutputTokens:6000},...(availableTools.length?{tools:[{functionDeclarations:availableTools}]}:{})};
- const endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent";
- let lastError="Gemini API error";
- for(let attempt=0;attempt<4;attempt++){
-  let response;
+ const body={contents,generationConfig:{maxOutputTokens:2500},...(availableTools.length?{tools:[{functionDeclarations:availableTools}]}:{})};
+ let lastError="Gemini API error",lastStatus=503;
+ for(const model of MODEL_FALLBACKS){
+  const endpoint="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),16000);
   try{
-   response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body)});
-  }catch(e){
-   lastError=e instanceof Error?e.message:"Network error";
-   if(attempt===3)throw new Error(lastError);
-   await new Promise(resolve=>setTimeout(resolve,800*Math.pow(2,attempt)));
-   continue;
-  }
-  const data=await response.json().catch(()=>({}));
-  if(response.ok)return data;
-  lastError=data?.error?.message||"Gemini API error";
-  if(![429,500,502,503,504].includes(response.status)||attempt===3){
-   const error=new Error(lastError);(error as any).status=response.status;throw error;
-  }
-  const retryAfter=Number(response.headers.get("retry-after")||0);
-  const delay=retryAfter>0?Math.min(retryAfter*1000,10000):800*Math.pow(2,attempt);
-  await new Promise(resolve=>setTimeout(resolve,delay));
+   const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_KEY},body:JSON.stringify(body),signal:controller.signal});
+   const data=await response.json().catch(()=>({}));
+   if(response.ok){data._model=model;return data;}
+   lastStatus=response.status;lastError=data?.error?.message||"Gemini API error";
+   if(![429,500,502,503,504].includes(response.status))break;
+  }catch(e){lastStatus=504;lastError=e instanceof Error&&e.name==="AbortError"?"Gemini request timed out after 16 seconds.":(e instanceof Error?e.message:"Network error");}
+  finally{clearTimeout(timeout);}
  }
- throw new Error(lastError);
+ const error=new Error(lastError);(error as any).status=lastStatus;throw error;
 }
 
 async function toolExec(sb,userId,name,args){
@@ -199,12 +191,12 @@ Deno.serve(async(req)=>{
 
   let contents=[{role:"user",parts:[{text:userPrompt}]}];
   const trace=[];
-  for(let round=0;round<6;round++){
+  for(let round=0;round<3;round++){
    const d=await gemini(contents,availableTools),candidate=d.candidates?.[0],parts=candidate?.content?.parts||[];
    const calls=parts.filter(p=>p.functionCall).map(p=>p.functionCall);
    if(!calls.length){
     const raw=parts.filter(p=>p.text).map(p=>p.text).join("\n").trim(),parsed=safeParse(raw);
-    return new Response(JSON.stringify({ok:true,action,text:parsed?null:raw,result:parsed||{text:raw},toolTrace:trace,model:MODEL}),{headers:CORS});
+    return new Response(JSON.stringify({ok:true,action,text:parsed?null:raw,result:parsed||{text:raw},toolTrace:trace,model:d._model||MODEL}),{headers:CORS});
    }
    contents.push(candidate.content);
    const functionParts=[];

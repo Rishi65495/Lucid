@@ -6,7 +6,7 @@ const RULES: Array<{ intent: ContextIntent; patterns: RegExp[] }> = [
   // Task-specific intents must precede generic resource matching (e.g. "make a quiz from my PDF").
   { intent: "quiz_generation", patterns: [/(make|create|generate|take|start).{0,40}(quiz|test|mcq|questions)|\\bquiz\\b|\\bmcq\\b|क्विज़|टेस्ट बनाओ/i] },
   { intent: "flashcard_generation", patterns: [/(flash ?cards?|कार्ड बनाओ|फ्लैशकार्ड)/i] },
-  { intent: "progress_analysis", patterns: [/(my progress|performance|weak areas|mastery|quiz history|मेरी प्रगति|कमज़ोर टॉपिक|प्रदर्शन)/i] },
+  { intent: "progress_analysis", patterns: [/(my progress|learning progress|progress report|performance|weak areas|mastery|quiz history|मेरी प्रगति|कमज़ोर टॉपिक|प्रदर्शन)/i] },
   { intent: "study_planning", patterns: [/(study plan|timetable|learning plan|schedule|roadmap|पढ़ाई का प्लान|स्टडी प्लान|समय सारणी)/i] },
   { intent: "resource_question", patterns: [/(pdf|document|uploaded file|my notes|this page|page\\s*\\d+|chapter|syllabus|मेरी पीडीएफ|इस पेज|पेज\\s*\\d+|नोट्स|दस्तावेज़|अध्याय)/i] },
   { intent: "complex_agent_task", patterns: [/(analy[sz]e|compare|organize|plan|recommend|manage|update|save|complete|विश्लेषण|तुलना|योजना|सुझाव|मैनेज)/i] },

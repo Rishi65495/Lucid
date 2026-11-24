@@ -56,7 +56,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method !== "POST" || url.pathname !== "/chat") return send(res, 404, { error: "Not found." });
   try {
-    const token = (req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+    const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!token) return send(res, 401, { error: "Sign in to Lucid first." });
     await validateUser(token);
     const body = await readBody(req);

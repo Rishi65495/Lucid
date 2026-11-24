@@ -65,7 +65,7 @@ h3{font-size:15px;font-weight:700;}
 /* ─── App Shell ───────────────────────────────────── */
 .app-shell{min-height:100vh;}
 .app-shell.nav-collapsed .sidebar{transform:translateX(-100%);}
-.app-shell.nav-collapsed .main{width:100%;margin-left:0;}
+.app-shell.nav-collapsed .main{width:100%!important;margin-left:0!important;}
 
 /* ─── Sidebar ─────────────────────────────────────── */
 .sidebar{
@@ -1785,7 +1785,6 @@ textarea{min-height:75px;resize:vertical;}
 
 <!-- Supabase JS client (pinned release) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://www.youtube.com/iframe_api"></script>
 <script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 <!-- ══════════════════ SCRIPT ══════════════════ -->
@@ -2112,7 +2111,7 @@ function renderUploadedBooks(){
     info.append(title,sub);main.append(cover,info);
     const footer=document.createElement('div');footer.className='book-footer';
     const tag=document.createElement('span');tag.className='tag';tag.textContent=b.catalogueId?'In catalogue':'Not in a catalogue';
-    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open PDF: '+error.message,'⚠'));
+    const open=document.createElement('button');open.className='primary-button btn-sm';open.textContent='Open →';open.onclick=()=>{if(b.type==='video'){openPage('video');window.selectLucidVideo(b.resourceId||b.id).catch(error=>showToast('Could not open video: '+error.message,'⚠'));}else if(b.type==='playlist'){openPage('video');window.loadLucidVideoPlaylist().catch(error=>showToast(error.message,'⚠'));}else window.openLucidResource(b.resourceId||b.id).catch(error=>showToast('Could not open resource: '+error.message,'⚠'));};
     footer.append(tag,open);el.append(main,footer);
     const move=document.createElement('div');move.style.cssText='display:flex;gap:8px;align-items:center;margin-top:10px;';
     const label=document.createElement('span');label.className='muted small-text';label.textContent='Folder:';
@@ -2156,9 +2155,9 @@ function loadYoutube() {
   loadYoutubeURL(url);
 }
 function loadPlaylist() {
-  closeModal('uploadModal');
-  openPage('video');
-  showToast('Playlist imported! Creating course structure…', '▶');
+  const url=document.getElementById('playlistURL').value.trim();
+  if(!url){showToast('Paste a YouTube playlist URL first.','⚠');return;}
+  closeModal('uploadModal');loadYoutubeURL(url);
 }
 function loadYoutubeVideo() {
   const url = document.getElementById('ytURL').value.trim();
@@ -2569,6 +2568,12 @@ async function listenAI() {
 }
 
 // ─── Mobile drawer ────────────────────────────────
+function toggleAppSidebar(){
+  const shell=document.querySelector('.app-shell');if(!shell)return;
+  const collapsed=shell.classList.toggle('nav-collapsed'),button=document.getElementById('sidebarCollapseButton');
+  if(button){button.title=collapsed?'Show navigation':'Hide navigation';button.setAttribute('aria-expanded',String(!collapsed));}
+  try{localStorage.setItem('lucid-main-sidebar-hidden',collapsed?'1':'0');}catch(_){}
+}
 function toggleReaderSidebar(){
   const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
   if(!layout||!button)return;
@@ -2627,6 +2632,7 @@ document.addEventListener('click', e => {
 localStorage.removeItem('leafline-gemini-key');
 localStorage.removeItem('leafline-gemini-model');
 restoreState();
+if(localStorage.getItem('lucid-main-sidebar-hidden')==='1'){document.querySelector('.app-shell')?.classList.add('nav-collapsed');const navButton=document.getElementById('sidebarCollapseButton');if(navButton){navButton.title='Show navigation';navButton.setAttribute('aria-expanded','false');}}
 if(localStorage.getItem('lucid-reader-sidebar-hidden')!=='0'){
   const layout=document.getElementById('readerLayout'),button=document.getElementById('toggleReaderSidebar');
   layout?.classList.add('sidebar-hidden');if(button){button.textContent='Show panel ▸';button.setAttribute('aria-expanded','false');}
@@ -2640,5 +2646,6 @@ loadQuiz(0);
 resetTimer();
 </script>
 <script src="lucid-integration.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>

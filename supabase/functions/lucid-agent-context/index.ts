@@ -14,7 +14,7 @@ async function getLearnerOverview(sb: any, user: any) {
     sb.from("profiles").select("display_name,bio,level,xp,weekly_goal").eq("id", userId).maybeSingle(),
     sb.from("lucid_resources").select("id,title,type,processing_status,created_at").eq("owner_id", userId).order("created_at", { ascending: false }).limit(500),
     sb.from("catalogues").select("id,title,description,created_at").eq("owner_id", userId).order("created_at", { ascending: false }).limit(200),
-    sb.from("catalogue_resources").select("catalogue_id,resource_id,status").eq("status", "active").limit(2000),
+    Promise.resolve({ data: [], error: null }),
     sb.from("learning_journeys").select("completion,exposure,understanding,recall,application,last_activity_at,resource_id,catalogue_id,lucid_resources(title,type)").eq("owner_id", userId).order("last_activity_at", { ascending: false }).limit(100),
     sb.from("concept_mastery").select("mastery,exposure,understanding,recall,application,updated_at,concepts(title,normalized_key)").eq("user_id", userId).order("mastery", { ascending: true }).limit(50),
     sb.from("quiz_attempts").select("score,max_score,completed_at,skipped,quizzes(title,quiz_type)").eq("user_id", userId).order("completed_at", { ascending: false }).limit(20),
@@ -23,6 +23,11 @@ async function getLearnerOverview(sb: any, user: any) {
   ]);
   for (const result of [profile, resources, catalogues, catalogueLinks, journeys, mastery, attempts, xp, earnedBadges]) if (result.error) throw result.error;
   const resourceRows = resources.data || [];
+  const catalogueIds = (catalogues.data || []).map((x: any) => x.id);
+  const catalogueLinks = catalogueIds.length
+    ? await sb.from("catalogue_resources").select("catalogue_id,resource_id,status").in("catalogue_id", catalogueIds).eq("status", "active").limit(2000)
+    : { data: [], error: null };
+  if (catalogueLinks.error) throw catalogueLinks.error;
   const journeyRows = journeys.data || [];
   const valid = (attempts.data || []).filter((x: any) => !x.skipped && Number(x.max_score) > 0);
   const earned = valid.reduce((sum: number, x: any) => sum + Number(x.score || 0), 0);

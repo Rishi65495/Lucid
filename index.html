@@ -2255,49 +2255,42 @@ function answerQuiz(correct, btn) {
   saveState();
 }
 function nextQuestion() {
+  if(!quizBank.length)return;
   if(currentQuizIdx+1>=quizBank.length){window.currentQuizAttemptId=null;state.quizCorrect=0;state.quizTotal=0;document.getElementById('quizScore').textContent='0/0';document.getElementById('quizScoreBar').style.width='0%';document.getElementById('accuracyBar').style.width='0%';document.getElementById('accuracyPct').textContent='—';}
-  currentQuizIdx = (currentQuizIdx + 1) % quizBank.length;
-  loadQuiz(currentQuizIdx);
+  currentQuizIdx=(currentQuizIdx+1)%quizBank.length;loadQuiz(currentQuizIdx);
 }
 function skipQuiz() { nextQuestion(); showToast('Skipped — no mastery change.'); }
 
 async function generateAIQuiz() {
-  const existing=document.getElementById('aiQuizSetup');if(existing){existing.remove();return;}
-  const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf');
-  if(!resources.length){showToast('Upload a PDF to your Library before generating a source-based quiz.','⚠');return;}
+  let source;
+  try{source=await getLucidPracticeContext();}catch(error){showToast(error.message,'⚠');document.getElementById('practiceSourceSelect')?.focus();return;}
   const modal=document.createElement('div');modal.id='aiQuizSetup';modal.className='modal-backdrop open';
-  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Build a quiz from your material</h2><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack">'+
-    '<div id="quizSourceStep"><p class="muted small-text">First choose the PDF Lucid should use as the only source for this quiz.</p><label class="form-label">Source resource<select id="quizSource"><option value="">Choose a PDF…</option>'+resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+'</option>').join('')+'</select></label><button class="primary-button full-width" id="quizContinue" disabled>Continue to quiz settings →</button></div>'+
-    '<div id="quizOptionsStep" style="display:none;"><div class="tag" id="quizChosenSource" style="margin-bottom:12px;">Source selected</div>'+
-    '<div class="form-row"><label class="form-label">Question format<select id="quizFormat"><option value="mixed">Mixed question types</option><option value="mcq">Multiple choice</option><option value="true_false">True / False</option><option value="case_based">Application / case-based</option></select></label><label class="form-label">Difficulty<select id="quizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div>'+
-    '<div class="form-row"><label class="form-label">Question count<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Whole resource</option><option value="current">Current page</option><option value="selected">Selected passage</option></select></label></div>'+
-    '<label class="form-label">Instructions<textarea id="quizPrompt" placeholder="Tell Lucid what to focus on: definitions, comparisons, applications, exam-style questions…"></textarea></label><button class="secondary-button full-width" id="quizChangeSource" type="button">← Change source</button><button class="primary-button full-width" id="buildAIQuiz">Generate quiz →</button></div><p class="muted small-text" id="quizBuildStatus">Choose a source to continue.</p></div></div>';  document.body.appendChild(modal);
+  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Generate from '+escapeHTML(source.title)+'</h2><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack"><p class="muted small-text">Lucid will use only the selected source content below. No sample-topic questions will be added.</p>'+
+    '<div class="form-row"><label class="form-label">Format<select id="quizFormat"><option value="mixed">Mixed</option><option value="mcq">Multiple choice</option><option value="true_false">True / False</option><option value="case_based">Case-based</option></select></label><label class="form-label">Difficulty<select id="quizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div>'+
+    '<label class="form-label">Number of questions<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>'+
+    '<label class="form-label">Focus instructions<textarea id="quizPrompt" placeholder="Optional: focus on definitions, comparisons, examples, applications or exam-style questions…"></textarea></label>'+
+    '<button class="primary-button full-width" id="buildAIQuiz">Generate source-based quiz →</button><p class="muted small-text" id="quizBuildStatus">Source: '+escapeHTML(source.title)+'</p></div></div>';
+  document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
-  const sourceSelect=modal.querySelector('#quizSource'),continueButton=modal.querySelector('#quizContinue'),sourceStep=modal.querySelector('#quizSourceStep'),optionsStep=modal.querySelector('#quizOptionsStep');
-  sourceSelect.addEventListener('change',()=>{continueButton.disabled=!sourceSelect.value;});
-  continueButton.onclick=()=>{const selected=resources.find(r=>(r.resourceId||r.id)===sourceSelect.value);if(!selected)return;modal.querySelector('#quizChosenSource').textContent='Source: '+selected.name;sourceStep.style.display='none';optionsStep.style.display='block';modal.querySelector('#quizBuildStatus').textContent='Configure the quiz using this resource only.';};
-  modal.querySelector('#quizChangeSource').onclick=()=>{optionsStep.style.display='none';sourceStep.style.display='block';};
   modal.querySelector('#buildAIQuiz').onclick=async()=>{
-    const resourceId=modal.querySelector('#quizSource').value,format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim();
-    if(!resourceId){modal.querySelector('#quizBuildStatus').textContent='Select a source PDF first.';return;}if(coverage==='selected'&&resourceId!==state.currentResourceId){modal.querySelector('#quizBuildStatus').textContent='Open the selected PDF and select a passage first.';return;}if(coverage==='selected'&&!state.selectedText){modal.querySelector('#quizBuildStatus').textContent='Select a passage in the PDF first.';return;}
-    const resource=resources.find(r=>(r.resourceId||r.id)===resourceId),btn=modal.querySelector('#buildAIQuiz');btn.disabled=true;btn.textContent='Generating…';
-    modal.querySelector('#quizBuildStatus').textContent='Preparing source-grounded questions…';
+    const btn=modal.querySelector('#buildAIQuiz'),status=modal.querySelector('#quizBuildStatus');
+    const format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),instructions=modal.querySelector('#quizPrompt').value.trim();
+    btn.disabled=true;btn.textContent='Generating…';status.textContent='Generating questions from '+source.title+'…';
     try{
-      const currentPageForSource=resourceId===state.currentResourceId?state.currentResourcePage:1;const pages=coverage==='selected'?[]:await window.getLucidResourcePages(resourceId,{page:coverage==='current'?currentPageForSource:null});
-      const stride=Math.max(1,Math.ceil(pages.length/24));
-      const selectedPages=coverage==='current'?pages:pages.filter((_,index)=>index%stride===0);
-      const pageContext=coverage==='selected'?(state.selectedText||'') :selectedPages.map(p=>'Page '+p.page_number+': '+String(p.text_content||'').slice(0,760)).join('\\n\\n').slice(0,18000);
-      if(!String(pageContext||'').trim())throw new Error('This PDF has no extracted text for the selected coverage. Run OCR or choose a text-readable PDF first.');
-      const prompt='Create '+count+' quiz questions from "'+(resource?.name||'the selected PDF')+'". Format: '+format+'. Difficulty: '+difficulty+'. Coverage: '+coverage+'. Instructions: '+(instructions||'Test understanding and application, not only memorization')+'. Return structured questions with prompt, options, answer_index and explanation. Do not invent facts beyond the supplied source.';
-      const data=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:resource?.name,question_format:format,difficulty,question_count:count,coverage,page_content:pageContext});
+      const prompt='Create exactly '+count+' questions based exclusively on the supplied source content from '+source.title+'. Format: '+format+'. Difficulty: '+difficulty+'. Additional focus: '+(instructions||'test understanding, definitions and application').+'. If the source does not contain enough information, create fewer questions rather than inventing facts. Return prompt, options, answer_index, explanation and type.';
+      const data=await window.callLearningEngine('quiz',prompt,{page_content:source.content,source_title:source.title,source_type:source.sourceType,question_format:format,difficulty,question_count:count});
       const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||format}));
-      if(!qs.length)throw new Error('No structured questions returned. Try fewer questions or a different format.');
-      let savedQuizId=null;try{savedQuizId=await window.saveLucidQuiz({resourceId,sourceTitle:resource?.name,format,difficulty,coverage,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}catch(saveError){console.warn('Quiz generated but history could not be saved:',saveError.message);}
-      quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=savedQuizId;window.currentQuizSourceId=resourceId;
-      loadQuiz(0);close();openPage('practice');showToast(qs.length+' questions generated from '+(resource?.name||'your PDF')+(savedQuizId?' and saved to your practice history.':'.'),savedQuizId?'✦':'⚠');
-    }catch(error){modal.querySelector('#quizBuildStatus').textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
+      if(!qs.length)throw new Error('The AI returned no valid questions grounded in this source.');
+      let savedQuizId=null;
+      try{savedQuizId=await window.saveLucidQuiz({resourceId:source.resourceId,sourceTitle:source.title,format,difficulty,coverage:source.sourceType,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}catch(saveError){console.warn('Quiz could not be saved:',saveError.message);}
+      quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=savedQuizId;window.currentQuizSourceId=source.resourceId;state.flashcards=[];
+      document.getElementById('quizScore').textContent='0/0';document.getElementById('quizScoreBar').style.width='0%';document.getElementById('accuracyBar').style.width='0%';document.getElementById('accuracyPct').textContent='—';
+      const difficultyTag=document.getElementById('practiceDifficultyTag');if(difficultyTag)difficultyTag.textContent='Difficulty: '+difficulty;
+      loadQuiz(0);close();showToast(qs.length+' questions generated from '+source.title+'.','✦');
+    }catch(error){status.textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
   };
 }
+
 // ─── Resource-aware practice source ───────────────
 function setPracticeSource(value){
   const [type,id]=String(value||'').split(':',2);state.practiceSourceType=type||null;state.practiceSourceId=id||null;
@@ -2372,11 +2365,9 @@ async function generateFlashcards() {
 }
 
 // ─── Oral recall ─────────────────────────────────
-function newOralQuestion() {
-  const q = state.oralQuestions[Math.floor(Math.random() * state.oralQuestions.length)];
-  document.getElementById('oralQuestion').textContent = q;
-  document.getElementById('oralAnswer').value = '';
-  document.getElementById('oralResult').style.display = 'none';
+async function newOralQuestion() {
+  const target=document.getElementById('oralQuestion');target.textContent='Creating a question from your selected source…';
+  try{const source=await getLucidPracticeContext();const data=await window.callLearningEngine('quiz','Create one short oral-recall question based only on the selected source. Return one question with answer criteria.',{page_content:source.content,source_title:source.title,question_count:1,question_format:'oral'});const q=data.result?.questions?.[0]?.prompt||data.result?.text||data.result?.lesson;if(!q)throw new Error('No source-grounded question returned.');target.textContent=q;document.getElementById('oralAnswer').value='';document.getElementById('oralResult').style.display='none';}catch(error){target.textContent='Select a source and generate a question.';showToast(error.message,'⚠');}
 }
 async function evaluateOral() {
   const q=document.getElementById('oralQuestion').textContent,a=document.getElementById('oralAnswer').value.trim();

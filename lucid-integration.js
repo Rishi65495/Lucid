@@ -47,7 +47,7 @@ window.callAIGuide = async function(prompt,style){
     // Do not download PDF pages in the browser. The Edge Function routes the
     // request first and retrieves only the relevant, user-owned resource pages.
     const data=await window.invokeLucidFunction('ai-guide',{
-      question:(typeof state!=='undefined'&&state.currentResourceId?'Current PDF page: '+(state.currentResourcePage||1)+'. ':'')+prompt,
+      question:prompt,
       style:style||'',
       history,
       resource_id:typeof state!=='undefined'?state.currentResourceId:null,

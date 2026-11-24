@@ -1786,15 +1786,16 @@ async function delNote(btn) {
 }
 
 // ─── Page completion ─────────────────────────────
-function completePage() {
-  if(window.changeLucidReaderPage && (state.resourcePages||[]).length && state.currentResourcePage < state.resourcePages.length) window.changeLucidReaderPage(1);
-  state.pagesRead += 1;
-  state.xp += 12;
-  state.sessionPagesCompleted += 1;
-  saveState();
-  updateXP();
-  updateSessionProgress();
-  showToast(`Page complete! +12 XP earned. Total: ${state.pagesRead} pages.`, '📖');
+async function completePage() {
+  if(!state.currentResourceId||!window.currentPdfUrl){showToast('Open a PDF before marking a page complete.','⚠');return;}
+  const page=Math.max(1,Number(state.currentResourcePage)||1),total=Math.max(1,Number(state.currentResourcePageCount)||1);
+  try{
+    const result=await window.markLucidPdfPageComplete(page);
+    updateSessionProgress();
+    if(result.alreadyCompleted)showToast('Page '+page+' was already marked complete.','ℹ');
+    else showToast('Page '+page+' marked complete. +12 XP earned.','📖');
+    if(page<total)window.changeLucidReaderPage(1);
+  }catch(error){showToast('Could not save page progress: '+error.message,'⚠');}
 }
 function prevPage() { if(window.changeLucidReaderPage)window.changeLucidReaderPage(-1); }
 function updateSessionProgress() {
@@ -1820,13 +1821,6 @@ function updateXP() {
 }
 
 // Focus music controls removed: no ambient-audio state or handlers.
-
-function startRoomTest() {
-  closeModal?.('');
-  openPage('practice');
-  showToast('Room-based tests are not enabled. Use Practice Centre for an individual source-based quiz.', 'ℹ');
-}
-
 
 // ─── Library ──────────────────────────────────────
 async function uploadBook() {

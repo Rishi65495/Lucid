@@ -1435,7 +1435,26 @@ window.quickAI = async function(prompt){
   }
   if(typeof window.sendAIChatWithPrompt==='function'){
     openPage('aiGuide');
-    await window.sendAIChatWithPrompt(prompt);
+    if(/what should i study next|weak areas|study plan|learning progress|my goals/i.test(normalized)&&typeof window.callLucidAgent==='function'){
+      const chat=document.getElementById('aiChat'),empty=document.getElementById('aiChatEmpty');
+      if(empty)empty.style.display='none';
+      state.chatMessages.push({role:'user',text:prompt});
+      const userEl=document.createElement('div');userEl.className='ai-msg user';userEl.textContent=prompt;chat.appendChild(userEl);
+      const wait=document.createElement('div');wait.className='ai-msg bot thinking';wait.textContent='✦ Reviewing your learning profile, goals and recorded evidence…';chat.appendChild(wait);
+      chat.scrollTop=chat.scrollHeight;
+      try{
+        const answer=await window.callLucidAgent(prompt);
+        wait.className='ai-msg bot';wait.textContent=answer||'Lucid did not return a recommendation.';
+        state.chatMessages.push({role:'bot',text:answer||''});
+      }catch(error){
+        wait.className='ai-msg bot error';wait.textContent='Lucid Agent failed: '+error.message;
+        state.chatMessages.push({role:'bot',text:'Lucid Agent failed: '+error.message});
+      }
+      document.getElementById('chatCount').textContent=state.chatMessages.length;
+      chat.scrollTop=chat.scrollHeight;saveState();
+    }else{
+      await window.sendAIChatWithPrompt(prompt);
+    }
   }else{
     showToast('AI conversation is not ready yet. Refresh and try again.','⚠');
   }

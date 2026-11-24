@@ -287,6 +287,17 @@ window.persistLucidYouTubeImport=async function(imported,url){
     const inserted=await lucidSupabase.from('lucid_resources').insert(row).select('id').single();
     if(inserted.error)throw inserted.error;return inserted.data.id;
   };
+  const saveVideoRecord=async(row)=>{
+    const existing=await lucidSupabase.from('resource_videos').select('id').eq('resource_id',row.resource_id).limit(1).maybeSingle();
+    if(existing.error)throw existing.error;
+    if(existing.data?.id){
+      const updated=await lucidSupabase.from('resource_videos').update(row).eq('id',existing.data.id);
+      if(updated.error)throw updated.error;
+    }else{
+      const inserted=await lucidSupabase.from('resource_videos').insert(row);
+      if(inserted.error)throw inserted.error;
+    }
+  };
   let playlistId=null,items=[];
   if(imported.type==='playlist'){
     const playlist=imported.playlist||{},playlistUrl=url;
@@ -294,8 +305,7 @@ window.persistLucidYouTubeImport=async function(imported,url){
     for(const item of imported.items||[]){
       const videoUrl='https://www.youtube.com/watch?v='+encodeURIComponent(item.video_id);
       const resourceId=await saveResource({owner_id:owner,type:'video',title:item.title||'YouTube video',source_url:videoUrl,mime_type:'text/html',metadata:{youtube_video_id:item.video_id,youtube_playlist_id:imported.playlist_id,channel_title:item.channel_title||null,thumbnail:item.thumbnail||null,duration_seconds:Number(item.duration_seconds)||0,playlist_index:Number(item.playlist_index)||0}});
-      const videoRow=await lucidSupabase.from('resource_videos').upsert({resource_id:resourceId,youtube_video_id:item.video_id,youtube_playlist_id:imported.playlist_id,duration_seconds:Number(item.duration_seconds)||0,transcript:'',metadata:{source_url:videoUrl,playlist_resource_id:playlistId,thumbnail:item.thumbnail||null,channel_title:item.channel_title||null,playlist_index:Number(item.playlist_index)||0}},{onConflict:'resource_id'});
-      if(videoRow.error)throw videoRow.error;
+      await saveVideoRecord({resource_id:resourceId,youtube_video_id:item.video_id,youtube_playlist_id:imported.playlist_id,duration_seconds:Number(item.duration_seconds)||0,transcript:'',metadata:{source_url:videoUrl,playlist_resource_id:playlistId,thumbnail:item.thumbnail||null,channel_title:item.channel_title||null,playlist_index:Number(item.playlist_index)||0}});
       items.push({...item,resource_id:resourceId});
     }
     const parentUpdate=await lucidSupabase.from('lucid_resources').update({metadata:{youtube_playlist_id:imported.playlist_id,channel_title:playlist.channel_title||null,thumbnail:playlist.thumbnail||null,item_count:Number(playlist.item_count||items.length),items}}).eq('id',playlistId).eq('owner_id',owner);
@@ -311,8 +321,7 @@ window.persistLucidYouTubeImport=async function(imported,url){
   }else if(imported.type==='video'&&imported.item?.video_id){
     const item=imported.item,videoUrl='https://www.youtube.com/watch?v='+encodeURIComponent(item.video_id);
     const resourceId=await saveResource({owner_id:owner,type:'video',title:item.title||'YouTube video',source_url:videoUrl,mime_type:'text/html',metadata:{youtube_video_id:item.video_id,channel_title:item.channel_title||null,thumbnail:item.thumbnail||null,duration_seconds:Number(item.duration_seconds)||0}});
-    const videoRow=await lucidSupabase.from('resource_videos').upsert({resource_id:resourceId,youtube_video_id:item.video_id,youtube_playlist_id:null,duration_seconds:Number(item.duration_seconds)||0,transcript:'',metadata:{source_url:videoUrl,thumbnail:item.thumbnail||null,channel_title:item.channel_title||null}},{onConflict:'resource_id'});
-    if(videoRow.error)throw videoRow.error;
+    await saveVideoRecord({resource_id:resourceId,youtube_video_id:item.video_id,youtube_playlist_id:null,duration_seconds:Number(item.duration_seconds)||0,transcript:'',metadata:{source_url:videoUrl,thumbnail:item.thumbnail||null,channel_title:item.channel_title||null}});
     if(catalogueId){
       const existing=await lucidSupabase.from('catalogue_resources').select('resource_id').eq('catalogue_id',catalogueId).eq('resource_id',resourceId).maybeSingle();
       if(!existing.data){const linked=await lucidSupabase.from('catalogue_resources').insert({catalogue_id:catalogueId,resource_id:resourceId,order_index:0,status:'active'});if(linked.error)throw linked.error;}

@@ -96,7 +96,7 @@ window.callLucidAgent = async function(prompt){
 };
 // Source-first practice: every generated activity must start with an explicit learner-selected source.
 window.openLucidPracticeSourcePicker = function(){
-  const resources=(state.uploadedBooks||[]).filter(r=>['pdf','video'].includes(String(r.type||'').toLowerCase())&&r.status!=='processing'&&r.status!=='failed');
+  const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf'&&r.status!=='processing'&&r.status!=='failed');
   if(!resources.length){showToast('Add a text-readable PDF to your Library before generating practice.','⚠');return Promise.resolve(null);}
   const catalogues=state.catalogues||[];
   return new Promise(resolve=>{

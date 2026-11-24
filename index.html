@@ -951,70 +951,23 @@ textarea{min-height:75px;resize:vertical;}
     <!-- ══ CATALOGUES ══ -->
     <section class="page" id="catalogues">
       <div class="page-heading">
-        <div><div class="kicker">Your learning workspaces</div><h1>Catalogues.</h1></div>
+        <div><div class="kicker">Your learning folders</div><h1>Catalogues.</h1><p class="muted small-text">A catalogue is a folder for related PDFs, videos and study resources.</p></div>
         <button class="primary-button" onclick="openModal('catalogueModal')">＋ New catalogue</button>
       </div>
-      <div class="grid three-col" id="catalogueGrid">
-        <article class="catalogue-card card">
-          <div class="cat-icon">📐</div>
-          <h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;">MCA Semester 5</h3>
-          <p class="muted small-text" style="margin-top:6px;">Goal: Complete all subjects by December 2026</p>
-          <div class="progress-track" style="margin-top:12px;"><span class="progress-fill" style="width:47%"></span></div>
-          <div class="cat-meta">
-            <span class="cat-stat">6 resources</span>
-            <span class="cat-stat">·</span>
-            <span class="cat-stat">47% done</span>
-            <span class="cat-stat">·</span>
-            <span class="cat-stat">Mastery 68%</span>
-          </div>
-          <div style="display:flex;gap:7px;margin-top:14px;">
-            <button class="secondary-button btn-sm" onclick="openPage('reader')">Study</button>
-            <button class="ghost-button btn-sm">Edit</button>
-          </div>
-        </article>
-        <article class="catalogue-card card">
-          <div class="cat-icon">📗</div>
-          <h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;">Better Work</h3>
-          <p class="muted small-text" style="margin-top:6px;">Goal: Finish 3 productivity books</p>
-          <div class="progress-track" style="margin-top:12px;"><span class="progress-fill orange" style="width:40%"></span></div>
-          <div class="cat-meta">
-            <span class="cat-stat">3 resources</span>
-            <span class="cat-stat">·</span>
-            <span class="cat-stat">40% done</span>
-            <span class="cat-stat">·</span>
-            <span class="cat-stat">Mastery 55%</span>
-          </div>
-          <div style="display:flex;gap:7px;margin-top:14px;">
-            <button class="secondary-button btn-sm" onclick="openPage('reader')">Study</button>
-            <button class="ghost-button btn-sm">Edit</button>
-          </div>
-        </article>
-        <article class="catalogue-card card" style="border:2px dashed var(--line);background:transparent;display:flex;align-items:center;justify-content:center;min-height:180px;cursor:pointer;" onclick="openModal('catalogueModal')">
-          <div style="text-align:center;color:var(--muted);">
-            <div style="font-size:28px;margin-bottom:8px;">＋</div>
-            <strong>New catalogue</strong>
-            <p class="small-text" style="margin-top:4px;">Create a focused learning workspace</p>
-          </div>
-        </article>
-      </div>
-
-      <!-- Concept mastery map -->
-      <div class="section-row"><h2>Mastery overview</h2><span class="muted small-text">MCA Semester 5</span></div>
-      <div class="card card-padding">
-        <div class="mastery-bar-row"><span class="label">Machine Learning</span><div class="progress-track"><span class="progress-fill" style="width:68%"></span></div><span class="mastery-pct">68%</span></div>
-        <div class="mastery-bar-row"><span class="label">Algorithms</span><div class="progress-track"><span class="progress-fill orange" style="width:55%"></span></div><span class="mastery-pct">55%</span></div>
-        <div class="mastery-bar-row"><span class="label">Cyber Security</span><div class="progress-track"><span class="progress-fill rose" style="width:30%"></span></div><span class="mastery-pct">30%</span></div>
-        <div class="mastery-bar-row"><span class="label">Database Systems</span><div class="progress-track"><span class="progress-fill" style="width:74%"></span></div><span class="mastery-pct">74%</span></div>
-        <div class="mastery-bar-row"><span class="label">Overfitting (Weak)</span><div class="progress-track"><span class="progress-fill rose" style="width:22%"></span></div><span class="mastery-pct">22%</span></div>
-      </div>
+      <div class="grid three-col" id="catalogueGrid"><div class="card card-padding muted">Loading your catalogues…</div></div>
+      <section class="card card-padding" id="catalogueResourcesPanel" style="display:none;margin-top:18px;">
+        <div class="section-row" style="margin-top:0;"><div><div class="kicker">Selected folder</div><h2 id="catalogueResourcesTitle">Resources</h2><p class="muted small-text">Choose Open to read the exact file you uploaded.</p></div><button class="secondary-button btn-sm" onclick="document.getElementById('catalogueResourcesPanel').style.display='none'">Close</button></div>
+        <div id="catalogueResourcesList" class="grid library-grid"></div>
+        <div id="catalogueResourcesEmpty" class="muted small-text" style="display:none;padding:16px 0;">No resources in this folder yet. Use Import resource to add a PDF.</div>
+      </section>
     </section>
 
     <!-- ══ READER ══ -->
     <section class="page" id="reader">
       <div class="page-heading">
-        <div><div class="kicker" id="readerKicker">Deep Work · Chapter 4</div><h1>Reading room.</h1></div>
+        <div><div class="kicker" id="readerKicker">No resource selected</div><h1>Reading room.</h1></div>
         <div style="display:flex;align-items:center;gap:9px;">
-          <span class="tag" id="pageTag">Page 142 of 304</span>
+          <span class="tag" id="pageTag">No page</span>
           <button class="secondary-button btn-sm" onclick="openModal('focusModal')">⚡ Focus mode</button>
         </div>
       </div>
@@ -1035,19 +988,18 @@ textarea{min-height:75px;resize:vertical;}
         <div>
           <div class="reader-stage">
             <article class="document" id="documentText">
-              <div class="document-meta" id="docMeta">Deep Work / Chapter 4 / The Rules</div>
-              <h2 id="docTitle">Quit Social Media</h2>
-              <p>High-quality work requires sustained attention. The ability to concentrate without distraction is becoming increasingly valuable in a world where interruptions are constant and cognitive bandwidth is the scarcest resource of knowledge workers.</p>
-              <p><span class="highlight hl-yellow">Clarity about what deserves your attention is the first step toward meaningful progress. Without it, you risk spending your most productive hours on tasks that feel urgent but deliver little lasting value.</span></p>
-              <p>Instead of allowing every notification to define your next action, create a deliberate environment. Choose a small window of time, remove the obvious distractions, and begin with a clear intention of what understanding you want to walk away with.</p>
-              <p>Reading is not a race. It is a conversation with an idea. Let the idea finish its sentence before you reach for something else. The mind that wanders during a paragraph and the mind that revisits it twice are not equal—one is accumulating exposure, the other is building comprehension.</p>
-              <p><span class="highlight hl-green">The goal is not to avoid all modern tools. The goal is to make sure your tools serve your values instead of quietly replacing them. This is the deeper argument Newport is making: not against technology per se, but against the unexamined adoption of it.</span></p>
-              <p>Deep work is the ability to focus without distraction on a cognitively demanding task. It is a skill that must be trained deliberately, not a natural state to be stumbled upon by chance. The neurological explanation is compelling: focused work produces the kind of myelin growth that corresponds to skill development.</p>
-              <div class="document-footer">
-                <span>Progress updates as pages are completed</span>
+              <div class="document-meta" id="docMeta">No document selected</div>
+              <h2 id="docTitle">Choose a resource to begin reading</h2>
+              <div id="readerEmptyState" style="padding:28px 0;">
+                <p>Select a PDF from <strong>Library</strong> or open one from a Catalogue. The selected document will appear here.</p>
+                <button class="primary-button btn-sm" onclick="openPage('catalogues')">Browse catalogues</button>
+              </div>
+              <div id="readerPageContent"></div>
+              <div class="document-footer" id="readerDocumentFooter" style="display:none;">
+                <span id="readerPageStatus">Page 1</span>
                 <div style="display:flex;gap:8px;">
                   <button class="secondary-button btn-sm" onclick="prevPage()">← Prev</button>
-                  <button class="primary-button btn-sm" onclick="completePage()">Mark complete +12 XP →</button>
+                  <button class="primary-button btn-sm" onclick="completePage()">Next page →</button>
                 </div>
               </div>
             </article>
@@ -2006,7 +1958,7 @@ textarea{min-height:75px;resize:vertical;}
         <label class="form-label">PDF document (max 25 MB)<input id="pdfFile" type="file" accept=".pdf,application/pdf" /></label>
         <p class="muted small-text" id="pdfUploadStatus" aria-live="polite">PDFs are stored privately and text-indexed for your AI learning context.</p>
         <div class="form-row">
-          <label class="form-label">Catalogue<select id="uploadCatalogue"><option>MCA Semester 5</option><option>Better Work</option><option>Personal reading</option></select></label>
+          <label class="form-label">Catalogue<select id="uploadCatalogue"><option value="">Loading catalogues…</option></select></label>
           <label class="form-label">Priority<select><option>Normal</option><option>High</option><option>Low pressure</option></select></label>
         </div>
         <label class="form-label">Goal / deadline (optional)<input type="text" placeholder="e.g. Complete before Dec exam" /></label>
@@ -2172,7 +2124,9 @@ const state = {
   highlights: [],
   selectedText: '',
   uploadedBooks: [],
+  selectedCatalogueId: null,
   currentResourceId: null,
+  currentResourcePage: 1,
   currentResourceTitle: null,
   coachMode: 'Gentle',
   currentHL: 'yellow',
@@ -2212,7 +2166,7 @@ const pageNames = {
 function saveState() {
   localStorage.setItem('leafline-state-v2', JSON.stringify({
     pagesRead: state.pagesRead, streak: state.streak, xp: state.xp,
-    annotations: state.annotations, highlights: state.highlights, selectedText: state.selectedText, uploadedBooks: state.uploadedBooks,
+    annotations: state.annotations, highlights: state.highlights, selectedText: state.selectedText, uploadedBooks: state.uploadedBooks, selectedCatalogueId: state.selectedCatalogueId, currentResourceId: state.currentResourceId, currentResourceTitle: state.currentResourceTitle, currentResourcePage: state.currentResourcePage,
     preferences: state.preferences, quizCorrect: state.quizCorrect,
     quizTotal: state.quizTotal, chatMessages: state.chatMessages,
     coachMode: state.coachMode, selectedText: state.selectedText
@@ -2229,6 +2183,10 @@ function restoreState() {
     if (Array.isArray(s.highlights)) state.highlights = s.highlights;
     if (typeof s.selectedText === 'string') state.selectedText = s.selectedText;
     if (s.uploadedBooks) state.uploadedBooks = s.uploadedBooks;
+    if (s.selectedCatalogueId) state.selectedCatalogueId = s.selectedCatalogueId;
+    if (s.currentResourceId) state.currentResourceId = s.currentResourceId;
+    if (s.currentResourceTitle) state.currentResourceTitle = s.currentResourceTitle;
+    if (s.currentResourcePage) state.currentResourcePage = s.currentResourcePage;
     if (s.preferences) Object.assign(state.preferences, s.preferences);
     if (s.quizCorrect !== undefined) state.quizCorrect = s.quizCorrect;
     if (s.quizTotal !== undefined) state.quizTotal = s.quizTotal;
@@ -2463,31 +2421,42 @@ function startRoomTest() {
 
 // ─── Library ──────────────────────────────────────
 async function uploadBook() {
-  const file = document.getElementById('pdfFile').files[0];
-  if (!file) { showToast('Choose a PDF first.', '⚠'); return; }
-  const status = document.getElementById('pdfUploadStatus');
-  const button = document.querySelector('#uploadTab-file button[onclick="uploadBook()"]');
-  if (button) { button.disabled = true; button.textContent = 'Uploading and indexing…'; }
-  if (status) status.textContent = 'Uploading PDF, extracting page text and saving it to your private learning library…';
-  try {
-    const result = await window.uploadLucidPdf(file);
-    state.uploadedBooks.push({ id: result.resource.id, resourceId: result.resource.id, name: file.name, type: 'pdf', importedAt: new Date().toISOString(), pages: result.pageCount });
-    state.currentResourceId = result.resource.id; state.currentResourceTitle = result.resource.title;
-    saveState(); renderUploadedBooks(); closeModal('uploadModal'); openPage('library');
-    showToast(result.pageCount ? 'Indexed '+result.pageCount+' pages for AI learning.' : 'PDF saved; this file may need OCR.', '📄');
-  } catch (error) {
-    if (status) status.textContent = 'Upload failed: ' + error.message;
-    showToast('PDF upload failed: ' + error.message, '⚠');
-  } finally { if (button) { button.disabled = false; button.textContent = 'Add to library →'; } }
+  const file=document.getElementById('pdfFile').files[0];
+  const catalogueId=document.getElementById('uploadCatalogue').value;
+  if(!file){showToast('Choose a PDF first.','⚠');return;}
+  if(!catalogueId){showToast('Choose a catalogue for this PDF.','⚠');return;}
+  const status=document.getElementById('pdfUploadStatus');
+  const button=document.querySelector('#uploadTab-file button[onclick="uploadBook()"]');
+  if(button){button.disabled=true;button.textContent='Uploading and indexing…';}
+  if(status)status.textContent='Uploading PDF and adding it to the selected catalogue…';
+  try{
+    const result=await window.uploadLucidPdf(file,catalogueId);
+    state.uploadedBooks=state.uploadedBooks.filter(x=>(x.resourceId||x.id)!==result.resource.id);
+    state.uploadedBooks.push({id:result.resource.id,resourceId:result.resource.id,name:file.name,type:'pdf',catalogueId,pages:result.pageCount});
+    state.selectedCatalogueId=catalogueId;
+    saveState();renderUploadedBooks();closeModal('uploadModal');
+    if(window.loadLucidCatalogues)await window.loadLucidCatalogues();
+    if(window.openLucidCatalogue)await window.openLucidCatalogue(catalogueId);
+    showToast(result.pageCount?'PDF added to catalogue · '+result.pageCount+' pages indexed.':'PDF saved; this file may need OCR.','📄');
+  }catch(error){if(status)status.textContent='Upload failed: '+error.message;showToast('PDF upload failed: '+error.message,'⚠');}
+  finally{if(button){button.disabled=false;button.textContent='Add to library →';}}
 }
-function renderUploadedBooks() {
-  const lib = document.getElementById('libraryBooks');
-  state.uploadedBooks.forEach(b => {
-    if (lib.querySelector(`[data-title="${escapeHTML(b.name)}"]`)) return;
-    const el = document.createElement('article');
-    el.className = 'book-card card'; el.dataset.title = b.name; el.dataset.progress = '0'; el.dataset.type = 'pdf';
-    el.innerHTML = `<div class="book-main"><div class="book-cover cover-purple">PDF</div><div><div class="book-title">${escapeHTML(b.name)}</div><div class="book-author">Imported</div></div></div><div class="book-progress"><div class="progress-label"><span>Not started</span><span>0%</span></div><div class="progress-track"><span class="progress-fill" style="width:2%"></span></div></div><div class="book-footer"><span class="tag">New</span><button class="ghost-button" onclick="openPage('reader')">Open →</button></div>`;
-    lib.appendChild(el);
+function renderUploadedBooks(){
+  const lib=document.getElementById('libraryBooks');if(!lib)return;
+  const books=state.uploadedBooks||[];
+  lib.innerHTML='';
+  if(!books.length){lib.innerHTML='<div class="card card-padding muted">Your uploaded resources will appear here.</div>';return;}
+  books.forEach(b=>{
+    const el=document.createElement('article');el.className='book-card card';
+    const main=document.createElement('div');main.className='book-main';
+    const cover=document.createElement('div');cover.className='book-cover cover-purple';cover.textContent=(b.type||'PDF').toUpperCase();
+    const info=document.createElement('div');const title=document.createElement('div');title.className='book-title';title.textContent=b.name||'Untitled resource';
+    const sub=document.createElement('div');sub.className='book-author';sub.textContent=(b.pages||0)+' pages';
+    info.append(title,sub);main.append(cover,info);
+    const footer=document.createElement('div');footer.className='book-footer';
+    const tag=document.createElement('span');tag.className='tag';tag.textContent='Uploaded';
+    const open=document.createElement('button');open.className='ghost-button';open.textContent='Open →';open.onclick=()=>window.openLucidResource(b.resourceId||b.id);
+    footer.append(tag,open);el.append(main,footer);lib.appendChild(el);
   });
 }
 function sortBooks(order) {
@@ -2780,19 +2749,18 @@ function setCoachMode(mode, btn) {
 // API credentials are managed server-side in Supabase secrets.
 
 // ─── Catalogue ────────────────────────────────────
-function createCatalogue() {
-  const name = document.getElementById('catName').value.trim();
-  const goal = document.getElementById('catGoal').value.trim();
-  const icon = document.getElementById('catIcon').value.trim() || '📁';
-  if (!name) { showToast('Enter a catalogue name.', '⚠'); return; }
-  const grid = document.getElementById('catalogueGrid');
-  const el = document.createElement('article');
-  el.className = 'catalogue-card card';
-  el.innerHTML = `<div class="cat-icon">${icon}</div><h3 style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;">${escapeHTML(name)}</h3><p class="muted small-text" style="margin-top:6px;">${escapeHTML(goal || 'No goal set yet.')}</p><div class="progress-track" style="margin-top:12px;"><span class="progress-fill" style="width:0%"></span></div><div class="cat-meta"><span class="cat-stat">0 resources</span><span class="cat-stat">·</span><span class="cat-stat">Just started</span></div><div style="display:flex;gap:7px;margin-top:14px;"><button class="secondary-button btn-sm">Study</button><button class="ghost-button btn-sm">Edit</button></div>`;
-  // Insert before last card (the add button)
-  grid.insertBefore(el, grid.lastElementChild);
-  closeModal('catalogueModal');
-  showToast(`Catalogue "${name}" created!`, '◫');
+async function createCatalogue() {
+  const name=document.getElementById('catName').value.trim();
+  const goal=document.getElementById('catGoal').value.trim();
+  const icon=document.getElementById('catIcon').value.trim()||'📁';
+  if(!name){showToast('Enter a catalogue name.','⚠');return;}
+  try{
+    await window.createLucidCatalogue({title:name,description:goal,icon});
+    closeModal('catalogueModal');
+    document.getElementById('catName').value='';document.getElementById('catGoal').value='';
+    await window.loadLucidCatalogues();
+    showToast('Catalogue created.','◫');
+  }catch(error){showToast('Could not create catalogue: '+error.message,'⚠');}
 }
 
 // ─── Goals ────────────────────────────────────────

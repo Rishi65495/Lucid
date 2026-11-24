@@ -332,7 +332,7 @@ window.saveLucidQuiz = async function(input){
     source_context:{coverage:input.coverage||'whole',instructions:input.instructions||'',source_title:input.sourceTitle||'',question_count:(input.questions||[]).length}
   }).select('id').single();
   if(error)throw error;
-  const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.prompt||q.q,options:q.options||q.opts||[],answer:{answer_index:Number(q.answer_index??q.ans)||0},explanation:q.explanation||'',difficulty:input.difficulty||'Balanced',order_index:index}));
+  const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.prompt||q.q,options:q.options||q.opts||[],answer:{answer_index:Number(q.answer_index??q.ans)||0},explanation:q.explanation||'',difficulty:({Easy:1,Balanced:3,Moderate:3,Hard:4,'Exam level':5}[input.difficulty]||3),order_index:index}));
   const saved=await lucidSupabase.from('questions').insert(rows).select('id,order_index');
   if(saved.error){await lucidSupabase.from('quizzes').delete().eq('id',quiz.id).eq('owner_id',lucidSession.user.id);throw saved.error;}
   window.currentGeneratedQuestionIds=(saved.data||[]).sort((a,b)=>a.order_index-b.order_index).map(x=>x.id);
@@ -351,7 +351,7 @@ window.loadLucidLearningProfile = async function(){
   let concepts=[];
   if(conceptIds.length){const result=await lucidSupabase.from('concepts').select('id,title,normalized_key').in('id',conceptIds);if(!result.error)concepts=result.data||[];}
   const names=new Map(concepts.map(x=>[x.id,x.title||x.name||'Concept']));
-  const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:Number(x.mastery)||0,recall:Number(x.recall)||0,application:Number(x.application)||0,updated_at:x.updated_at}));
+  const toPct=value=>{const n=Number(value)||0;return Math.max(0,Math.min(100,n<=1?n*100:n));};\n  const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:toPct(x.mastery),recall:toPct(x.recall),application:toPct(x.application),updated_at:x.updated_at}));
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
   const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};

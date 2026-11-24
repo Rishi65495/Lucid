@@ -959,6 +959,10 @@ window.loadLucidCatalogues = async function(){
   if(resourceError)throw resourceError;
   const {data:links,error:linkError}=await lucidSupabase.from('catalogue_resources').select('catalogue_id,resource_id,status').eq('status','active');
   if(linkError)throw linkError;
+  const {data:progressRows,error:progressError}=await lucidSupabase.from('resource_item_progress').select('resource_id,item_key,position,completed,last_activity_at').eq('user_id',lucidSession.user.id).limit(5000);
+  if(progressError)throw progressError;
+  const progressByResource=new Map();
+  (progressRows||[]).forEach(row=>{const current=progressByResource.get(row.resource_id)||{completed:0,lastPosition:0,lastActivity:null};if(row.completed)current.completed+=1;current.lastPosition=Math.max(current.lastPosition,Number(row.position)||0);if(!current.lastActivity||new Date(row.last_activity_at)>new Date(current.lastActivity))current.lastActivity=row.last_activity_at;progressByResource.set(row.resource_id,current);});
   const catalogueIdsByResource=new Map();
   (links||[]).forEach(link=>{
     if(!catalogueIdsByResource.has(link.resource_id))catalogueIdsByResource.set(link.resource_id,[]);
@@ -967,10 +971,10 @@ window.loadLucidCatalogues = async function(){
   });
   const ownedResourceIds=new Set((resources||[]).map(resource=>resource.id));
   state.uploadedBooks=(resources||[]).map(r=>{
-    const catalogueIds=catalogueIdsByResource.get(r.id)||[];
-    return {id:r.id,resourceId:r.id,name:r.title,type:r.type,pages:Number(r.metadata?.page_count||0),
-      status:r.processing_status,catalogueId:catalogueIds[0]||null,catalogueIds};
+    const catalogueIds=catalogueIdsByResource.get(r.id)||[],progress=progressByResource.get(r.id)||{completed:0,lastPosition:0,lastActivity:null},pages=Number(r.metadata?.page_count||0);
+    return {id:r.id,resourceId:r.id,name:r.title,type:r.type,pages,status:r.processing_status,catalogueId:catalogueIds[0]||null,catalogueIds,completedPages:progress.completed,progressPercent:pages?Math.min(100,Math.round(progress.completed/pages*100)):0,lastPosition:progress.lastPosition,lastActivity:progress.lastActivity};
   });
+  state.pagesRead=state.uploadedBooks.reduce((sum,item)=>sum+(Number(item.completedPages)||0),0);
   if(typeof renderUploadedBooks==='function')renderUploadedBooks();
   const countByCatalogue=new Map();
   (links||[]).forEach(link=>{
@@ -1007,7 +1011,9 @@ window.loadLucidCatalogues = async function(){
     else{select.disabled=false;(cats||[]).forEach(cat=>select.add(new Option(cat.title,cat.id)));if(cats.some(c=>c.id===chosen))select.value=chosen;else select.value=cats[0].id;}
   }
   state.catalogues=cats||[];
+  state.catalogueResourceCounts=Object.fromEntries(Array.from(countByCatalogue.entries()).map(([id,set])=>[id,set.size]));
   if(window.renderLucidDashboardBooks)window.renderLucidDashboardBooks();
+  if(window.renderLucidLibraryCatalogues)window.renderLucidLibraryCatalogues();
   return cats||[];
 };
 window.renderLucidDashboardBooks=function(){
@@ -1055,7 +1061,7 @@ window.loadLucidDashboardMetrics=async function(){
   const watchedVideos=new Set(videos.filter(x=>(Number(x.active_seconds)||0)>0).map(x=>x.resource_id).filter(Boolean)).size;
   const recall=attempts.length?Math.round(attempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/attempts.length):null;
   const goalMinutes=Math.max(1,Number(profileResult.data?.weekly_goal)||200),percent=Math.max(0,Math.min(100,Math.round(focusMinutes/goalMinutes*100)));
-  const streak=Math.max(0,Number(xpResult.data?.streak_days)||0);state.streak=streak;state.pagesRead=pages;state.weeklyGoal=goalMinutes;
+  const streak=Math.max(0,Number(xpResult.data?.streak_days)||0);state.streak=streak;state.weeklyGoal=goalMinutes;
   const formatMinutes=value=>{const n=Math.max(0,Math.round(value)),h=Math.floor(n/60),m=n%60;return h?h+'h '+m+'m':n+'m';};
   const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};
   const setWidth=(id,value)=>{const el=document.getElementById(id);if(el)el.style.width=Math.max(0,Math.min(100,Number(value)||0))+'%';};
@@ -1095,6 +1101,49 @@ window.loadLucidDashboardMetrics=async function(){
   }
   const date=document.getElementById('dashKicker');if(date)date.textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   return {focusMinutes,pages,watchedVideos,answerCount,recall,streak,weeklyGoalMinutes:goalMinutes};
+};
+window.renderLucidLibraryCatalogues=function(){
+  const grid=document.getElementById('libraryCataloguePreview');if(!grid)return;
+  grid.innerHTML='';
+  const catalogues=state.catalogues||[];
+  if(!catalogues.length){grid.innerHTML='<p class="muted small-text">No catalogues yet. Create one to organize your learning resources.</p>';return;}
+  catalogues.forEach(cat=>{
+    const card=document.createElement('article');card.className='card card-padding';
+    const kicker=document.createElement('div');kicker.className='kicker';kicker.textContent='Catalogue';
+    const title=document.createElement('h3');title.style.cssText="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-top:8px;";title.textContent=cat.title;
+    const desc=document.createElement('p');desc.className='muted small-text';desc.textContent=cat.description||'Learning resources';
+    const count=document.createElement('p');count.className='muted small-text';count.textContent=String(state.catalogueResourceCounts?.[cat.id]||0)+' resources';
+    const button=document.createElement('button');button.className='secondary-button btn-sm';button.textContent='View resources';button.style.marginTop='12px';button.onclick=()=>window.openLucidCatalogue(cat.id);
+    card.append(kicker,title,desc,count,button);grid.appendChild(card);
+  });
+};
+window.markLucidPdfPageComplete=async function(pageNumber){
+  if(!lucidSession?.user||!state.currentResourceId)throw new Error('Open a PDF and sign in before marking a page complete.');
+  const page=Math.max(1,Number(pageNumber)||1),itemKey='page:'+page;
+  const existing=await lucidSupabase.from('resource_item_progress').select('id,completed').eq('user_id',lucidSession.user.id).eq('resource_id',state.currentResourceId).eq('item_key',itemKey).maybeSingle();
+  if(existing.error)throw existing.error;
+  const alreadyCompleted=!!existing.data?.completed;
+  const row={resource_id:state.currentResourceId,user_id:lucidSession.user.id,item_key:itemKey,position:page,speed:1,completed:true,last_activity_at:new Date().toISOString(),metadata:{page_number:page,page_count:Number(state.currentResourcePageCount)||null,source:'reading_room'}};
+  const saved=await lucidSupabase.from('resource_item_progress').upsert(row,{onConflict:'resource_id,user_id,item_key'});
+  if(saved.error)throw saved.error;
+  if(!alreadyCompleted){
+    state.pagesRead=(Number(state.pagesRead)||0)+1;
+    state.sessionPagesCompleted=(Number(state.sessionPagesCompleted)||0)+1;
+    state.xp=(Number(state.xp)||0)+12;
+    if(window.syncLucidXP)await window.syncLucidXP(state.xp,state.level);
+    updateXP();
+    try{await lucidSupabase.rpc('track_learning_event',{p_event_type:'resource_page_completed',p_catalogue_id:state.selectedCatalogueId||null,p_resource_id:state.currentResourceId,p_session_id:window.currentLucidReadingSessionId||null,p_payload:{page_number:page}});}catch(_){}
+  }
+  const resource=state.uploadedBooks.find(x=>(x.resourceId||x.id)===state.currentResourceId);
+  if(resource){resource.completedPages=(Number(resource.completedPages)||0)+(alreadyCompleted?0:1);resource.progressPercent=resource.pages?Math.min(100,Math.round(resource.completedPages/resource.pages*100)):0;}
+  saveState();if(typeof renderUploadedBooks==='function')renderUploadedBooks();window.renderLucidDashboardBooks();
+  return {alreadyCompleted,pageNumber:page};
+};
+window.loadLucidResourceProgress=async function(resourceId){
+  if(!lucidSession?.user||!resourceId)return {completedPages:0,lastPosition:0};
+  const {data,error}=await lucidSupabase.from('resource_item_progress').select('item_key,position,completed').eq('user_id',lucidSession.user.id).eq('resource_id',resourceId).limit(2000);
+  if(error)throw error;
+  return {completedPages:(data||[]).filter(x=>x.completed).length,lastPosition:(data||[]).reduce((max,x)=>Math.max(max,Number(x.position)||0),0)};
 };
 window.moveLucidResourceToCatalogue = async function(resourceId,catalogueId){
   if(!lucidSession?.user)throw new Error('Sign in first.');

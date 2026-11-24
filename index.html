@@ -799,6 +799,31 @@ textarea{min-height:75px;resize:vertical;}
       </div>
       <div class="grid library-grid" id="dashboardBooks"><p class="muted small-text">Your uploaded resources will appear here after you sign in.</p>
       </div>
+      <div class="grid two-col" style="margin-top:18px;">
+        <article class="reward-card card">
+          <div class="kicker">Recent rewards</div>
+          <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">Your earned milestones.</h3>
+          <div class="badge-row" id="dashBadges"><div class="muted small-text">Sign in to see achievements earned from your learning activity.</div></div>
+          <p class="muted small-text" style="margin-top:14px;"><span id="dashBadgeSummary">Badges appear when your recorded learning evidence meets their criteria.</span></p>
+          <div class="streak-strip">
+            <div class="streak-number" id="streakSmall">0</div>
+            <div><strong style="font-size:12px;">day streak</strong><div class="muted small-text">Calculated from recorded learning activity.</div></div>
+          </div>
+        </article>
+        <article class="card card-padding">
+          <div class="kicker">Quick actions</div>
+          <h3 style="font-family:'DM Serif Display',serif;font-size:23px;font-weight:400;margin-top:9px;">Pick up where you need to.</h3>
+          <div class="quick-actions">
+            <button class="quick-action" onclick="continueLucidLearning()"><span class="qa-icon">◉</span><strong>Continue learning</strong></button>
+            <button class="quick-action" onclick="openPage('video')"><span class="qa-icon">▶</span><strong>Video Classroom</strong></button>
+            <button class="quick-action" onclick="openPage('aiGuide')"><span class="qa-icon">✦</span><strong>Ask AI Guide</strong></button>
+            <button class="quick-action" onclick="openPage('practice')"><span class="qa-icon">?</span><strong>Practice recall</strong></button>
+            <button class="quick-action" onclick="openPage('catalogues')"><span class="qa-icon">◫</span><strong>My catalogues</strong></button>
+            <button class="quick-action" onclick="openPage('analytics')"><span class="qa-icon">↗</span><strong>View insights</strong></button>
+            <button class="quick-action" onclick="openModal('uploadModal')"><span class="qa-icon">＋</span><strong>Add resource</strong></button>
+          </div>
+        </article>
+      </div>
     </section>
 
     <!-- ══ LIBRARY ══ -->

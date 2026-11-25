@@ -2126,7 +2126,7 @@ async function generateAIQuiz() {
         const qs=raw.filter(q=>q?.prompt&&Array.isArray(q.options)&&q.options.length===4&&Number.isInteger(Number(q.answer_index))&&Number(q.answer_index)>=0&&Number(q.answer_index)<=3&&q.options.every(o=>String(o||'').trim())).map(q=>({q:String(q.prompt),opts:q.options.map(String),ans:Number(q.answer_index),explanation:q.explanation||'',type:'mcq',conceptKey:q.concept_key||''}));
         if(qs.length!==expected)throw new Error('Batch '+(batchIndex+1)+' returned '+qs.length+' valid four-option questions; expected '+expected+'. No incomplete batch was accepted.');
         const quizId=await window.saveLucidQuiz({resourceId,sourceTitle:(resource?.name||'PDF')+' · Batch '+(batchIndex+1),title:(resource?.name||'PDF')+' · Batch '+(batchIndex+1),format:'mcq',difficulty,coverage,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:'mcq',concept_key:q.conceptKey}))});
-        window.currentQuizBatches.push({number:batchIndex+1,quizId,questions:qs,questionIds:[...(window.currentGeneratedQuestionIds||[])],conceptIds:[...(window.currentGeneratedConceptIds||[])],sourceTitle:resource?.name||'PDF'});
+        window.currentQuizBatches.push({number:batchIndex+1,quizId,questions:qs,questionIds:[...(window.currentGeneratedQuestionIds||[])],conceptIds:[...(window.currentGeneratedConceptIds||[])],sourceTitle:resource?.name||'PDF',resourceId});
         renderLucidQuizBatches();
       }
       close();openPage('practice');renderLucidQuizBatches();
@@ -2147,7 +2147,7 @@ function renderLucidQuizBatches(){
 function startLucidQuizBatch(index){
   const batch=(window.currentQuizBatches||[])[index];if(!batch)return;
   window.activeLucidQuizBatch=index;window.currentGeneratedQuizId=batch.quizId;window.currentGeneratedQuestionIds=batch.questionIds;window.currentGeneratedConceptIds=batch.conceptIds;
-  window.currentQuizAttemptId=null;window.currentQuizSourceId=null;window.currentQuizSourceIds=[];window.currentQuizCatalogueId=null;
+  window.currentQuizAttemptId=null;window.currentQuizSourceId=batch.resourceId||null;window.currentQuizSourceIds=batch.resourceId?[batch.resourceId]:[];window.currentQuizCatalogueId=null;
   quizBank.length=0;quizBank.push(...batch.questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
   const label=document.getElementById('quizSourceLabel');if(label)label.textContent=batch.sourceTitle+' · Batch '+batch.number;
   const report=document.getElementById('quizReportCard');if(report){report.hidden=true;report.innerHTML='';}

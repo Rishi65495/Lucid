@@ -2063,7 +2063,7 @@ function nextQuestion() {
   if(!quizBank.length)return;
   if(currentQuizIdx+1>=quizBank.length){
     const report=document.getElementById('quizReportCard');
-    if(report){const pct=state.quizTotal?Math.round(state.quizCorrect/state.quizTotal*100):0;report.hidden=false;report.innerHTML='<div class="kicker">Quiz report card</div><h2>'+state.quizCorrect+' / '+state.quizTotal+' correct</h2><p class="muted small-text">Accuracy: '+pct+'% · '+(pct>=80?'Strong performance':pct>=50?'Developing understanding':'Needs revision')+'</p><p class="muted small-text">'+(window.currentQuizPersistenceError?'Warning: result could not be fully saved — '+window.currentQuizPersistenceError:'Your result is saved and topic mastery has been updated.')+'</p>';}
+    if(report){const pct=state.quizTotal?Math.round(state.quizCorrect/state.quizTotal*100):0;report.hidden=false;report.innerHTML='<div class="kicker">Quiz report card</div><h2>'+state.quizCorrect+' / '+state.quizTotal+' correct</h2><p class="muted small-text">Accuracy: '+pct+'% · '+(pct>=80?'Strong performance':pct>=50?'Developing understanding':'Needs revision')+'</p><p class="muted small-text">'+(window.currentQuizPersistenceError?'Warning: result could not be fully saved — '+window.currentQuizPersistenceError :'Your completed attempt has been submitted to your learning history.')+'</p>';}
     const next=document.getElementById('nextQBtn');if(next){next.textContent='Generate another quiz';next.onclick=()=>window.generateAIQuiz();}
     if(typeof window.loadLucidLearningProfile==='function')window.loadLucidLearningProfile().then(profile=>window.renderLucidWeakAreas?.(profile)).catch(console.warn);
     if(typeof window.loadLucidDashboardMetrics==='function')window.loadLucidDashboardMetrics().catch(console.warn);
@@ -2072,7 +2072,27 @@ function nextQuestion() {
   currentQuizIdx++;
   loadQuiz(currentQuizIdx);
 }
-function skipQuiz() { nextQuestion(); showToast('Skipped — no mastery change.'); }
+async function skipQuiz() {
+  if(!quizBank.length)return;
+  const question=quizBank[currentQuizIdx];
+  state.quizTotal++;
+  const result=document.getElementById('quizResult');
+  try{
+    if(typeof window.recordLucidQuizAnswer==='function'&&window.currentGeneratedQuizId){
+      await window.recordLucidQuizAnswer({question:question.q,selectedOption:'',correctOption:question.opts[question.ans],correct:false,skipped:true,quizIndex:currentQuizIdx,totalQuestions:quizBank.length,quizId:window.currentGeneratedQuizId,scoreAfter:state.quizCorrect,explanation:question.explanation||''});
+    }
+  }catch(error){
+    window.currentQuizPersistenceError=error.message;
+    if(result){result.style.color='var(--danger)';result.textContent='Skip could not be saved: '+error.message;}
+  }
+  const pct=state.quizTotal?Math.round(state.quizCorrect/state.quizTotal*100):0;
+  document.getElementById('quizScore').textContent=state.quizCorrect+'/'+state.quizTotal;
+  document.getElementById('quizScoreBar').style.width=pct+'%';
+  document.getElementById('accuracyBar').style.width=pct+'%';
+  document.getElementById('accuracyPct').textContent=pct+'%';
+  if(currentQuizIdx+1>=quizBank.length){nextQuestion();return;}
+  currentQuizIdx++;loadQuiz(currentQuizIdx);showToast('Question skipped and recorded.','↷');
+}
 
 async function generateAIQuiz() {
   const existing=document.getElementById('aiQuizSetup');if(existing){existing.remove();return;}

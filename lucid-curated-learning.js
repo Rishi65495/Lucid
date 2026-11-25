@@ -104,8 +104,19 @@
     const page=document.getElementById('reader');if(!page||document.getElementById('readerLearningInsight'))return;
     const box=document.createElement('div');box.id='readerLearningInsight';box.className='curated-insight';box.innerHTML='<div class="kicker">Reading insights</div><h3 style="margin:6px 0">Study evidence</h3><p id="readerInsightText" class="muted small-text">Open a PDF to see its reading context. Extracted text remains separate from the original PDF display.</p>';
     const toolbar=page.querySelector('.reader-toolbar');toolbar.insertAdjacentElement('afterend',box);
-    const observer=new MutationObserver(()=>{const title=document.getElementById('docTitle')?.textContent||'';const pageNo=document.getElementById('pdfPageInput')?.value||'—';document.getElementById('readerInsightText').textContent=title&&title!=='Choose a resource to begin reading'?'Currently reading: '+title+'. PDF page '+pageNo+'. Use Ask AI for explanations; quiz and mastery metrics appear only after recorded attempts.':'Open a PDF to see its reading context.';});
-    observer.observe(page,{subtree:true,childList:true,characterData:true,attributes:true});
+    // Keep this panel static. Observing the entire Reader subtree while
+    // mutating text inside the observer caused a self-triggering mutation loop.
+    const insight=document.getElementById('readerInsightText');
+    const refreshInsight=()=>{
+      const title=document.getElementById('docTitle')?.textContent||'';
+      const pageNo=document.getElementById('pdfPageInput')?.value||'—';
+      if(insight) insight.textContent=title&&title!=='Choose a resource to begin reading'
+        ? 'Currently reading: '+title+'. PDF page '+pageNo+'. Use Ask AI for explanations; quiz and mastery metrics appear only after recorded attempts.'
+        : 'Open a PDF to see its reading context.';
+    };
+    page.querySelector('#pdfPageInput')?.addEventListener('change',refreshInsight);
+    page.querySelector('#pdfPageInput')?.addEventListener('input',refreshInsight);
+    refreshInsight();
   }
   function init(){ensureGoal();ensureReaderInsight();}
   document.addEventListener('DOMContentLoaded',init);setTimeout(init,0);

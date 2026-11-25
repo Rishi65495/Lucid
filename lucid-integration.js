@@ -1072,7 +1072,7 @@ window.loadLucidLearningProfile = async function(){
   const uid=lucidSession.user.id;
   const [mastery,attempts,sessions]=await Promise.all([
     lucidSupabase.from('concept_mastery').select('concept_id,mastery,recall,application,updated_at').eq('user_id',uid).order('mastery',{ascending:true}).limit(100),
-    lucidSupabase.from('quiz_attempts').select('score,max_score,completed_at').eq('user_id',uid).not('completed_at','is',null).order('completed_at',{ascending:false}).limit(20),
+    lucidSupabase.from('quiz_attempts').select('score,max_score,completed_at',{count:'exact'}).eq('user_id',uid).not('completed_at','is',null).order('completed_at',{ascending:false}).limit(20),
     lucidSupabase.from('reading_sessions').select('active_seconds,started_at,ended_at').eq('user_id',uid).order('started_at',{ascending:false}).limit(30)
   ]);
   for(const x of [mastery,attempts,sessions])if(x.error)throw x.error;
@@ -1084,7 +1084,7 @@ window.loadLucidLearningProfile = async function(){
   const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:toPct(x.mastery),recall:toPct(x.recall),application:toPct(x.application),updated_at:x.updated_at}));
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
-  const profile={weakConcepts:weak.filter(x=>x.mastery<70),strongConcepts:weak.filter(x=>x.mastery>=80),allConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  const profile={weakConcepts:weak.filter(x=>x.mastery<70),strongConcepts:weak.filter(x=>x.mastery>=80),allConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:attempts.count??completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
   window.currentLucidLearningProfile=profile;
   const masteryChart=document.getElementById('analyticsMasteryChart');
   if(masteryChart){

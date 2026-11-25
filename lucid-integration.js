@@ -150,8 +150,7 @@ window.generateAIQuiz = async function(){
       const questions=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||'mcq'}));
       if(!questions.length)throw new Error('The AI did not return valid questions. Try a smaller question count or a more text-readable source.');
       let quizId=null;window.currentGeneratedQuestionIds=[];
-      try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}
-      catch(saveError){console.warn('Quiz generated but could not be saved:',saveError.message);}
+      quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});
       quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
       window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizSourceIds=context.source_resource_ids;window.currentQuizCatalogueId=context.catalogue_id;
       const label=document.getElementById('quizSourceLabel');if(label)label.textContent='Sources: '+context.source_titles.join(', ');
@@ -236,24 +235,30 @@ window.practiceWeak = async function(topic){
     const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
     if(!questions.length)throw new Error('No source-grounded remedial questions were returned.');
     let quizId=null;window.currentGeneratedQuestionIds=[];
-    try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty:'Balanced',coverage:'weak_area',instructions:'Remedial practice for '+topic,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(saveError){console.warn('Remedial quiz history could not be saved:',saveError.message);}
+    quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty:'Balanced',coverage:'weak_area',instructions:'Remedial practice for '+topic,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});
     quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;window.currentGeneratedQuestionIds=window.currentGeneratedQuestionIds||[];const sourceLabel=document.getElementById('quizSourceLabel');if(sourceLabel)sourceLabel.textContent='Weak area: '+topic+' · '+context.source_titles.join(', ');loadQuiz(0);openPage('practice');showToast('Remedial practice generated from selected sources for '+topic+'.','✦');
   }catch(error){showToast('Weak-area practice failed: '+error.message,'⚠');}
 };
 window.renderLucidWeakAreas = function(profile){
   const list=document.getElementById('weakAreaList');if(!list)return;
-  const items=(profile?.weakConcepts||[]).filter(x=>Number.isFinite(Number(x.mastery))).sort((a,b)=>a.mastery-b.mastery);
+  const items=(profile?.allConcepts||profile?.weakConcepts||[]).filter(x=>Number.isFinite(Number(x.mastery))).sort((a,b)=>a.mastery-b.mastery);
   list.innerHTML='';
   if(!items.length){list.innerHTML='<p class="muted small-text">No measured concept mastery is available yet. Complete a source-based quiz or oral recall to build this list.</p>';return;}
-  items.slice(0,10).forEach(item=>{
+  const weakItems=items.filter(x=>x.mastery<70).slice(0,10),strongItems=items.filter(x=>x.mastery>=80).slice(0,10);
+  const groups=[{title:'Weak topics',items:weakItems,action:true},{title:'Strong topics',items:strongItems,action:false}];
+  groups.forEach(group=>{
+   const heading=document.createElement('h3');heading.textContent=group.title;heading.style.margin='12px 0 2px';list.appendChild(heading);
+   if(!group.items.length){const empty=document.createElement('p');empty.className='muted small-text';empty.textContent=group.action?'No weak topics measured yet. Complete a quiz to build evidence.':'No strong topics measured yet. Reach 80% mastery to appear here.';list.appendChild(empty);}
+   group.items.forEach(item=>{
     const row=document.createElement('div');row.className='goal-item';
     const body=document.createElement('div');body.style.flex='1';
     const title=document.createElement('strong');title.textContent=item.name;
     const meta=document.createElement('div');meta.className='muted small-text';meta.textContent='Recorded mastery: '+Math.round(item.mastery)+'% · Recall '+Math.round(item.recall||0)+'% · Application '+Math.round(item.application||0)+'%';
     const track=document.createElement('div');track.className='progress-track';track.style.marginTop='6px';
     const fill=document.createElement('span');fill.className='progress-fill rose';fill.style.width=Math.max(0,Math.min(100,item.mastery))+'%';track.appendChild(fill);body.append(title,meta,track);
-    const button=document.createElement('button');button.className='secondary-button btn-sm';button.textContent='Practice';button.onclick=()=>window.practiceWeak(item.name);
-    row.append(body,button);list.appendChild(row);
+    if(group.action){const button=document.createElement('button');button.className='secondary-button btn-sm';button.textContent='Practice';button.onclick=()=>window.practiceWeak(item.name);row.append(body,button);}else row.append(body);
+    list.appendChild(row);
+   });
   });
 };
 
@@ -915,7 +920,7 @@ window.loadLucidLearningProfile = async function(){
   const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:toPct(x.mastery),recall:toPct(x.recall),application:toPct(x.application),updated_at:x.updated_at}));
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
-  const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  const profile={weakConcepts:weak.filter(x=>x.mastery<70),strongConcepts:weak.filter(x=>x.mastery>=80),allConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
   window.currentLucidLearningProfile=profile;
   const analyticsMastery=document.getElementById('analyticsMastery');
   if(analyticsMastery){

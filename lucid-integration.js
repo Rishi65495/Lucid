@@ -6,34 +6,12 @@ let lucidSession = null;
 let lucidAuthMode = 'signin';
 function lucidAuthMessage(message, type) { const el=document.getElementById('authMessage'); if(!el)return; el.textContent=message||''; el.className='auth-message'+(type?' '+type:''); }
 window.toggleAuthMode = function(){ lucidAuthMode=lucidAuthMode==='signin'?'signup':'signin'; const signup=lucidAuthMode==='signup'; document.getElementById('authTitle').textContent=signup?'Create your account.':'Welcome back.'; document.getElementById('authDescription').textContent=signup?'Create a secure account to start learning with Lucid.':'Sign in to securely access your learning workspace and AI agents.'; document.getElementById('authSubmit').textContent=signup?'Create account':'Sign in'; document.getElementById('authModeSwitch').textContent=signup?'Already have an account? Sign in':'New to Lucid? Create an account'; document.getElementById('authPassword').autocomplete=signup?'new-password':'current-password'; lucidAuthMessage(''); };
-let lucidHydratedUserId = null;
-let lucidHydrationPromise = null;
 window.updateLucidAuthUI = async function(session){
   lucidSession=session||null;
   const gate=document.getElementById('authGate'); if(gate)gate.style.display=lucidSession?'none':'flex';
   const out=document.getElementById('signOutButton'); if(out)out.style.display=lucidSession?'':'none';
   const status=document.getElementById('aiConnectionStatus'); if(status)status.textContent=lucidSession?'Authenticated · AI requests are routed through Supabase.':'Sign in to activate AI services.';
-  const userId=lucidSession?.user?.id||null;
-  if(!userId){lucidHydratedUserId=null;lucidHydrationPromise=null;return;}
-  if(lucidHydratedUserId===userId||lucidHydrationPromise)return lucidHydrationPromise;
-  lucidHydrationPromise=(async()=>{
-    const loaders=[
-      ['learner profile',()=>window.loadLucidProfile()],
-      ['catalogues',()=>window.loadLucidCatalogues()],
-      ['video library',()=>window.loadLucidVideoLibrary()],
-      ['practice cards',()=>window.loadLucidPracticeCards()],
-      ['goals',()=>window.loadLucidGoals()],
-      ['achievements',()=>window.loadLucidAchievements()],
-      ['learning evidence',()=>window.loadLucidLearningProfile()],
-      ['leaderboard',()=>window.loadLucidLeaderboard()],
-      ['dashboard metrics',()=>window.loadLucidDashboardMetrics()]
-    ];
-    for(const [label,load] of loaders){
-      try{await load();}catch(error){console.warn('Could not load '+label+':',error?.message||error);}
-    }
-    lucidHydratedUserId=userId;
-  })();
-  try{await lucidHydrationPromise;}finally{lucidHydrationPromise=null;}
+  if(lucidSession&&lucidSession.user){try{await window.loadLucidProfile();}catch(error){console.warn('Could not load learner profile:',error.message);}try{await window.loadLucidCatalogues();}catch(error){console.warn('Could not load catalogues:',error.message);}try{await window.loadLucidVideoLibrary();}catch(error){console.warn('Could not load video library:',error.message);}try{await window.loadLucidPracticeCards();}catch(error){console.warn('Could not load due practice cards:',error.message);}try{await window.loadLucidGoals();}catch(error){console.warn('Could not load goals:',error.message);}try{await window.loadLucidAchievements();}catch(error){console.warn('Could not load achievements:',error.message);}try{await window.loadLucidLearningProfile();}catch(error){console.warn('Could not load learning evidence:',error.message);}try{await window.loadLucidLeaderboard();}catch(error){console.warn('Could not load leaderboard:',error.message);}try{await window.loadLucidDashboardMetrics();}catch(error){console.warn('Could not load dashboard metrics:',error.message);}}
 };
 window.handleAuthSubmit = async function(event){ event.preventDefault(); const email=document.getElementById('authEmail').value.trim(); const password=document.getElementById('authPassword').value; const button=document.getElementById('authSubmit'); button.disabled=true; button.textContent=lucidAuthMode==='signup'?'Creating account…':'Signing in…'; lucidAuthMessage(''); try { if(lucidAuthMode==='signup'){ const {data,error}=await lucidSupabase.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}}); if(error)throw error; if(data.session){window.updateLucidAuthUI(data.session);lucidAuthMessage('Account created. You are signed in.','success');}else{lucidAuthMessage('Account created. Check your email to confirm it, then return here and sign in.','success');} } else { const {data,error}=await lucidSupabase.auth.signInWithPassword({email,password}); if(error)throw error; window.updateLucidAuthUI(data.session); if(typeof showToast==='function')showToast('Signed in securely.','✓'); } } catch(error){lucidAuthMessage(error?.message||'Authentication failed. Please try again.','error');} finally {button.disabled=false;button.textContent=lucidAuthMode==='signup'?'Create account':'Sign in';} };
 window.signOutLucid = async function(){const {error}=await lucidSupabase.auth.signOut();if(error){showToast('Sign out failed: '+error.message,'⚠');return;}window.updateLucidAuthUI(null);showToast('You have signed out.','✓');};

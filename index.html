@@ -2079,37 +2079,84 @@ async function generateAIQuiz() {
   const resources=(state.uploadedBooks||[]).filter(r=>r.type==='pdf');
   if(!resources.length){showToast('Upload a PDF to your Library before generating a source-based quiz.','⚠');return;}
   const modal=document.createElement('div');modal.id='aiQuizSetup';modal.className='modal-backdrop open';
-  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Build a quiz from your material</h2><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack">'+
-    '<div id="quizSourceStep"><p class="muted small-text">First choose the PDF Lucid should use as the only source for this quiz.</p><label class="form-label">Source resource<select id="quizSource"><option value="">Choose a PDF…</option>'+resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+'</option>').join('')+'</select></label><button class="primary-button full-width" id="quizContinue" disabled>Continue to quiz settings →</button></div>'+
-    '<div id="quizOptionsStep" style="display:none;"><div class="tag" id="quizChosenSource" style="margin-bottom:12px;">Source selected</div>'+
-    '<div class="form-row"><label class="form-label">Question format<select id="quizFormat"><option value="mixed">Mixed question types</option><option value="mcq">Multiple choice</option><option value="true_false">True / False</option><option value="case_based">Application / case-based</option></select></label><label class="form-label">Difficulty<select id="quizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div>'+
-    '<div class="form-row"><label class="form-label">Question count<select id="quizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Whole resource</option><option value="current">Current page</option><option value="selected">Selected passage</option></select></label></div>'+
-    '<label class="form-label">Instructions<textarea id="quizPrompt" placeholder="Tell Lucid what to focus on: definitions, comparisons, applications, exam-style questions…"></textarea></label><button class="secondary-button full-width" id="quizChangeSource" type="button">← Change source</button><button class="primary-button full-width" id="buildAIQuiz">Generate quiz →</button></div><p class="muted small-text" id="quizBuildStatus">Choose a source to continue.</p></div></div>';  document.body.appendChild(modal);
+  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Generate 10-question quiz batches</h2><button class="close-button" id="closeAIQuiz">×</button></div><div class="form-stack">'+
+    '<p class="muted small-text">Lucid will read the complete PDF, split its numbered material into groups of 10, and create one four-option MCQ batch per group. Each batch is saved separately.</p>'+
+    '<label class="form-label">Source PDF<select id="quizSource"><option value="">Choose a PDF…</option>'+resources.map(r=>'<option value="'+escapeHTML(r.resourceId||r.id)+'">'+escapeHTML(r.name)+'</option>').join('')+'</select></label>'+
+    '<div class="form-row"><label class="form-label">Difficulty<select id="quizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label><label class="form-label">Coverage<select id="quizCoverage"><option value="whole">Whole PDF</option><option value="current">Current page only</option><option value="selected">Selected passage</option></select></label></div>'+
+    '<label class="form-label">Optional instructions<textarea id="quizPrompt" placeholder="Optional focus or exam style…"></textarea></label>'+
+    '<button class="primary-button full-width" id="buildAIQuiz">Generate all batches →</button><p class="muted small-text" id="quizBuildStatus">Choose a PDF to begin.</p></div></div>';
+  document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('#closeAIQuiz').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
-  const sourceSelect=modal.querySelector('#quizSource'),continueButton=modal.querySelector('#quizContinue'),sourceStep=modal.querySelector('#quizSourceStep'),optionsStep=modal.querySelector('#quizOptionsStep');
-  sourceSelect.addEventListener('change',()=>{continueButton.disabled=!sourceSelect.value;});
-  continueButton.onclick=()=>{const selected=resources.find(r=>(r.resourceId||r.id)===sourceSelect.value);if(!selected)return;modal.querySelector('#quizChosenSource').textContent='Source: '+selected.name;sourceStep.style.display='none';optionsStep.style.display='block';modal.querySelector('#quizBuildStatus').textContent='Configure the quiz using this resource only.';};
-  modal.querySelector('#quizChangeSource').onclick=()=>{optionsStep.style.display='none';sourceStep.style.display='block';};
   modal.querySelector('#buildAIQuiz').onclick=async()=>{
-    const resourceId=modal.querySelector('#quizSource').value,format=modal.querySelector('#quizFormat').value,difficulty=modal.querySelector('#quizDifficulty').value,count=Number(modal.querySelector('#quizCount').value),coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim();
-    if(!resourceId){modal.querySelector('#quizBuildStatus').textContent='Select a source PDF first.';return;}if(coverage==='selected'&&resourceId!==state.currentResourceId){modal.querySelector('#quizBuildStatus').textContent='Open the selected PDF and select a passage first.';return;}if(coverage==='selected'&&!state.selectedText){modal.querySelector('#quizBuildStatus').textContent='Select a passage in the PDF first.';return;}
-    const resource=resources.find(r=>(r.resourceId||r.id)===resourceId),btn=modal.querySelector('#buildAIQuiz');btn.disabled=true;btn.textContent='Generating…';
-    modal.querySelector('#quizBuildStatus').textContent='Preparing source-grounded questions…';
+    const resourceId=modal.querySelector('#quizSource').value,difficulty=modal.querySelector('#quizDifficulty').value,coverage=modal.querySelector('#quizCoverage').value,instructions=modal.querySelector('#quizPrompt').value.trim();
+    const status=modal.querySelector('#quizBuildStatus'),btn=modal.querySelector('#buildAIQuiz');
+    if(!resourceId){status.textContent='Select a source PDF first.';return;}
+    if(coverage==='selected'&&resourceId!==state.currentResourceId){status.textContent='Open the selected PDF and select a passage first.';return;}
+    if(coverage==='selected'&&!state.selectedText){status.textContent='Select a passage in the PDF first.';return;}
+    const resource=resources.find(r=>(r.resourceId||r.id)===resourceId);
+    btn.disabled=true;btn.textContent='Generating batches…';
     try{
-      const currentPageForSource=resourceId===state.currentResourceId?state.currentResourcePage:1;const pages=coverage==='selected'?[]:await window.getLucidResourcePages(resourceId,{page:coverage==='current'?currentPageForSource:null});
-      const stride=Math.max(1,Math.ceil(pages.length/24));
-      const selectedPages=coverage==='current'?pages:pages.filter((_,index)=>index%stride===0);
-      const pageContext=coverage==='selected'?(state.selectedText||'') :selectedPages.map(p=>'Page '+p.page_number+': '+String(p.text_content||'').slice(0,760)).join('\\n\\n').slice(0,18000);
-      if(!String(pageContext||'').trim())throw new Error('This PDF has no extracted text for the selected coverage. Run OCR or choose a text-readable PDF first.');
-      const prompt='Create '+count+' quiz questions from "'+(resource?.name||'the selected PDF')+'". Format: '+format+'. Difficulty: '+difficulty+'. Coverage: '+coverage+'. Instructions: '+(instructions||'Test understanding and application, not only memorization')+'. Return structured questions with prompt, options, answer_index and explanation. Do not invent facts beyond the supplied source.';
-      const data=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:resource?.name,question_format:format,difficulty,question_count:count,coverage,page_content:pageContext});
-      const qs=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||format}));
-      if(!qs.length)throw new Error('No structured questions returned. Try fewer questions or a different format.');
-      let savedQuizId=null;try{savedQuizId=await window.saveLucidQuiz({resourceId,sourceTitle:resource?.name,format,difficulty,coverage,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}catch(saveError){console.warn('Quiz generated but history could not be saved:',saveError.message);}
-      quizBank.length=0;quizBank.push(...qs);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=savedQuizId;window.currentQuizSourceId=resourceId;
-      loadQuiz(0);close();openPage('practice');showToast(qs.length+' questions generated from '+(resource?.name||'your PDF')+(savedQuizId?' and saved to your practice history.':'.'),savedQuizId?'✦':'⚠');
-    }catch(error){modal.querySelector('#quizBuildStatus').textContent='Generation failed: '+error.message;btn.disabled=false;btn.textContent='Try again →';}
+      const currentPage=resourceId===state.currentResourceId?state.currentResourcePage:1;
+      const pages=coverage==='selected'?[]:await window.getLucidResourcePages(resourceId,{page:coverage==='current'?currentPage:null});
+      const fullText=coverage==='selected'?String(state.selectedText||''):pages.map(p=>'Page '+p.page_number+'\n'+String(p.text_content||'')).join('\n\n');
+      if(!fullText.trim())throw new Error('No extracted PDF text. Run OCR or upload a text-readable PDF.');
+      // Preserve the PDF's numbered question/answer boundaries; do not silently sample pages.
+      const marks=[...fullText.matchAll(/(?:^|\n)\s*(\d{1,4})\)\s*/g)];
+      if(marks.length<2)throw new Error('Lucid could not detect numbered question boundaries in this PDF. Please run OCR or use a clearly numbered question bank.');
+      const entries=[];
+      for(let i=0;i<marks.length;i++){
+        const begin=marks[i].index+(marks[i][0].startsWith('\n')?1:0);
+        const contentStart=marks[i].index+marks[i][0].length;
+        const finish=i+1<marks.length?marks[i+1].index:fullText.length;
+        const body=fullText.slice(contentStart,finish).trim();
+        if(body.length>8)entries.push({number:Number(marks[i][1]),text:'Question '+marks[i][1]+': '+body});
+      }
+      if(entries.length<10)throw new Error('Fewer than 10 numbered questions were detected in the selected PDF coverage.');
+      const chunks=[];for(let i=0;i<entries.length;i+=10)chunks.push(entries.slice(i,i+10));
+      window.currentQuizBatches=[];
+      const host=document.getElementById('lucidQuizBatchList');
+      if(host)host.innerHTML='<p class="muted small-text">Generating '+chunks.length+' batches…</p>';
+      for(let batchIndex=0;batchIndex<chunks.length;batchIndex++){
+        status.textContent='Generating batch '+(batchIndex+1)+' of '+chunks.length+'…';
+        const chunk=chunks[batchIndex],expected=chunk.length;
+        const sourceChunk=chunk.map(x=>x.text).join('\n\n');
+        const prompt='Create exactly '+expected+' multiple-choice questions for batch '+(batchIndex+1)+' from the numbered source Q&A below. Convert each supplied question into one MCQ and use its supplied answer as the correct option. Preserve the question meaning and facts. Do not omit, duplicate, reorder, or add questions. Create exactly four distinct options per question. Return JSON questions with prompt, options (exactly 4), answer_index (0-3), explanation, and concept_key. Use only the supplied source; do not use outside facts. '+(instructions||'Use clear exam-style wording.');
+        const generated=await window.callLearningEngine('quiz',prompt,{resource_id:resourceId,source_title:resource?.name,question_format:'mcq',difficulty,question_count:expected,coverage,source_titles:[resource?.name||'PDF'],page_content:sourceChunk});
+        const raw=generated.result?.questions||generated.questions||[];
+        const qs=raw.filter(q=>q?.prompt&&Array.isArray(q.options)&&q.options.length===4&&Number.isInteger(Number(q.answer_index))&&Number(q.answer_index)>=0&&Number(q.answer_index)<=3&&q.options.every(o=>String(o||'').trim())).map(q=>({q:String(q.prompt),opts:q.options.map(String),ans:Number(q.answer_index),explanation:q.explanation||'',type:'mcq',conceptKey:q.concept_key||''}));
+        if(qs.length!==expected)throw new Error('Batch '+(batchIndex+1)+' returned '+qs.length+' valid four-option questions; expected '+expected+'. No incomplete batch was accepted.');
+        const quizId=await window.saveLucidQuiz({resourceId,sourceTitle:(resource?.name||'PDF')+' · Batch '+(batchIndex+1),title:(resource?.name||'PDF')+' · Batch '+(batchIndex+1),format:'mcq',difficulty,coverage,instructions,questions:qs.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:'mcq',concept_key:q.conceptKey}))});
+        window.currentQuizBatches.push({number:batchIndex+1,quizId,questions:qs,questionIds:[...(window.currentGeneratedQuestionIds||[])],conceptIds:[...(window.currentGeneratedConceptIds||[])],sourceTitle:resource?.name||'PDF'});
+        renderLucidQuizBatches();
+      }
+      close();openPage('practice');renderLucidQuizBatches();
+      showToast(chunks.length+' batches ('+entries.length+' questions) generated and saved.','✦');
+      startLucidQuizBatch(0);
+    }catch(error){status.textContent='Generation stopped: '+error.message;btn.disabled=false;btn.textContent='Retry generation →';showToast(error.message,'⚠');}
   };
+}
+function renderLucidQuizBatches(){
+  const practice=document.getElementById('practiceTab-quiz');if(!practice)return;
+  let host=document.getElementById('lucidQuizBatchList');
+  if(!host){host=document.createElement('section');host.id='lucidQuizBatchList';host.className='card card-padding';host.style.marginBottom='16px';const grid=practice.querySelector('.grid.two-col');if(grid)grid.parentNode.insertBefore(host,grid);}
+  const batches=window.currentQuizBatches||[];
+  if(!batches.length){host.innerHTML='<div class="kicker">PDF quiz batches</div><p class="muted small-text">Generate from an uploaded PDF to create separate 10-question batches.</p>';return;}
+  host.innerHTML='<div class="kicker">PDF quiz batches · '+batches.length+' saved</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+batches.map((b,i)=>'<button class="'+(window.activeLucidQuizBatch===i?'primary-button':'secondary-button')+' btn-sm" data-lucid-batch="'+i+'">Batch '+b.number+' · '+b.questions.length+' Q</button>').join('')+'</div>';
+  host.querySelectorAll('[data-lucid-batch]').forEach(button=>button.addEventListener('click',()=>startLucidQuizBatch(Number(button.dataset.lucidBatch))));
+}
+function startLucidQuizBatch(index){
+  const batch=(window.currentQuizBatches||[])[index];if(!batch)return;
+  window.activeLucidQuizBatch=index;window.currentGeneratedQuizId=batch.quizId;window.currentGeneratedQuestionIds=batch.questionIds;window.currentGeneratedConceptIds=batch.conceptIds;
+  window.currentQuizAttemptId=null;window.currentQuizSourceId=state.currentResourceId||null;
+  quizBank.length=0;quizBank.push(...batch.questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
+  const label=document.getElementById('quizSourceLabel');if(label)label.textContent=batch.sourceTitle+' · Batch '+batch.number;
+  const report=document.getElementById('quizReportCard');if(report){report.hidden=true;report.innerHTML='';}
+  const next=document.getElementById('nextQBtn');if(next){next.textContent='Next question →';next.onclick=()=>nextQuestion();}
+  const score=document.getElementById('quizScore');if(score)score.textContent='0/0';
+  const scoreBar=document.getElementById('quizScoreBar');if(scoreBar)scoreBar.style.width='0%';
+  const accuracy=document.getElementById('accuracyBar');if(accuracy)accuracy.style.width='0%';
+  const accuracyPct=document.getElementById('accuracyPct');if(accuracyPct)accuracyPct.textContent='—';
+  loadQuiz(0);renderLucidQuizBatches();
 }
 // ─── Flashcards ───────────────────────────────────
 function flipCard() { document.getElementById('flashcard').classList.toggle('flipped'); }

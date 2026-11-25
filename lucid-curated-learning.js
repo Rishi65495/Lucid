@@ -107,7 +107,7 @@
     const observer=new MutationObserver(()=>{const title=document.getElementById('docTitle')?.textContent||'';const pageNo=document.getElementById('pdfPageInput')?.value||'—';document.getElementById('readerInsightText').textContent=title&&title!=='Choose a resource to begin reading'?'Currently reading: '+title+'. PDF page '+pageNo+'. Use Ask AI for explanations; quiz and mastery metrics appear only after recorded attempts.':'Open a PDF to see its reading context.';});
     observer.observe(page,{subtree:true,childList:true,characterData:true,attributes:true});
   }
-  function init(){ensurePractice();ensureGoal();ensureReaderInsight();}
+  function init(){ensureGoal();ensureReaderInsight();}
   document.addEventListener('DOMContentLoaded',init);setTimeout(init,0);
-  document.addEventListener('click',e=>{if(e.target.closest('[data-page="practice"]'))setTimeout(ensurePractice,0);if(e.target.closest('[data-page="goals"]'))setTimeout(ensureGoal,0);if(e.target.closest('[data-page="reader"]'))setTimeout(ensureReaderInsight,0);});
+  document.addEventListener('click',e=>{if(e.target.closest('[data-page="goals"]'))setTimeout(ensureGoal,0);if(e.target.closest('[data-page="reader"]'))setTimeout(ensureReaderInsight,0);});
 })();

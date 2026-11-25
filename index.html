@@ -1058,7 +1058,7 @@ textarea{min-height:75px;resize:vertical;}
             <div id="quizOptions"><p class="muted small-text">No questions loaded. Select a PDF or catalogue to begin.</p></div>
             <div class="quiz-result" id="quizResult"></div>
             <div class="card card-padding" id="quizReportCard" hidden style="margin-top:16px;"></div>
-            <div style="display:flex;gap:8px;margin-top:16px;"><button class="secondary-button btn-sm" onclick="skipQuiz()" id="skipQuizBtn" disabled>Skip</button><button class="primary-button btn-sm" onclick="nextQuestion()" id="nextQBtn" style="display:none;">Next question →</button></div>
+            <div style="display:flex;gap:8px;margin-top:16px;"><button class="primary-button btn-sm" onclick="nextQuestion()" id="nextQBtn" style="display:none;">Next question →</button></div>
           </div>
           <div class="card card-padding">
             <div class="kicker">Session performance</div><div class="analytics-number" style="font-size:36px;" id="quizScore">0/0</div><div class="muted small-text">correct answers</div>
@@ -2013,7 +2013,7 @@ function nextQuestion() {
   if(!quizBank.length)return;
   if(currentQuizIdx+1>=quizBank.length){
     const report=document.getElementById('quizReportCard');
-    if(report){const pct=state.quizTotal?Math.round(state.quizCorrect/state.quizTotal*100):0;report.hidden=false;report.innerHTML='<div class="kicker">Quiz report card</div><h2>'+state.quizCorrect+' / '+state.quizTotal+' correct</h2><p class="muted small-text">Accuracy: '+pct+'% · '+(pct>=80?'Strong performance':pct>=50?'Developing understanding':'Needs revision')+'</p><p class="muted small-text">Your completed attempt is saved to your learning history and used to update topic mastery.</p>';}
+    if(report){const pct=state.quizTotal?Math.round(state.quizCorrect/state.quizTotal*100):0;report.hidden=false;report.innerHTML='<div class="kicker">Quiz report card</div><h2>'+state.quizCorrect+' / '+state.quizTotal+' correct</h2><p class="muted small-text">Accuracy: '+pct+'% · '+(pct>=80?'Strong performance':pct>=50?'Developing understanding':'Needs revision')+'</p><p class="muted small-text">Your result is recorded in your learning history and used to update topic mastery.</p>';}
     const next=document.getElementById('nextQBtn');if(next){next.textContent='Generate another quiz';next.onclick=()=>window.generateAIQuiz();}
     if(typeof window.loadLucidLearningProfile==='function')window.loadLucidLearningProfile().then(profile=>window.renderLucidWeakAreas?.(profile)).catch(console.warn);
     if(typeof window.loadLucidDashboardMetrics==='function')window.loadLucidDashboardMetrics().catch(console.warn);

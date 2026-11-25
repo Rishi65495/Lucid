@@ -220,7 +220,7 @@ window.generateAIQuiz = async function(){
       if(!questions.length)throw new Error('The AI did not return valid questions. Try a smaller question count or a more text-readable source.');
       let quizId=null;window.currentGeneratedQuestionIds=[];
       quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type,concept_key:q.conceptKey}))});
-      quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
+      const report=document.getElementById('quizReportCard');if(report){report.hidden=true;report.innerHTML='';}window.currentQuizPersistenceError=null;quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
       window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizSourceIds=context.source_resource_ids;window.currentQuizCatalogueId=context.catalogue_id;
       const label=document.getElementById('quizSourceLabel');if(label)label.textContent='Sources: '+context.source_titles.join(', ');
       const diff=document.getElementById('quizDifficultyTag');if(diff)diff.textContent='Difficulty: '+difficulty;

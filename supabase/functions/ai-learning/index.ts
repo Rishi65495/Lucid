@@ -72,7 +72,7 @@ HISTORY:
 ${history}
 Return ONLY valid JSON matching this structure:
 ${shape}
-For quiz generation, create exactly ${requestedCount} distinct questions. Requested format: ${quizFormat}. Difficulty: ${quizDifficulty}. Every question must be grounded in the supplied source context. For true_false, options must be exactly True and False. For mixed, include an appropriate mix of multiple-choice, true/false and application questions, with a type field for each. For case_based, use a short scenario and ask the learner to apply the source concept. Ensure answer_index is a zero-based integer that points to one of the options. Do not return markdown fences or commentary.
+For quiz generation, create exactly ${requestedCount} distinct questions. Requested format: ${quizFormat}. Difficulty: ${quizDifficulty}. Every question must be grounded in the supplied source context and include a concise non-empty concept_key naming the exact topic being tested. Reuse the same concept_key for questions testing the same topic. For true_false, options must be exactly True and False. For mixed, include an appropriate mix of multiple-choice, true/false and application questions, with a type field for each. For case_based, use a short scenario and ask the learner to apply the source concept. Ensure answer_index is a zero-based integer that points to one of the options. Do not return markdown fences or commentary.
 `;
     const generated=await gemini(prompt,action==='quiz'?Math.min(6500,1200+requestedCount*260):2500);
     const result=cleanJson(generated.text);

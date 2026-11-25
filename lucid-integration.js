@@ -178,22 +178,19 @@ window.collectLucidPracticeContext = async function(selection){
   for(const id of selection.resourceIds){
     const resource=(state.uploadedBooks||[]).find(r=>(r.resourceId||r.id)===id);
     if(!resource)continue;
-    const pages=await window.getLucidResourcePages(id,{});
+    const pages=await window.getLucidResourcePages(id,{sampleCount:6});
     if(!pages.length)continue;
-    // Keep practice prompts compact: evenly cover the source without sending entire books.
-    const maxPagesPerSource=8;
-    const stride=Math.max(1,Math.ceil(pages.length/maxPagesPerSource));
-    const sampled=pages.filter((_,i)=>i%stride===0).slice(0,maxPagesPerSource);
-    sources.push({id,title:resource.name,pages:sampled.map(p=>({page_number:p.page_number,text_content:String(p.text_content||'').slice(0,1800)}))});
+    // Random page sampling prevents large PDFs from exhausting the model context window.
+    sources.push({id,title:resource.name,pages:pages.map(p=>({page_number:p.page_number,text_content:String(p.text_content||'').slice(0,1100)}))});
   }
-  const pageContent=sources.map(source=>'SOURCE: '+source.title+'\n'+source.pages.map(page=>'PAGE '+page.page_number+':\n'+page.text_content).join('\n\n')).join('\n\n---\n\n').slice(0,30000);
+  const pageContent=sources.map(source=>'SOURCE: '+source.title+'\n'+source.pages.map(page=>'PAGE '+page.page_number+':\n'+page.text_content).join('\n\n')).join('\n\n---\n\n').slice(0,12000);
   if(!pageContent.trim())throw new Error('The selected PDFs have no extracted text. Reprocess the PDFs or run OCR before generating practice.');
   return {source_resource_ids:sources.map(x=>x.id),source_titles:sources.map(x=>x.title),catalogue_id:selection.catalogueId||null,page_content:pageContent,sources};
 };
 window.generateAIQuiz = async function(){
   const selection=await window.openLucidPracticeSourcePicker();if(!selection)return;
   const modal=document.createElement('div');modal.id='lucidQuizSettings';modal.className='modal-backdrop open';
-  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Configure your source-based quiz</h2><button class="close-button" type="button" id="quizSettingsClose">×</button></div><div class="form-stack"><p class="muted small-text" id="quizSelectedSources"></p><div class="form-row"><label class="form-label">Question count<select id="lucidQuizCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label><label class="form-label">Difficulty<select id="lucidQuizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div><label class="form-label">Focus instructions<textarea id="lucidQuizInstructions" placeholder="e.g. Focus on definitions, comparisons, applications or exam-style problems"></textarea></label><button class="primary-button full-width" id="lucidBuildQuiz">Generate from selected sources →</button><p class="muted small-text" id="lucidQuizStatus" aria-live="polite"></p></div></div>';
+  modal.innerHTML='<div class="modal"><div class="modal-header"><h2>Configure your source-based quiz</h2><button class="close-button" type="button" id="quizSettingsClose">×</button></div><div class="form-stack"><p class="muted small-text" id="quizSelectedSources"></p><div class="form-row"><label class="form-label">Question count<select id="lucidQuizCount"><option selected>5</option><option>10</option></select></label><label class="form-label">Difficulty<select id="lucidQuizDifficulty"><option>Balanced</option><option>Easy</option><option>Moderate</option><option>Hard</option><option>Exam level</option></select></label></div><label class="form-label">Focus instructions<textarea id="lucidQuizInstructions" placeholder="e.g. Focus on definitions, comparisons, applications or exam-style problems"></textarea></label><button class="primary-button full-width" id="lucidBuildQuiz">Generate from selected sources →</button><p class="muted small-text" id="lucidQuizStatus" aria-live="polite"></p></div></div>';
   document.body.appendChild(modal);
   modal.querySelector('#quizSelectedSources').textContent='Sources: '+selection.resources.map(x=>x.name).join(', ');
   const close=()=>modal.remove();modal.querySelector('#quizSettingsClose').onclick=close;modal.addEventListener('click',e=>{if(e.target===modal)close();});
@@ -217,9 +214,9 @@ window.generateAIQuiz = async function(){
         data=await window.callLearningEngine('quiz',request,{...context,question_count:count,difficulty,question_format:'mcq'});
       }
       const questions=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||'mcq',conceptKey:String(q.concept_key||'').trim()}));
-      if(!questions.length)throw new Error('The AI did not return valid questions. Try a smaller question count or a more text-readable source.');
+      if(questions.length!==count||questions.some(q=>q.opts.length!==4||!Number.isInteger(q.ans)||q.ans<0||q.ans>3))throw new Error('The AI must return exactly '+count+' complete four-option questions. Retry generation; incomplete batches are not saved.');
       let quizId=null;window.currentGeneratedQuestionIds=[];
-      quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type,concept_key:q.conceptKey}))});
+      quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'random_resource_sample',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type,concept_key:q.conceptKey}))});\n      if(!quizId)throw new Error('The quiz was generated but could not be saved. Please sign in again and retry.');
       const report=document.getElementById('quizReportCard');if(report){report.hidden=true;report.innerHTML='';}window.currentQuizPersistenceError=null;quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
       window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizSourceIds=context.source_resource_ids;window.currentQuizCatalogueId=context.catalogue_id;
       const label=document.getElementById('quizSourceLabel');if(label)label.textContent='Sources: '+context.source_titles.join(', ');
@@ -645,36 +642,38 @@ window.quickAI=async function(prompt){await window.askAboutCurrentVideo(prompt);
 
 
 window.recordLucidQuizAnswer = async function(answer){
-  if(!lucidSession?.user||typeof lucidSupabase==='undefined')return false;
-  const payload={question:String(answer.question||'').slice(0,2000),selected_option:String(answer.selectedOption||'').slice(0,1000),correct_option:String(answer.correctOption||'').slice(0,1000),is_correct:Boolean(answer.correct),quiz_index:Number(answer.quizIndex)||0,source:'practice_center'};
-  if(answer.quizId){
-    if(!window.currentQuizAttemptId){
-      const {data,error}=await lucidSupabase.from('quiz_attempts').insert({quiz_id:answer.quizId,user_id:lucidSession.user.id,score:0,max_score:Number(answer.totalQuestions)||1,result:{source:'practice_center'}}).select('id').single();
-      if(error)throw error;window.currentQuizAttemptId=data.id;
-    }
-    const questionId=window.currentGeneratedQuestionIds?.[Number(answer.quizIndex)];
-    const conceptId=window.currentGeneratedConceptIds?.[Number(answer.quizIndex)]||null;
-    if(questionId){
-      const {error}=await lucidSupabase.from('quiz_answers').insert({attempt_id:window.currentQuizAttemptId,question_id:questionId,answer:{selected_option:payload.selected_option},is_correct:payload.is_correct,feedback:String(answer.explanation||'')});
-      if(error)throw error;
-    }
-    if(conceptId){
+  if(!lucidSession?.user||typeof lucidSupabase==='undefined')throw new Error('Your session expired. Sign in again before submitting this quiz.');
+  if(!answer.quizId)throw new Error('This quiz has no saved quiz record. Generate it again before attempting.');
+  const payload={question:String(answer.question||'').slice(0,2000),selected_option:String(answer.selectedOption||'').slice(0,1000),correct_option:String(answer.correctOption||'').slice(0,1000),is_correct:Boolean(answer.correct),skipped:Boolean(answer.skipped),quiz_index:Number(answer.quizIndex)||0,source:'practice_center'};
+  if(!window.currentQuizAttemptId){
+    const {data,error}=await lucidSupabase.from('quiz_attempts').insert({quiz_id:answer.quizId,user_id:lucidSession.user.id,score:0,max_score:Number(answer.totalQuestions)||1,result:{source:'practice_center',status:'in_progress'}}).select('id').single();
+    if(error)throw error;
+    window.currentQuizAttemptId=data.id;
+  }
+  const questionId=window.currentGeneratedQuestionIds?.[Number(answer.quizIndex)];
+  if(!questionId)throw new Error('A question record is missing; this answer cannot be safely attached to the attempt.');
+  const {error:answerError}=await lucidSupabase.from('quiz_answers').insert({attempt_id:window.currentQuizAttemptId,question_id:questionId,answer:{selected_option:payload.selected_option,skipped:payload.skipped},is_correct:payload.is_correct,feedback:String(answer.explanation||'')});
+  if(answerError)throw answerError;
+  const completed=Number(answer.quizIndex)+1>=Number(answer.totalQuestions);
+  const correctCount=Number(answer.scoreAfter)||0,total=Number(answer.totalQuestions)||1;
+  const result={source:'practice_center',status:completed?'completed':'in_progress',answered:Number(answer.quizIndex)+1,question_count:total,correct_count:correctCount,accuracy:Math.round(correctCount/total*100),resource_ids:Array.from(new Set(window.currentQuizSourceIds||[])),submitted_at:completed?new Date().toISOString():null};
+  const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:correctCount,max_score:total,completed_at:completed?new Date().toISOString():null,result}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
+  if(updateError)throw updateError;
+  const conceptId=window.currentGeneratedConceptIds?.[Number(answer.quizIndex)]||null;
+  if(conceptId&&!answer.skipped){
+    try{
       const {error}=await lucidSupabase.rpc('update_concept_mastery',{p_concept_id:conceptId,p_exposure:100,p_understanding:answer.correct?100:35,p_recall:answer.correct?100:0,p_application:answer.correct?90:20,p_evidence:{source:'quiz',quiz_id:answer.quizId,question_id:questionId,is_correct:Boolean(answer.correct),answered_at:new Date().toISOString()}});
-      if(error)throw error;
-    }
-    const completed=Number(answer.quizIndex)+1>=Number(answer.totalQuestions);
-    const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(answer.scoreAfter)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
-    if(updateError)throw updateError;
+      if(error)console.warn('Quiz saved; mastery update deferred:',error.message);
+    }catch(masterError){console.warn('Quiz saved; mastery update deferred:',masterError);}
   }
   const sourceIds=Array.from(new Set((window.currentQuizSourceIds||[window.currentQuizSourceId||state.currentResourceId]).filter(Boolean)));
   const events=await Promise.all((sourceIds.length?sourceIds:[null]).map(resourceId=>lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:window.currentQuizCatalogueId||state.selectedCatalogueId||null,p_resource_id:resourceId,p_session_id:null,p_payload:payload})));
-  const eventError=events.find(x=>x.error)?.error;if(eventError)throw eventError;
-  if(answer.quizId&&Number(answer.quizIndex)+1>=Number(answer.totalQuestions)){
+  const eventError=events.find(x=>x.error)?.error;if(eventError)console.warn('Quiz saved; learning event logging failed:',eventError.message);
+  if(completed){
     try{await window.loadLucidAchievements();const profile=await window.loadLucidLearningProfile();window.renderLucidWeakAreas?.(profile);if(typeof window.loadLucidDashboardMetrics==='function')await window.loadLucidDashboardMetrics();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
   }
-  return true;
+  return {attemptId:window.currentQuizAttemptId,completed};
 };
-
 window.startLucidReadingSession = async function(){
   if(!lucidSession?.user)return null;
   const {data,error}=await lucidSupabase.from('reading_sessions').insert({
@@ -877,10 +876,24 @@ window.uploadLucidPdf = async function(file,catalogueId){
 };
 window.getLucidResourcePages = async function(resourceId,options={}){
   if(!lucidSession?.user||!resourceId)throw new Error('Sign in and choose a source PDF.');
-  let query=lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',resourceId).order('page_number',{ascending:true});
-  if(options.page)query=query.eq('page_number',Number(options.page));
-  else query=query.range(0,499);
-  const {data,error}=await query;if(error)throw error;return data||[];
+  if(options.page){
+    const {data,error}=await lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',resourceId).eq('page_number',Number(options.page)).limit(1);
+    if(error)throw error;return data||[];
+  }
+  if(options.sampleCount){
+    // Fetch only the small page-number index, then retrieve text for randomly selected pages.
+    const {data:index,error:indexError}=await lucidSupabase.from('resource_pages').select('page_number').eq('resource_id',resourceId).order('page_number',{ascending:true}).range(0,1999);
+    if(indexError)throw indexError;
+    const pageNumbers=(index||[]).map(x=>Number(x.page_number)).filter(Number.isFinite);
+    if(!pageNumbers.length)return [];
+    const shuffled=pageNumbers.slice();
+    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+    const chosen=shuffled.slice(0,Math.min(Math.max(1,Number(options.sampleCount)||6),pageNumbers.length)).sort((a,b)=>a-b);
+    const {data,error}=await lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',resourceId).in('page_number',chosen).order('page_number',{ascending:true});
+    if(error)throw error;return data||[];
+  }
+  const {data,error}=await lucidSupabase.from('resource_pages').select('page_number,text_content').eq('resource_id',resourceId).order('page_number',{ascending:true}).range(0,499);
+  if(error)throw error;return data||[];
 };
 window.loadLucidGoals = async function(){
   if(!lucidSession?.user)return [];

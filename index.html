@@ -2147,7 +2147,7 @@ function renderLucidQuizBatches(){
 function startLucidQuizBatch(index){
   const batch=(window.currentQuizBatches||[])[index];if(!batch)return;
   window.activeLucidQuizBatch=index;window.currentGeneratedQuizId=batch.quizId;window.currentGeneratedQuestionIds=batch.questionIds;window.currentGeneratedConceptIds=batch.conceptIds;
-  window.currentQuizAttemptId=null;window.currentQuizSourceId=state.currentResourceId||null;
+  window.currentQuizAttemptId=null;window.currentQuizSourceId=null;window.currentQuizSourceIds=[];window.currentQuizCatalogueId=null;
   quizBank.length=0;quizBank.push(...batch.questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
   const label=document.getElementById('quizSourceLabel');if(label)label.textContent=batch.sourceTitle+' · Batch '+batch.number;
   const report=document.getElementById('quizReportCard');if(report){report.hidden=true;report.innerHTML='';}

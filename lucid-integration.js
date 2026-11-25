@@ -546,14 +546,14 @@ window.recordLucidQuizAnswer = async function(answer){
       if(error)throw error;
     }
     const completed=Number(answer.quizIndex)+1>=Number(answer.totalQuestions);
-    const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(state.quizCorrect)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
+    const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(answer.scoreAfter)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
     if(updateError)throw updateError;
   }
   const sourceIds=Array.from(new Set((window.currentQuizSourceIds||[window.currentQuizSourceId||state.currentResourceId]).filter(Boolean)));
   const events=await Promise.all((sourceIds.length?sourceIds:[null]).map(resourceId=>lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:window.currentQuizCatalogueId||state.selectedCatalogueId||null,p_resource_id:resourceId,p_session_id:null,p_payload:payload})));
   const eventError=events.find(x=>x.error)?.error;if(eventError)throw eventError;
   if(answer.quizId&&Number(answer.quizIndex)+1>=Number(answer.totalQuestions)){
-    try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
+    try{await window.loadLucidAchievements();const profile=await window.loadLucidLearningProfile();window.renderLucidWeakAreas?.(profile);if(typeof window.loadLucidDashboardMetrics==='function')await window.loadLucidDashboardMetrics();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
   }
   return true;
 };

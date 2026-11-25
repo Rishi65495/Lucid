@@ -32,7 +32,8 @@ async function getLearnerContext(sb: any, user: any, request: string, preferredN
   if (scope === "progress" || scope === "overview") {
     jobs.journeys = sb.from("learning_journeys").select("completion,exposure,understanding,recall,application,last_activity_at,resource_id,catalogue_id,lucid_resources(title,type)").eq("owner_id", userId).order("last_activity_at", { ascending: false }).limit(12);
     jobs.mastery = sb.from("concept_mastery").select("mastery,exposure,understanding,recall,application,updated_at,concepts(title,normalized_key)").eq("user_id", userId).order("mastery", { ascending: true }).limit(12);
-    jobs.attempts = sb.from("quiz_attempts").select("score,max_score,completed_at,skipped,quizzes(title,quiz_type)").eq("user_id", userId).order("completed_at", { ascending: false }).limit(8);
+    jobs.attempts = sb.from("quiz_attempts").select("score,max_score,completed_at,skipped,result,quizzes(title,quiz_type)", { count: "exact" }).eq("user_id", userId).not("completed_at", "is", null).order("completed_at", { ascending: false }).limit(8);
+    jobs.availableQuizzes = sb.from("quizzes").select("id,title,quiz_type,created_at,source_context", { count: "exact" }).eq("owner_id", userId).order("created_at", { ascending: false }).limit(8);
     jobs.sessions = sb.from("reading_sessions").select("active_seconds,started_at,ended_at").eq("user_id", userId).order("started_at", { ascending: false }).limit(14);
   }
   if (scope === "resources" || scope === "overview") {
@@ -64,13 +65,14 @@ async function getLearnerContext(sb: any, user: any, request: string, preferredN
       tracked_learning_items: journeys.length,
       completed_items: journeys.filter((x: any) => Number(x.completion) >= 100).length,
       average_completion: journeys.length ? Math.round(journeys.reduce((sum: number, x: any) => sum + Number(x.completion || 0), 0) / journeys.length) : null,
-      completed_quiz_attempts: attempts.length,
+      completed_quiz_attempts: data.attempts?.count ?? attempts.length,
       quiz_accuracy: possible ? Math.round(earned / possible * 100) : null,
       recorded_focus_minutes: Math.round(sessions.reduce((sum: number, x: any) => sum + Number(x.active_seconds || 0), 0) / 60),
     };
     result.learning_journeys = journeys;
     result.concept_mastery = mastery;
-    result.recent_quiz_attempts = attempts.slice(0, 6);
+    result.recent_quiz_attempts = attempts.slice(0, 6).map((x: any) => ({ score: x.score, max_score: x.max_score, completed_at: x.completed_at, title: x.quizzes?.title || null, quiz_type: x.quizzes?.quiz_type || null }));
+    result.available_quizzes = { total: data.availableQuizzes?.count ?? (data.availableQuizzes?.data || []).length, recent: (data.availableQuizzes?.data || []).map((x: any) => ({ title: x.title, type: x.quiz_type, source_title: x.source_context?.source_title || null, created_at: x.created_at })) };
     result.recent_focus_sessions = sessions.slice(0, 7);
   }
   if (data.resources || data.catalogues) {

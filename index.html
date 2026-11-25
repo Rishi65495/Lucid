@@ -2362,12 +2362,38 @@ function toggleMobileDrawer() {
 
 // ─── Tab switching ────────────────────────────────
 function switchTab(groupId, tabId, btn) {
-  document.querySelectorAll(`[id^="${groupId}-"]`).forEach(el => el.classList.remove('active'));
-  document.getElementById(`${groupId}-${tabId}`)?.classList.add('active');
-  const row = btn.closest('.tab-row');
-  if (row) row.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  if(groupId==='practiceTab'&&tabId==='flashcards'&&window.loadLucidPracticeCards)window.loadLucidPracticeCards().catch(error=>showToast('Could not load due flashcards: '+error.message,'⚠'));
+  // Scope tab changes to the page containing the clicked control. This prevents
+  // similarly-prefixed IDs elsewhere in the app from affecting Practice Center.
+  const scope = btn?.closest('.page') || document;
+  const row = btn?.closest('.tab-row');
+  if (!row) return;
+
+  row.querySelectorAll('.tab-btn').forEach(button => {
+    const selected = button === btn;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-selected', selected ? 'true' : 'false');
+  });
+
+  scope.querySelectorAll('[id^="' + groupId + '-"]').forEach(panel => {
+    panel.classList.remove('active');
+    panel.setAttribute('aria-hidden', 'true');
+  });
+
+  const target = scope.querySelector('#' + CSS.escape(groupId + '-' + tabId));
+  if (target) {
+    target.classList.add('active');
+    target.setAttribute('aria-hidden', 'false');
+  }
+
+  // Load only the data belonging to the selected Practice Center section.
+  if (groupId === 'practiceTab') {
+    if (tabId === 'flashcards' && window.loadLucidPracticeCards) {
+      window.loadLucidPracticeCards().catch(error => showToast('Could not load flashcards: ' + error.message, '⚠'));
+    }
+    if (tabId === 'weakareas' && window.loadLucidLearningProfile) {
+      window.loadLucidLearningProfile().catch(error => showToast('Could not load weak areas: ' + error.message, '⚠'));
+    }
+  }
 }
 
 // ─── Dashboard setup ──────────────────────────────

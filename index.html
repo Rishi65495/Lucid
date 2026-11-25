@@ -658,6 +658,17 @@ textarea{min-height:75px;resize:vertical;}
 #video .video-learning-clock strong{color:var(--forest);font-family:'Space Mono',monospace}
 #video .video-topic-input{width:100%;margin:12px 0 8px;padding:11px;border:1px solid var(--line);border-radius:10px;background:white;color:var(--ink)}
 </style>
+<style id="lucid-human-design-polish">
+/* Restrained application chrome: quiet surfaces, clear hierarchy, no decorative clutter. */
+.topbar{min-height:68px;padding:0 2px;background:#f8faf7;border-bottom:1px solid #e5eae3;backdrop-filter:none}
+.topbar-actions{gap:12px}
+.top-icon{width:38px;height:38px;border-radius:10px;background:#fff;color:#43564a;border-color:#dfe6de;font-size:17px}
+.top-icon:hover{background:#f1f5ef;color:var(--forest);border-color:#cbd9ca}
+.notif-dot{top:7px;right:8px}
+#signOutButton{background:transparent;border-color:#dfe6de;color:#536257;box-shadow:none}
+#signOutButton:hover{background:#fff;border-color:#bdcdbd;transform:none}
+@media(max-width:720px){.topbar{min-height:60px}.topbar-actions{gap:7px}}
+</style>
 </head>
 <body>
 <div class="auth-gate" id="authGate" role="dialog" aria-modal="true" aria-labelledby="authTitle"><div class="auth-card"><div class="auth-brand"><div class="auth-brand-mark">L</div><div><div class="brand-name">Lucid</div><span class="brand-subtitle">your learning space</span></div></div><h1 id="authTitle">Welcome back.</h1><p id="authDescription">Sign in to securely access your learning workspace and AI agents.</p><form id="authForm" onsubmit="handleAuthSubmit(event)"><label>Email address<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required /></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required /></label><button class="primary-button full-width" id="authSubmit" type="submit">Sign in</button></form><button class="auth-switch" id="authModeSwitch" type="button" onclick="toggleAuthMode()">New to Lucid? Create an account</button><p class="auth-message" id="authMessage" aria-live="polite"></p></div></div>
@@ -728,12 +739,8 @@ textarea{min-height:75px;resize:vertical;}
       </div>
       <div class="topbar-actions">
         <button class="mobile-menu" onclick="toggleMobileDrawer()">☰</button>
-        <label class="search-box">
-          <span>⌕</span>
-          <input id="globalSearch" type="search" placeholder="Search library…" oninput="searchLibrary(this.value)" />
-        </label>
-        <div style="position:relative;">
-          <button class="top-icon" id="notifBtn" onclick="toggleNotifPanel()">♢<span class="notif-dot" id="notifDot"></span></button>
+        <div class="topbar-notifications" style="position:relative;">
+          <button class="top-icon" id="notifBtn" type="button" aria-label="Notifications" title="Notifications" onclick="toggleNotifPanel()"><span aria-hidden="true">♧</span><span class="notif-dot" id="notifDot"></span></button>
           <div class="notif-panel" id="notifPanel">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <strong style="font-size:13px;">Notifications</strong>
@@ -742,7 +749,7 @@ textarea{min-height:75px;resize:vertical;}
             <div id="notifList"><div class="muted small-text">No new learning notifications.</div></div>
           </div>
         </div>
-        <button class="top-icon" onclick="openPage('settings')">⚙</button><button class="secondary-button btn-sm" id="signOutButton" onclick="signOutLucid()">Sign out</button>
+        <button class="secondary-button btn-sm" id="signOutButton" onclick="signOutLucid()">Sign out</button>
         <button class="primary-button" onclick="openModal('uploadModal')">＋ Add resource</button>
       </div>
     </header>

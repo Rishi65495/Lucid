@@ -216,12 +216,11 @@ window.generateAIQuiz = async function(){
         status.textContent='Local model unavailable or returned invalid questions. Trying Gemini fallback…';
         data=await window.callLearningEngine('quiz',request,{...context,question_count:count,difficulty,question_format:'mcq'});
       }
-      const questions=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||'mcq'}));
+      const questions=(data.result?.questions||data.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Math.max(0,Math.min(q.options.length-1,Number(q.answer_index)||0)),explanation:q.explanation||'',type:q.type||'mcq',conceptKey:String(q.concept_key||'').trim()}));
       if(!questions.length)throw new Error('The AI did not return valid questions. Try a smaller question count or a more text-readable source.');
       let quizId=null;window.currentGeneratedQuestionIds=[];
-      try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type}))});}
-      catch(saveError){console.warn('Quiz generated but could not be saved:',saveError.message);}
-      quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
+      quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty,coverage:'selected_sources',instructions,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,type:q.type,concept_key:q.conceptKey}))});
+      const report=document.getElementById('quizReportCard');if(report){report.hidden=true;report.innerHTML='';}window.currentQuizPersistenceError=null;quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;
       window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizSourceIds=context.source_resource_ids;window.currentQuizCatalogueId=context.catalogue_id;
       const label=document.getElementById('quizSourceLabel');if(label)label.textContent='Sources: '+context.source_titles.join(', ');
       const diff=document.getElementById('quizDifficultyTag');if(diff)diff.textContent='Difficulty: '+difficulty;
@@ -302,27 +301,33 @@ window.practiceWeak = async function(topic){
   try{
     const context=await window.collectLucidPracticeContext(selection),profile=await window.loadLucidLearningProfile();
     const data=await window.callLearningEngine('quiz','Create five remedial multiple-choice questions about the learner weak area "'+topic+'". Use only the selected source material and explain each answer.',{...context,learner_evidence:profile,topic,question_count:5,question_format:'mcq'});
-    const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||''}));
+    const questions=(data.result?.questions||[]).filter(q=>q.prompt&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({q:q.prompt,opts:q.options,ans:Number(q.answer_index)||0,explanation:q.explanation||'',conceptKey:String(q.concept_key||'').trim()}));
     if(!questions.length)throw new Error('No source-grounded remedial questions were returned.');
     let quizId=null;window.currentGeneratedQuestionIds=[];
-    try{quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty:'Balanced',coverage:'weak_area',instructions:'Remedial practice for '+topic,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation}))});}catch(saveError){console.warn('Remedial quiz history could not be saved:',saveError.message);}
+    quizId=await window.saveLucidQuiz({resourceId:context.source_resource_ids.length===1?context.source_resource_ids[0]:null,resourceIds:context.source_resource_ids,catalogueId:context.catalogue_id,sourceTitle:context.source_titles.join(', '),format:'mcq',difficulty:'Balanced',coverage:'weak_area',instructions:'Remedial practice for '+topic,questions:questions.map(q=>({prompt:q.q,options:q.opts,answer_index:q.ans,explanation:q.explanation,concept_key:q.conceptKey}))});
     quizBank.length=0;quizBank.push(...questions);currentQuizIdx=0;state.quizCorrect=0;state.quizTotal=0;window.currentQuizAttemptId=null;window.currentGeneratedQuizId=quizId;window.currentQuizSourceId=context.source_resource_ids[0]||null;window.currentQuizCatalogueId=context.catalogue_id;window.currentGeneratedQuestionIds=window.currentGeneratedQuestionIds||[];const sourceLabel=document.getElementById('quizSourceLabel');if(sourceLabel)sourceLabel.textContent='Weak area: '+topic+' · '+context.source_titles.join(', ');loadQuiz(0);openPage('practice');showToast('Remedial practice generated from selected sources for '+topic+'.','✦');
   }catch(error){showToast('Weak-area practice failed: '+error.message,'⚠');}
 };
 window.renderLucidWeakAreas = function(profile){
   const list=document.getElementById('weakAreaList');if(!list)return;
-  const items=(profile?.weakConcepts||[]).filter(x=>Number.isFinite(Number(x.mastery))).sort((a,b)=>a.mastery-b.mastery);
+  const items=(profile?.allConcepts||profile?.weakConcepts||[]).filter(x=>Number.isFinite(Number(x.mastery))).sort((a,b)=>a.mastery-b.mastery);
   list.innerHTML='';
   if(!items.length){list.innerHTML='<p class="muted small-text">No measured concept mastery is available yet. Complete a source-based quiz or oral recall to build this list.</p>';return;}
-  items.slice(0,10).forEach(item=>{
+  const weakItems=items.filter(x=>x.mastery<70).slice(0,10),strongItems=items.filter(x=>x.mastery>=80).slice(0,10);
+  const groups=[{title:'Weak topics',items:weakItems,action:true},{title:'Strong topics',items:strongItems,action:false}];
+  groups.forEach(group=>{
+   const heading=document.createElement('h3');heading.textContent=group.title;heading.style.margin='12px 0 2px';list.appendChild(heading);
+   if(!group.items.length){const empty=document.createElement('p');empty.className='muted small-text';empty.textContent=group.action?'No weak topics measured yet. Complete a quiz to build evidence.':'No strong topics measured yet. Reach 80% mastery to appear here.';list.appendChild(empty);}
+   group.items.forEach(item=>{
     const row=document.createElement('div');row.className='goal-item';
     const body=document.createElement('div');body.style.flex='1';
     const title=document.createElement('strong');title.textContent=item.name;
     const meta=document.createElement('div');meta.className='muted small-text';meta.textContent='Recorded mastery: '+Math.round(item.mastery)+'% · Recall '+Math.round(item.recall||0)+'% · Application '+Math.round(item.application||0)+'%';
     const track=document.createElement('div');track.className='progress-track';track.style.marginTop='6px';
     const fill=document.createElement('span');fill.className='progress-fill rose';fill.style.width=Math.max(0,Math.min(100,item.mastery))+'%';track.appendChild(fill);body.append(title,meta,track);
-    const button=document.createElement('button');button.className='secondary-button btn-sm';button.textContent='Practice';button.onclick=()=>window.practiceWeak(item.name);
-    row.append(body,button);list.appendChild(row);
+    if(group.action){const button=document.createElement('button');button.className='secondary-button btn-sm';button.textContent='Practice';button.onclick=()=>window.practiceWeak(item.name);row.append(body,button);}else row.append(body);
+    list.appendChild(row);
+   });
   });
 };
 
@@ -648,19 +653,24 @@ window.recordLucidQuizAnswer = async function(answer){
       if(error)throw error;window.currentQuizAttemptId=data.id;
     }
     const questionId=window.currentGeneratedQuestionIds?.[Number(answer.quizIndex)];
+    const conceptId=window.currentGeneratedConceptIds?.[Number(answer.quizIndex)]||null;
     if(questionId){
       const {error}=await lucidSupabase.from('quiz_answers').insert({attempt_id:window.currentQuizAttemptId,question_id:questionId,answer:{selected_option:payload.selected_option},is_correct:payload.is_correct,feedback:String(answer.explanation||'')});
       if(error)throw error;
     }
+    if(conceptId){
+      const {error}=await lucidSupabase.rpc('update_concept_mastery',{p_concept_id:conceptId,p_exposure:100,p_understanding:answer.correct?100:35,p_recall:answer.correct?100:0,p_application:answer.correct?90:20,p_evidence:{source:'quiz',quiz_id:answer.quizId,question_id:questionId,is_correct:Boolean(answer.correct),answered_at:new Date().toISOString()}});
+      if(error)throw error;
+    }
     const completed=Number(answer.quizIndex)+1>=Number(answer.totalQuestions);
-    const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(state.quizCorrect)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
+    const {error:updateError}=await lucidSupabase.from('quiz_attempts').update({score:Number(answer.scoreAfter)||0,max_score:Number(answer.totalQuestions)||1,completed_at:completed?new Date().toISOString():null,result:{source:'practice_center',answered:Number(answer.quizIndex)+1}}).eq('id',window.currentQuizAttemptId).eq('user_id',lucidSession.user.id);
     if(updateError)throw updateError;
   }
   const sourceIds=Array.from(new Set((window.currentQuizSourceIds||[window.currentQuizSourceId||state.currentResourceId]).filter(Boolean)));
   const events=await Promise.all((sourceIds.length?sourceIds:[null]).map(resourceId=>lucidSupabase.rpc('track_learning_event',{p_event_type:'quiz_answered',p_catalogue_id:window.currentQuizCatalogueId||state.selectedCatalogueId||null,p_resource_id:resourceId,p_session_id:null,p_payload:payload})));
   const eventError=events.find(x=>x.error)?.error;if(eventError)throw eventError;
   if(answer.quizId&&Number(answer.quizIndex)+1>=Number(answer.totalQuestions)){
-    try{await window.loadLucidAchievements();await window.loadLucidLearningProfile();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
+    try{await window.loadLucidAchievements();const profile=await window.loadLucidLearningProfile();window.renderLucidWeakAreas?.(profile);if(typeof window.loadLucidDashboardMetrics==='function')await window.loadLucidDashboardMetrics();}catch(refreshError){console.warn('Could not refresh quiz learning evidence:',refreshError.message);}
   }
   return true;
 };
@@ -1015,17 +1025,40 @@ window.saveLucidQuiz = async function(input){
     source_context:{coverage:input.coverage||'whole',instructions:input.instructions||'',source_title:input.sourceTitle||'',source_resource_ids:input.resourceIds||[input.resourceId].filter(Boolean),question_count:(input.questions||[]).length}
   }).select('id').single();
   if(error)throw error;
-  const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.prompt||q.q,options:q.options||q.opts||[],answer:{answer_index:Number(q.answer_index??q.ans)||0},explanation:q.explanation||'',difficulty:({Easy:1,Balanced:3,Moderate:3,Hard:4,'Exam level':5}[input.difficulty]||3),order_index:index}));
-  const saved=await lucidSupabase.from('questions').insert(rows).select('id,order_index');
+  const conceptMap=new Map();
+  for(const q of (input.questions||[])){
+    const title=String(q.concept_key||q.conceptKey||'').trim();
+    if(!title)continue;
+    const normalized_key=title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,100);
+    if(!normalized_key)continue;
+    let concept=conceptMap.get(normalized_key);
+    if(!concept){
+      const upsert=await lucidSupabase.from('concepts').upsert({title,normalized_key},{onConflict:'normalized_key'}).select('id,normalized_key').single();
+      if(upsert.error)throw upsert.error;
+      concept={id:upsert.data.id,title};conceptMap.set(normalized_key,concept);
+    }
+    q._lucidConceptId=concept.id;
+  }
+  const sourceIds=Array.from(new Set(input.resourceIds||[input.resourceId].filter(Boolean)));
+  for(const concept of conceptMap.values()){
+    for(const resource_id of sourceIds){
+      const linked=await lucidSupabase.from('concept_resources').upsert({concept_id:concept.id,resource_id,evidence:{source_title:input.sourceTitle||'',quiz_id:quiz.id}},{onConflict:'concept_id,resource_id'});
+      if(linked.error)throw linked.error;
+    }
+  }
+  const rows=(input.questions||[]).map((q,index)=>({quiz_id:quiz.id,question_type:q.type||input.format||'mcq',prompt:q.prompt||q.q,options:q.options||q.opts||[],answer:{answer_index:Number(q.answer_index??q.ans)||0},explanation:q.explanation||'',difficulty:({Easy:1,Balanced:3,Moderate:3,Hard:4,'Exam level':5}[input.difficulty]||3),concept_id:q._lucidConceptId||null,order_index:index}));
+  const saved=await lucidSupabase.from('questions').insert(rows).select('id,order_index,concept_id');
   if(saved.error){await lucidSupabase.from('quizzes').delete().eq('id',quiz.id).eq('owner_id',lucidSession.user.id);throw saved.error;}
-  window.currentGeneratedQuestionIds=(saved.data||[]).sort((a,b)=>a.order_index-b.order_index).map(x=>x.id);
+  const ordered=(saved.data||[]).sort((a,b)=>a.order_index-b.order_index);
+  window.currentGeneratedQuestionIds=ordered.map(x=>x.id);
+  window.currentGeneratedConceptIds=ordered.map(x=>x.concept_id||null);
   return quiz.id;
 };
 window.loadLucidLearningProfile = async function(){
   if(!lucidSession?.user)return null;
   const uid=lucidSession.user.id;
   const [mastery,attempts,sessions]=await Promise.all([
-    lucidSupabase.from('concept_mastery').select('concept_id,mastery,recall,application,updated_at').eq('user_id',uid).order('mastery',{ascending:true}).limit(12),
+    lucidSupabase.from('concept_mastery').select('concept_id,mastery,recall,application,updated_at').eq('user_id',uid).order('mastery',{ascending:true}).limit(100),
     lucidSupabase.from('quiz_attempts').select('score,max_score,completed_at').eq('user_id',uid).not('completed_at','is',null).order('completed_at',{ascending:false}).limit(20),
     lucidSupabase.from('reading_sessions').select('active_seconds,started_at,ended_at').eq('user_id',uid).order('started_at',{ascending:false}).limit(30)
   ]);
@@ -1038,7 +1071,7 @@ window.loadLucidLearningProfile = async function(){
   const weak=(mastery.data||[]).map(x=>({name:names.get(x.concept_id)||'Concept',mastery:toPct(x.mastery),recall:toPct(x.recall),application:toPct(x.application),updated_at:x.updated_at}));
   const completedAttempts=attempts.data||[],avgAccuracy=completedAttempts.length?Math.round(completedAttempts.reduce((sum,x)=>sum+(Number(x.max_score)>0?Number(x.score)/Number(x.max_score)*100:0),0)/completedAttempts.length):null;
   const totalFocusSeconds=(sessions.data||[]).reduce((sum,x)=>sum+(Number(x.active_seconds)||0),0);
-  const profile={weakConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
+  const profile={weakConcepts:weak.filter(x=>x.mastery<70),strongConcepts:weak.filter(x=>x.mastery>=80),allConcepts:weak,averageQuizAccuracy:avgAccuracy,completedQuizzes:completedAttempts.length,recentSessions:(sessions.data||[]).length,totalFocusMinutes:Math.round(totalFocusSeconds/60)};
   window.currentLucidLearningProfile=profile;
   const masteryChart=document.getElementById('analyticsMasteryChart');
   if(masteryChart){

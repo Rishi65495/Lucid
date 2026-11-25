@@ -35,7 +35,7 @@ async function gemini(prompt:string,maxOutputTokens=2500){
    finally{clearTimeout(timeout);}
    if(attempt===0&&[429,500,502,503,504].includes(lastStatus))await new Promise(resolve=>setTimeout(resolve,500));
   }
-  if(![429,500,502,503,504].includes(lastStatus))break;
+  if(![400,404,429,500,502,503,504].includes(lastStatus))break;
  }
  const error=new Error(lastError);(error as any).status=lastStatus;throw error;
 }
